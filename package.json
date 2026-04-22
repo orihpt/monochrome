@@ -60,7 +60,7 @@
         "vite-plugin-pwa": "^1.2.0"
     },
     "overrides": {
-        "sourcemap-codec": "^1.4.14",
+        "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@1.5.0",
         "source-map": "^0.7.4",
         "serialize-javascript": "^7.0.3"
     },

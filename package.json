@@ -38,6 +38,7 @@
         "@capacitor/assets": "^3.0.5",
         "@capacitor/cli": "^8.2.0",
         "@lhci/cli": "^0.14.0",
+        "@playwright/test": "^1.59.1",
         "@testing-library/dom": "^10.4.1",
         "@types/node": "^25.3.5",
         "@vitest/browser-playwright": "^4.1.2",
@@ -60,7 +61,6 @@
         "vite-plugin-pwa": "^1.2.0"
     },
     "overrides": {
-        "sourcemap-codec": "^1.4.14",
         "source-map": "^0.7.4",
         "serialize-javascript": "^7.0.3"
     },

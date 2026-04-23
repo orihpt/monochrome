@@ -38,27 +38,8 @@ let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
 
 async function uploadImage(file) {
-    try {
-        const fileNameWithoutSpace = file.name.replace(/\s/g, '_');
-        const response = await fetch(`https://worker.uploads.monochrome.qzz.io/${fileNameWithoutSpace}`, {
-            method: 'PUT',
-            headers: {
-                'x-api-key': 'if_youre_reading_this_fuck_off',
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-        });
-
-        if (!response.ok) {
-            if (response.status === 413) throw new Error('File exceeds 10MB');
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        return `https://images.monochrome.qzz.io/${await response.text()}`;
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
-    }
+    console.log('Local-only: Upload disabled', file);
+    return '/assets/appicon.png';
 }
 
 function setupImageUploadControl(idPrefix) {
@@ -259,8 +240,11 @@ export async function loadProfile(username) {
 
     if (profile.lastfm_username && profile.privacy?.lastfm !== 'private') {
         const lfmEl = document.getElementById('profile-lastfm');
+        /* Disabled for Standalone Mode
         lfmEl.href = `https://last.fm/user/${profile.lastfm_username}`;
         lfmEl.style.display = 'inline-block';
+        */
+        lfmEl.style.display = 'none';
     }
 
     if (profile.lastfm_username && profile.privacy?.lastfm !== 'private') {
@@ -939,56 +923,7 @@ async function fetchFallbackArtistImage(artistName, imgId) {
     }
 }
 
-async function fetchLastFmRecentTracks(username) {
-    const apiKey = '85214f5abbc730e78770f27784b9bdf7';
-    const url = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${encodeURIComponent(username)}&api_key=${apiKey}&format=json&limit=5`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const tracks = data.recenttracks?.track;
-        if (!tracks) return [];
-        return Array.isArray(tracks) ? tracks : [tracks];
-    } catch (e) {
-        console.error('Failed to fetch Last.fm recent tracks', e);
-        return [];
-    }
-}
-
-async function fetchLastFmTopArtists(username) {
-    const apiKey = '85214f5abbc730e78770f27784b9bdf7';
-    const url = `https://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=${encodeURIComponent(username)}&api_key=${apiKey}&format=json&limit=6`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        return data.topartists?.artist || [];
-    } catch (e) {
-        console.error('Failed to fetch Last.fm top artists', e);
-        return [];
-    }
-}
-
-async function fetchLastFmTopAlbums(username) {
-    const apiKey = '85214f5abbc730e78770f27784b9bdf7';
-    const url = `https://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user=${encodeURIComponent(username)}&api_key=${apiKey}&format=json&limit=6`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        return data.topalbums?.album || [];
-    } catch (e) {
-        console.error('Failed to fetch Last.fm top albums', e);
-        return [];
-    }
-}
-
-async function fetchLastFmTopTracks(username) {
-    const apiKey = '85214f5abbc730e78770f27784b9bdf7';
-    const url = `https://ws.audioscrobbler.com/2.0/?method=user.gettoptracks&user=${encodeURIComponent(username)}&api_key=${apiKey}&format=json&limit=5`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        return data.toptracks?.track || [];
-    } catch (e) {
-        console.error('Failed to fetch Last.fm top tracks', e);
-        return [];
-    }
-}
+async function fetchLastFmRecentTracks() { return []; }
+async function fetchLastFmTopArtists() { return []; }
+async function fetchLastFmTopAlbums() { return []; }
+async function fetchLastFmTopTracks() { return []; }

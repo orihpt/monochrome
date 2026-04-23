@@ -177,6 +177,17 @@ export class AuthManager {
         const emailToggleBtn = document.getElementById('toggle-email-auth-btn');
         const githubBtn = document.getElementById('auth-github-btn');
         const discordBtn = document.getElementById('auth-discord-btn');
+        const subsonicUser = localStorage.getItem('subsonic_user');
+
+        if (subsonicUser) {
+            if (statusText) statusText.textContent = `Signed in as ${subsonicUser}`;
+            if (githubBtn) githubBtn.style.display = 'none';
+            if (discordBtn) discordBtn.style.display = 'none';
+            if (emailToggleBtn) emailToggleBtn.style.display = 'none';
+            const description = document.querySelector('.account-description');
+            if (description) description.textContent = 'You are signed in to your local music ecosystem.';
+            return;
+        }
 
         if (!connectBtn) return;
 

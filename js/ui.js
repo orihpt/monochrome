@@ -310,7 +310,7 @@ export class UIRenderer {
                             ? this.api.getArtistPictureUrl(item.cover)
                             : this.api.getCoverUrl(item.cover);
                     const coverClass = item.type === 'artist' ? 'artist' : '';
-                    iconHTML = `<img src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='assets/logo.svg'">`;
+                    iconHTML = `<img src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='assets/1024w_new.png'">`;
                 }
 
                 return `
@@ -574,23 +574,9 @@ export class UIRenderer {
             return `<video src="${videoCoverUrl}" poster="${imageUrl}" class="${className}" alt="${alt}" preload="metadata" playsinline muted></video>`;
         }
 
-        if (
-            isEditorsPick &&
-            cover &&
-            typeof cover === 'string' &&
-            !cover.startsWith('http') &&
-            !cover.startsWith('blob:') &&
-            !cover.startsWith('assets/')
-        ) {
-            const formattedId = String(cover).replace(/-/g, '/');
-            const tidalUrl = `https://resources.tidal.com/images/${formattedId}/320x320.jpg`;
-            const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(tidalUrl)}&w=250&h=250&output=webp`;
-            const fetchPriorityAttr = loading === 'eager' ? ' fetchpriority="high"' : '';
-            return `<img src="${wsrvUrl}" class="${className}" alt="${alt}" loading="${loading}"${fetchPriorityAttr}>`;
-        }
-
         return `<img src="${imageUrl}" class="${className}" alt="${alt}" loading="${loading}">`;
     }
+
 
     createBaseCardHTML({
         type,
@@ -2728,21 +2714,25 @@ export class UIRenderer {
                 if (editorsPicksSection) editorsPicksSection.style.display = hasActivity ? '' : 'none';
             }
 
+            /* Disabled for offline-first local media ecosystem
             // Render editor's picks in the visible container
             if (hasActivity) {
                 await this.renderHomeEditorsPicks(false, 'home-editors-picks');
             } else {
                 await this.renderHomeEditorsPicks(false, 'home-editors-picks-empty');
             }
+            */
+            if (editorsPicksSectionEmpty) editorsPicksSectionEmpty.style.display = 'none';
+            if (editorsPicksSection) editorsPicksSection.style.display = 'none';
 
             if (!hasActivity) {
-                if (welcomeEl) welcomeEl.style.display = 'block';
-                if (contentEl) contentEl.style.display = 'none';
-                return;
+                if (welcomeEl) welcomeEl.style.display = 'none';
+                if (contentEl) contentEl.style.display = 'block';
+                // Continue to render home content even if no local history
+            } else {
+                if (welcomeEl) welcomeEl.style.display = 'none';
+                if (contentEl) contentEl.style.display = 'block';
             }
-
-            if (welcomeEl) welcomeEl.style.display = 'none';
-            if (contentEl) contentEl.style.display = 'block';
 
             const refreshSongsBtn = document.getElementById('refresh-songs-btn');
             const refreshAlbumsBtn = document.getElementById('refresh-albums-btn');
@@ -2815,9 +2805,12 @@ export class UIRenderer {
         container.innerHTML = `<div class="card-grid">${this.createSkeletonCards(12)}</div>`;
 
         try {
+            /* Disabled for offline-first local media ecosystem
             const response = await fetch('https://hot.monochrome.tf/');
             if (!response.ok) throw new Error('Failed to load explore data');
             const data = await response.json();
+            */
+            const data = { albums: [], tracks: [] };
 
             container.innerHTML = '';
 
@@ -2968,9 +2961,12 @@ export class UIRenderer {
         });
 
         try {
+            /* Disabled for offline-first local media ecosystem
             const response = await fetch(`https://hot.monochrome.tf/explore/genre/?id=${genreId}`);
             if (!response.ok) throw new Error('Failed to load genre data');
             const data = await response.json();
+            */
+            const data = { sections: [] };
 
             const header = container.firstElementChild;
             container.innerHTML = '';
@@ -3075,10 +3071,17 @@ export class UIRenderer {
                     ...history.map((t) => t.id),
                 ]);
 
-                let recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
-                    skipCache: forceRefresh,
-                    knownTrackIds: knownTrackIds,
-                });
+                let recommendedTracks = [];
+                if (seeds.length > 0) {
+                    recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
+                        skipCache: forceRefresh,
+                        knownTrackIds: knownTrackIds,
+                    });
+                } else {
+                    // Fallback to random songs if no seeds
+                    const res = await this.api.fetchAPI('getRandomSongs', 'size=20');
+                    recommendedTracks = (res?.randomSongs?.song || []).map(s => this.api.prepareTrack(s));
+                }
 
                 try {
                     const { smartRecommendations } = await import('./smart-recommendations.js');
@@ -3126,34 +3129,37 @@ export class UIRenderer {
 
             try {
                 const seeds = providedSeeds || (await this.getSeeds());
+                let albumsToRender = [];
                 const albumSeed = seeds.find((t) => t.album && t.album.id);
+
                 if (albumSeed) {
                     const similarAlbums = await this.api.getSimilarAlbums(albumSeed.album.id);
-                    const filteredAlbums = await this.filterUserContent(similarAlbums, 'album');
+                    albumsToRender = await this.filterUserContent(similarAlbums, 'album');
+                } else {
+                    // Fallback to latest albums if no seeds
+                    const newestAlbums = await this.api.getHomeContent();
+                    albumsToRender = await this.filterUserContent(newestAlbums, 'album');
+                }
 
-                    if (filteredAlbums.length > 0) {
-                        albumsContainer.innerHTML = filteredAlbums
-                            .slice(0, 12)
-                            .map((a) => this.createAlbumCardHTML(a))
-                            .join('');
-                        for (const a of filteredAlbums.slice(0, 12)) {
-                            const el = albumsContainer.querySelector(`[data-album-id="${a.id}"]`);
-                            if (el) {
-                                trackDataStore.set(el, a);
-                                await this.updateLikeState(el, 'album', a.id);
-                            }
+                if (albumsToRender.length > 0) {
+                    albumsContainer.innerHTML = albumsToRender
+                        .slice(0, 12)
+                        .map((a) => this.createAlbumCardHTML(a))
+                        .join('');
+                    for (const a of albumsToRender.slice(0, 12)) {
+                        const el = albumsContainer.querySelector(`[data-album-id="${a.id}"]`);
+                        if (el) {
+                            trackDataStore.set(el, a);
+                            await this.updateLikeState(el, 'album', a.id);
                         }
-                    } else if (retryCount < 2) {
+                    }
+                } else {
+                    if (retryCount < 2) {
                         await new Promise((resolve) => setTimeout(resolve, 1500));
                         return this.renderHomeAlbums(forceRefresh, null, retryCount + 1);
                     } else {
                         albumsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem 0;">${createPlaceholder('Tell us more about what you like so we can recommend albums!')}</div>`;
                     }
-                } else if (retryCount < 2) {
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
-                    return this.renderHomeAlbums(forceRefresh, null, retryCount + 1);
-                } else {
-                    albumsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem 0;">${createPlaceholder('Tell us more about what you like so we can recommend albums!')}</div>`;
                 }
             } catch (e) {
                 console.error(e);
@@ -3195,7 +3201,7 @@ export class UIRenderer {
     }
 
     async renderHomeEditorsPicks(forceRefresh = false, containerId = 'home-editors-picks') {
-        const picksContainer = document.getElementById(containerId);
+        return; // Disabled for offline-first local media ecosystem
 
         if (picksContainer) {
             if (forceRefresh) picksContainer.innerHTML = this.createSkeletonCards(6);
@@ -4031,10 +4037,13 @@ export class UIRenderer {
 
             async function fetchAotyWorker(album, artist) {
                 try {
+                    /* Disabled for Standalone Mode
                     const response = await fetch(
                         `https://aoty-api.hnh65483.workers.dev/?artist=${artist}&album=${album}`
                     );
                     const data = await response.json();
+                    */
+                    const data = { critic: { score: 'NR', count: 0, reviews: [] } };
 
                     const critviews = data.critic.reviews || [];
 
@@ -4064,7 +4073,7 @@ export class UIRenderer {
 
                                 reviewdiv.innerHTML = `
                                     <img src="${review.image}" width="50" height="50" style="border-radius: 8px; object-fit: cover; background: var(--highlight);"
-                                         onerror="this.src='images/monochrome-logo.svg'; this.onerror=null;"
+                                         onerror="this.src='assets/1024w_new.png'; this.onerror=null;"
                                          loading="lazy"
                                          referrerpolicy="no-referrer">
                                     <div style="flex: 1;">
@@ -5223,14 +5232,20 @@ export class UIRenderer {
             `;
 
             this.api.getArtistSocials(artist.name).then((links) => {
-                if (socialsEl && links.length > 0) {
+                if (socialsEl && links && links.length > 0) {
                     socialsEl.innerHTML = links.map((link) => this.createSocialLinkHTML(link)).join('');
                 }
             });
 
-            artist.tracks = artist.tracks.filter((t) => !_isBlockedCopyright(t.copyright));
-            artist.albums = artist.albums.filter((t) => !_isBlockedCopyright(t.copyright));
-            if (artist.eps) artist.eps = artist.eps.filter((t) => !_isBlockedCopyright(t.copyright));
+            if (artist.tracks && Array.isArray(artist.tracks)) {
+                artist.tracks = artist.tracks.filter((t) => !_isBlockedCopyright(t.copyright));
+            }
+            if (artist.albums && Array.isArray(artist.albums)) {
+                artist.albums = artist.albums.filter((t) => !_isBlockedCopyright(t.copyright));
+            }
+            if (artist.eps && Array.isArray(artist.eps)) {
+                artist.eps = artist.eps.filter((t) => !_isBlockedCopyright(t.copyright));
+            }
 
             await this.renderListWithTracks(tracksContainer, artist.tracks, true);
 

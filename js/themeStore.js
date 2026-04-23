@@ -445,17 +445,7 @@ export class ThemeStore {
                         css = fontFace + css;
                     }
                 } else {
-                    console.log(`Applying custom font from theme (Google Fonts): ${mainFont}`);
-                    const encodedFamily = encodeURIComponent(mainFont);
-                    const url = `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@100;200;300;400;500;600;700;800;900&display=swap`;
-
-                    if (!link) {
-                        link = document.createElement('link');
-                        link.id = FONT_LINK_ID;
-                        link.rel = 'stylesheet';
-                        document.head.appendChild(link);
-                    }
-                    link.href = url;
+                    console.log(`Local-only: Google Fonts disabled for ${mainFont}`);
                 }
             }
         }

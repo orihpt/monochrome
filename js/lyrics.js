@@ -88,6 +88,7 @@ class GeniusManager {
         const query = encodeURIComponent(`${cleanTitle} ${artist}`);
         const token = this.getToken();
 
+        /* Disabled for Standalone Mode
         const url = `https://api.genius.com/search?q=${query}&access_token=${token}`;
         const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
 
@@ -95,6 +96,8 @@ class GeniusManager {
 
         const data = await response.json();
         if (data.response.hits.length === 0) return null;
+        */
+        return null;
 
         const normalize = (str) => str.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
         const targetArtist = normalize(artist);
@@ -108,6 +111,7 @@ class GeniusManager {
     }
 
     async getReferents(songId) {
+        /* Disabled for Standalone Mode
         const token = this.getToken();
         const url = `https://api.genius.com/referents?song_id=${songId}&text_format=plain&per_page=50&access_token=${token}`;
         const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
@@ -116,6 +120,8 @@ class GeniusManager {
 
         const data = await response.json();
         return data.response.referents;
+        */
+        return [];
     }
 
     async getDataForTrack(track) {
@@ -302,17 +308,20 @@ export class LyricsManager {
                 };
             }
 
-            // Load Kuroshiro from CDN
+            /* Disabled for Standalone Mode
             if (!window.Kuroshiro) {
                 await this.loadScript('https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js');
             }
+            */
+            throw new Error('Kuroshiro not available in Standalone Mode');
 
-            // Load Kuromoji analyzer from CDN
+            /* Disabled for Standalone Mode
             if (!window.KuromojiAnalyzer) {
                 await this.loadScript(
                     'https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js'
                 );
             }
+            */
 
             // Initialize Kuroshiro (CDN version exports as .default)
             const Kuroshiro = window.Kuroshiro.default || window.Kuroshiro;
@@ -341,18 +350,7 @@ export class LyricsManager {
 
     // Helper to load external scripts
     loadScript(src) {
-        return new Promise((resolve, reject) => {
-            // Check if script already exists
-            if (document.querySelector(`script[src="${src}"]`)) {
-                resolve();
-                return;
-            }
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-            document.head.appendChild(script);
-        });
+        return Promise.reject(new Error(`External script loading disabled: ${src}`));
     }
 
     // Check if text contains Japanese characters
@@ -435,51 +433,31 @@ export class LyricsManager {
     }
 
     async fetchLyrics(trackId, track = null) {
-        if (track) {
-            if (this.lyricsCache.has(trackId)) {
-                return this.lyricsCache.get(trackId);
-            }
-
-            try {
-                const artist = Array.isArray(track.artists)
-                    ? track.artists.map((a) => a.name || a).join(', ')
-                    : track.artist?.name || '';
-                const title = track.title || '';
-                const album = track.album?.title || '';
-                const duration = track.duration ? Math.round(track.duration) : null;
-
-                if (!title || !artist) {
-                    console.warn('Missing required fields for LRCLIB');
-                    return null;
-                }
-
-                const params = new URLSearchParams({
-                    track_name: title,
-                    artist_name: artist,
-                });
-
-                if (album) params.append('album_name', album);
-                if (duration) params.append('duration', duration.toString());
-
-                const response = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    if (data.syncedLyrics) {
-                        const lyricsData = {
-                            subtitles: data.syncedLyrics,
-                            lyricsProvider: 'LRCLIB',
-                        };
-
-                        this.lyricsCache.set(trackId, lyricsData);
-                        return lyricsData;
-                    }
-                }
-            } catch (error) {
-                console.warn('LRCLIB fetch failed:', error);
-            }
+        if (this.lyricsCache.has(trackId)) {
+            return this.lyricsCache.get(trackId);
         }
+
+        // Try local Navidrome via MusicAPI first
+        try {
+            const subsonicLyrics = await this.api.getLyrics(trackId);
+            if (subsonicLyrics) {
+                const lyricsData = {
+                    subtitles: subsonicLyrics.subtitles || subsonicLyrics.value || subsonicLyrics.text || subsonicLyrics,
+                    lyricsProvider: subsonicLyrics.lyricsProvider || 'Navidrome',
+                };
+                this.lyricsCache.set(trackId, lyricsData);
+                return lyricsData;
+            }
+        } catch (error) {
+            console.warn('Subsonic lyrics fetch failed:', error);
+        }
+
+        if (track) {
+            console.log('Local-only: External lyrics fallbacks disabled');
+            return null;
+        }
+
+        return null;
 
         return null;
     }

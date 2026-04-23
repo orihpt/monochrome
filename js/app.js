@@ -68,11 +68,6 @@ if (typeof window !== 'undefined') {
     });
 
     // analytics
-    const plausibleScript = document.createElement('script');
-    plausibleScript.async = true;
-    plausibleScript.src = 'https://plausible.canine.tools/js/pa-dCMvQpiD1-AJmi8o3xviO.js';
-    document.head.appendChild(plausibleScript);
-
     window.plausible =
         window.plausible ||
         function () {
@@ -106,47 +101,8 @@ async function loadDownloadsModule() {
 }
 
 async function fetchcontributors() {
-    try {
-        const response = await fetch('https://api.samidy.com/api/contributors');
-        if (!response.ok) return;
-        const data1 = await response.json();
-        if (!Array.isArray(data1)) return;
-
-        let data = data1.filter(
-            (user) => user.type !== 'Bot' && user.login !== 'edidealt' && user.login !== 'satanyahoo'
-        );
-
-        const edideaur = data.find((user) => user.login === 'edideaur');
-        if (edideaur) {
-            edideaur.contributions += data1.find((u) => u.login === 'edidealt')?.contributions || 0;
-            edideaur.contributions += data1.find((u) => u.login === 'satanyahoo')?.contributions || 0;
-        }
-
-        data.sort((a, b) => b.contributions - a.contributions);
-
-        const con = document.querySelector('.about-contributors');
-        if (!con) return;
-
-        data.forEach((user) => {
-            const userDIV = document.createElement('div');
-            userDIV.innerHTML = `
-            <a href="${user.html_url}" target="_blank">
-            <img src="${user.avatar_url}&s=50" alt="${user.login}" width="50" height="50" style="border-radius: 50%;" loading="lazy">
-            <span>${user.login}</span>
-            <span class="contrib">Contributions: ${user.contributions}</span>
-            </a>
-            `;
-            con.appendChild(userDIV);
-        });
-    } catch (e) {
-        const con = document.querySelector('.about-contributors-failed');
-        if (!con) return;
-        const userDIV = document.createElement('div');
-        userDIV.innerHTML = `
-        <h4 style="text-align: center; color: var(--muted-foreground);">Failed to Fetch Contributor List</h4>
-        `;
-        con.appendChild(userDIV);
-    }
+    // Contributors disabled for offline-first mode
+    return [];
 }
 
 async function loadMetadataModule() {
@@ -387,27 +343,11 @@ async function disablePwaForAuthGate() {
 }
 
 async function uploadCoverImage(file) {
-    try {
-        const response = await fetch(`https://worker.uploads.monochrome.qzz.io/${file.name}`, {
-            method: 'PUT',
-            headers: {
-                'x-api-key': 'if_youre_reading_this_fuck_off',
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-        });
-
-        if (!response.ok) {
-            if (response.status === 413) throw new Error('File exceeds 10MB');
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        return `https://images.monochrome.qzz.io/${await response.text()}`;
-    } catch (error) {
-        console.error('Cover upload error:', error);
-        throw error;
-    }
+    console.log('Local-only: Upload disabled', file);
+    return '/assets/appicon.png';
 }
+
+import { initAuthModal } from './auth-modal.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await modernSettings.waitPending();
@@ -463,6 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await MusicAPI.initialize(apiSettings);
+    initAuthModal();
 
     const audioPlayer = document.getElementById('audio-player');
 
@@ -2463,8 +2404,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const handleExternalLink = (query) => {
         const isExternalLink =
-            query.includes('monochrome.tf/') ||
-            query.includes('monochrome.samidy.com/') ||
             query.includes('tidal.com/');
 
         if (isExternalLink) {
@@ -2486,47 +2425,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         return false;
     };
 
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.trim();
-        if (!query) return;
+    if (searchForm && searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (!query) return;
 
-        if (handleExternalLink(query)) {
-            return;
-        }
+            if (handleExternalLink(query)) {
+                return;
+            }
 
-        debouncedSearch(query);
-    });
+            debouncedSearch(query);
+        });
 
-    searchInput.addEventListener('change', (e) => {
-        const query = e.target.value.trim();
-        if (query) {
-            UIRenderer.instance.addToSearchHistory(query);
-        }
-    });
+        searchInput.addEventListener('change', (e) => {
+            const query = e.target.value.trim();
+            if (query) {
+                UIRenderer.instance.addToSearchHistory(query);
+            }
+        });
 
-    searchInput.addEventListener('focus', () => {
-        UIRenderer.instance.renderSearchHistory();
-    });
+        searchInput.addEventListener('focus', () => {
+            UIRenderer.instance.renderSearchHistory();
+        });
 
-    searchInput.addEventListener('click', () => {
-        UIRenderer.instance.renderSearchHistory();
-    });
+        searchInput.addEventListener('click', () => {
+            UIRenderer.instance.renderSearchHistory();
+        });
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            if (!handleExternalLink(query)) {
+                UIRenderer.instance.addToSearchHistory(query);
+                performSearch(query);
+                const historyEl = document.getElementById('search-history');
+                if (historyEl) historyEl.style.display = 'none';
+            }
+        });
+    }
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.search-bar')) {
-            const historyEl = document.getElementById('search-history');
-            if (historyEl) historyEl.style.display = 'none';
-        }
-    });
-
-    searchForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const query = searchInput.value.trim();
-        if (!query) return;
-
-        if (!handleExternalLink(query)) {
-            UIRenderer.instance.addToSearchHistory(query);
-            performSearch(query);
             const historyEl = document.getElementById('search-history');
             if (historyEl) historyEl.style.display = 'none';
         }
@@ -2703,125 +2644,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         observer.observe(contextMenu, { attributes: true });
     }
 
-    const headerAccountBtn = document.getElementById('header-account-btn');
-    const headerAccountDropdown = document.getElementById('header-account-dropdown');
-    const headerAccountImg = document.getElementById('header-account-img');
-    const headerAccountIcon = document.getElementById('header-account-icon');
+    // Local-only account display
+    {
+        const headerAccountBtn = document.getElementById('header-account-btn');
+        const headerAccountDropdown = document.getElementById('header-account-dropdown');
+        const headerAccountImg = document.getElementById('header-account-img');
+        const headerAccountIcon = document.getElementById('header-account-icon');
 
-    // Temporarily disable accounts - show popup
-    const isAccountsDisabled = false;
-
-    if (headerAccountBtn && headerAccountDropdown) {
-        if (isAccountsDisabled) {
-            headerAccountBtn.style.opacity = '0.5';
-            headerAccountBtn.style.cursor = 'not-allowed';
-            headerAccountBtn.title = 'Accounts temporarily unavailable';
-            headerAccountBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                alert('.');
-            });
-        } else {
-            headerAccountBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                headerAccountDropdown.classList.toggle('active');
-                await updateAccountDropdown();
-            });
-        }
-
-        document.addEventListener('click', (e) => {
-            if (!headerAccountBtn.contains(e.target) && !headerAccountDropdown.contains(e.target)) {
-                headerAccountDropdown.classList.remove('active');
-            }
-        });
-
-        async function updateAccountDropdown() {
-            const user = authManager?.user;
-            headerAccountDropdown.innerHTML = '';
-
-            if (!user) {
-                const iconBtnStyle =
-                    'background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;display:flex;align-items:center;transition:opacity 0.15s';
+        if (headerAccountBtn && headerAccountDropdown) {
+            const updateAccountDropdown = () => {
+                const username = localStorage.getItem('subsonic_user') || 'Admin';
                 headerAccountDropdown.innerHTML = `
-                    <span style="font-size:0.75rem;color:var(--muted-foreground);padding:0.25rem 0.5rem">Connect with</span>
-                    <div style="display:flex;gap:0.5rem;padding:0.25rem 0.5rem;align-items:center">
-                        <button id="header-discord-auth" title="Discord" style="${iconBtnStyle}">${discordSvg}</button>
-                        <button id="header-google-auth" title="Google" style="${iconBtnStyle}">${googleSvg}</button>
-                        <button id="header-github-auth" title="GitHub" style="${iconBtnStyle}">${githubSvg}</button>
-                        <button id="header-spotify-auth" title="Spotify" style="${iconBtnStyle}">${spotifySvg}</button>
+                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border)">
+                        <div style="font-size: 0.85rem; color: var(--muted-foreground)">Signed in as</div>
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)">${username}</div>
                     </div>
-                    <hr style="border:none;border-top:1px solid var(--border);margin:0.25rem 0">
-                    <button class="btn-secondary" id="header-email-auth">Connect with Email</button>
+                    <div style="padding: 0.5rem">
+                        <button class="btn-secondary" id="header-sign-out" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
                 `;
 
-                for (const id of [
-                    'header-discord-auth',
-                    'header-google-auth',
-                    'header-github-auth',
-                    'header-spotify-auth',
-                ]) {
-                    const btn = document.getElementById(id);
-                    const svg = btn.querySelector('svg');
-                    svg.style.filter = 'brightness(0) invert(1)';
-                    svg.style.transition = 'filter 0.15s';
-                    btn.addEventListener('mouseenter', () => {
-                        svg.style.filter = 'brightness(0) invert(0.5)';
-                    });
-                    btn.addEventListener('mouseleave', () => {
-                        svg.style.filter = 'brightness(0) invert(1)';
-                    });
+                const signOutBtn = document.getElementById('header-sign-out');
+                if (signOutBtn) {
+                    signOutBtn.onclick = () => {
+                        localStorage.removeItem('subsonic_user');
+                        localStorage.removeItem('subsonic_pass');
+                        window.location.reload();
+                    };
                 }
+            };
 
-                document.getElementById('header-google-auth').onclick = () => authManager.signInWithGoogle();
-                document.getElementById('header-github-auth').onclick = () => authManager.signInWithGitHub();
-                document.getElementById('header-discord-auth').onclick = () => authManager.signInWithDiscord();
-                document.getElementById('header-spotify-auth').onclick = () => authManager.signInWithSpotify();
-                document.getElementById('header-email-auth').onclick = () => {
-                    document.getElementById('email-auth-modal').classList.add('active');
+            headerAccountBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                headerAccountDropdown.classList.toggle('active');
+                updateAccountDropdown();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!headerAccountBtn.contains(e.target) && !headerAccountDropdown.contains(e.target)) {
                     headerAccountDropdown.classList.remove('active');
-                };
-            } else {
-                const data = await syncManager.getUserData();
-                const hasProfile = data && data.profile && data.profile.username;
-
-                if (hasProfile) {
-                    headerAccountDropdown.innerHTML = `
-                        <button class="btn-secondary" id="header-view-profile">My Profile</button>
-                        <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
-                    `;
-                    document.getElementById('header-view-profile').onclick = () => {
-                        navigate(`/user/@${data.profile.username}`);
-                        headerAccountDropdown.classList.remove('active');
-                    };
-                } else {
-                    headerAccountDropdown.innerHTML = `
-                        <button class="btn-primary" id="header-create-profile">Create Profile</button>
-                        <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
-                    `;
-                    document.getElementById('header-create-profile').onclick = async () => {
-                        openEditProfile().catch(console.error);
-                        headerAccountDropdown.classList.remove('active');
-                    };
                 }
-
-                document.getElementById('header-sign-out').onclick = () => authManager.signOut();
-            }
+            });
         }
 
-        authManager.onAuthStateChanged(async (user) => {
-            if (user) {
-                const data = await syncManager.getUserData();
-                if (data && data.profile && data.profile.avatar_url) {
-                    headerAccountImg.src = data.profile.avatar_url + '&s=100';
-                    headerAccountImg.style.display = 'block';
-                    headerAccountIcon.style.display = 'none';
-                    return;
-                }
-            }
-            headerAccountImg.style.display = 'none';
-            headerAccountIcon.style.display = 'flex';
-        });
+        // Force local state display
+        if (headerAccountImg) headerAccountImg.style.display = 'none';
+        if (headerAccountIcon) headerAccountIcon.style.display = 'flex';
     }
 });
+
 
 function showUpdateNotification(updateCallback) {
     // Remove any existing update notification

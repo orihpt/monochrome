@@ -2,6 +2,7 @@
 
 import { LosslessAPI } from './api.js';
 import { PodcastsAPI } from './podcasts-api.js';
+import { SubsonicAPI } from './subsonic-api.js';
 import { musicProviderSettings } from './storage.js';
 
 /**
@@ -53,6 +54,7 @@ export class MusicAPI {
     /** @private */
     constructor(settings) {
         this.tidalAPI = new LosslessAPI(settings);
+        this.subsonicAPI = new SubsonicAPI();
         this.podcastsAPI = new PodcastsAPI();
         this._settings = settings;
         this.videoArtworkCache = new Map();
@@ -73,7 +75,34 @@ export class MusicAPI {
 
     // Get the appropriate API based on provider
     getAPI() {
+        const provider = this.getCurrentProvider();
+        if (provider === 'subsonic' || provider === 'navidrome') {
+            return this.subsonicAPI;
+        }
         return this.tidalAPI;
+    }
+
+    async fetchAPI(endpoint, params = '') {
+        const api = this.getAPI();
+        if (typeof api.fetchAPI === 'function') {
+            return api.fetchAPI(endpoint, params);
+        }
+        throw new Error('fetchAPI not supported by current provider');
+    }
+
+    prepareTrack(data) {
+        const api = this.getAPI();
+        return typeof api.prepareTrack === 'function' ? api.prepareTrack(data) : data;
+    }
+
+    prepareAlbum(data) {
+        const api = this.getAPI();
+        return typeof api.prepareAlbum === 'function' ? api.prepareAlbum(data) : data;
+    }
+
+    prepareArtist(data) {
+        const api = this.getAPI();
+        return typeof api.prepareArtist === 'function' ? api.prepareArtist(data) : data;
     }
 
     // Search methods
@@ -102,23 +131,40 @@ export class MusicAPI {
     }
 
     async searchTracks(query, options = {}) {
-        return this.getAPI().searchTracks(query, options);
+        const api = this.getAPI();
+        if (typeof api.searchTracks === 'function') return api.searchTracks(query, options);
+        const res = await api.search(query, options);
+        return res?.tracks || { items: [] };
     }
 
     async searchArtists(query, options = {}) {
-        return this.getAPI().searchArtists(query, options);
+        const api = this.getAPI();
+        if (typeof api.searchArtists === 'function') return api.searchArtists(query, options);
+        const res = await api.search(query, options);
+        return res?.artists || { items: [] };
     }
 
     async searchAlbums(query, options = {}) {
-        return this.getAPI().searchAlbums(query, options);
+        const api = this.getAPI();
+        if (typeof api.searchAlbums === 'function') return api.searchAlbums(query, options);
+        const res = await api.search(query, options);
+        return res?.albums || { items: [] };
     }
 
     async searchPlaylists(query, options = {}) {
-        return this.tidalAPI.searchPlaylists(query, options);
+        const api = this.getAPI();
+        if (typeof api.searchPlaylists === 'function') {
+            return api.searchPlaylists(query, options);
+        }
+        return { items: [] };
     }
 
     async searchVideos(query, options = {}) {
-        return this.tidalAPI.searchVideos(query, options);
+        const api = this.getAPI();
+        if (typeof api.searchVideos === 'function') {
+            return api.searchVideos(query, options);
+        }
+        return { items: [] };
     }
 
     async searchPodcasts(query, options = {}) {
@@ -186,17 +232,20 @@ export class MusicAPI {
     }
 
     async getArtistSocials(artistName) {
-        return this.tidalAPI.getArtistSocials(artistName);
+        const api = this.getAPI();
+        if (typeof api.getArtistSocials === 'function') {
+            return api.getArtistSocials(artistName);
+        }
+        return [];
     }
 
     async getPlaylist(id, _provider = null) {
-        // Playlists are always Tidal for now
-        return this.tidalAPI.getPlaylist(id);
+        // Local playlists only
+        return null;
     }
 
-    async getMix(id) {
-        // Mixes are always Tidal for now
-        return this.tidalAPI.getMix(id);
+    async getMix() {
+        return null;
     }
 
     async getTrackRecommendations(id) {
@@ -204,6 +253,14 @@ export class MusicAPI {
         const cleanId = this.stripProviderPrefix(id);
         if (typeof api.getTrackRecommendations === 'function') {
             return api.getTrackRecommendations(cleanId);
+        }
+        return [];
+    }
+
+    async getHomeContent() {
+        const api = this.getAPI();
+        if (typeof api.getHomeContent === 'function') {
+            return api.getHomeContent();
         }
         return [];
     }
@@ -220,14 +277,22 @@ export class MusicAPI {
         if (typeof id === 'string' && id.startsWith('blob:')) {
             return id;
         }
-        return this.tidalAPI.getCoverUrl(this.stripProviderPrefix(id), size);
+        const api = this.getAPI();
+        if (typeof api.getCoverUrl === 'function') {
+            return api.getCoverUrl(this.stripProviderPrefix(id), size);
+        }
+        return 'assets/1024w_new.png';
     }
 
     getCoverSrcset(id) {
         if (typeof id === 'string' && id.startsWith('blob:')) {
             return '';
         }
-        return this.tidalAPI.getCoverSrcset(this.stripProviderPrefix(id));
+        const api = this.getAPI();
+        if (typeof api.getCoverSrcset === 'function') {
+            return api.getCoverSrcset(this.stripProviderPrefix(id));
+        }
+        return '';
     }
 
     getVideoCoverUrl(imageId, size = '1280') {
@@ -237,82 +302,43 @@ export class MusicAPI {
         if (typeof imageId === 'string' && imageId.startsWith('blob:')) {
             return imageId;
         }
-        return this.tidalAPI.getVideoCoverUrl(this.stripProviderPrefix(imageId), size);
+        const api = this.getAPI();
+        if (typeof api.getVideoCoverUrl === 'function') {
+            return api.getVideoCoverUrl(this.stripProviderPrefix(imageId), size);
+        }
+        return 'assets/1024w_new.png';
     }
 
     async getVideoArtwork(title, artist) {
-        const cacheKey = `${title}-${artist}`.toLowerCase();
-        if (this.videoArtworkCache.has(cacheKey)) {
-            return this.videoArtworkCache.get(cacheKey);
+        return null; // Disabled for offline-first mode
+    }
+
+    async getLyrics(id) {
+        const api = this.getAPI();
+        if (typeof api.getLyrics === 'function') {
+            return api.getLyrics(id);
         }
-        // artwork.boidu.dev developer asked us to disable his API for the time being due to rate limits.
-        /* 
-        try {
-            const url = `https://artwork.boidu.dev/?s=${encodeURIComponent(title)}&a=${encodeURIComponent(artist)}`;
-            const response = await fetch(url);
-            if (!response.ok) return null;
-            const data = await response.json();
-            const result = {
-                videoUrl: data.videoUrl || null,
-                hlsUrl: data.animated || null,
-            };
-            this.videoArtworkCache.set(cacheKey, result);
-            return result;
-        
-        } catch (error) {
-            console.warn('Failed to fetch video artwork:', error);
-            return null;
-        }
-        */
+        return null;
     }
 
     getArtistPictureUrl(id, size = '320') {
-        return this.tidalAPI.getArtistPictureUrl(this.stripProviderPrefix(id), size);
+        const api = this.getAPI();
+        if (typeof api.getArtistPictureUrl === 'function') {
+            return api.getArtistPictureUrl(this.stripProviderPrefix(id), size);
+        }
+        return 'assets/1024w_new.png';
     }
 
     getArtistPictureSrcset(id) {
-        return this.tidalAPI.getArtistPictureSrcset(this.stripProviderPrefix(id));
+        const api = this.getAPI();
+        if (typeof api.getArtistPictureSrcset === 'function') {
+            return api.getArtistPictureSrcset(this.stripProviderPrefix(id));
+        }
+        return '';
     }
 
     async getArtistBanner(artistName) {
-        const cacheKey = `banner-${artistName}`.toLowerCase();
-        if (this.videoArtworkCache.has(cacheKey)) {
-            return this.videoArtworkCache.get(cacheKey);
-        }
-
-        try {
-            const url = `https://artwork-boidu-dev.samidy.workers.dev/artist?a=${encodeURIComponent(artistName)}`;
-            const response = await fetch(url);
-            if (!response.ok) return null;
-            const data = await response.json();
-
-            let hlsUrl = null;
-            if (data.animated) {
-                if (typeof data.animated === 'string') {
-                    hlsUrl = data.animated;
-                } else if (typeof data.animated === 'object') {
-                    hlsUrl = data.animated.hls || data.animated.url || data.animated.hlsUrl || data.animated.videoUrl;
-
-                    if (!hlsUrl) {
-                        for (const key in data.animated) {
-                            if (typeof data.animated[key] === 'string' && data.animated[key].includes('.m3u8')) {
-                                hlsUrl = data.animated[key];
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            const result = {
-                hlsUrl: hlsUrl,
-            };
-            this.videoArtworkCache.set(cacheKey, result);
-            return result;
-        } catch (error) {
-            console.warn('Failed to fetch artist banner:', error);
-            return null;
-        }
+        return null; // Disabled for offline-first mode
     }
 
     extractStreamUrlFromManifest(manifest) {
@@ -351,7 +377,10 @@ export class MusicAPI {
     }
 
     async getArtistTopTracks(artistId, options = {}) {
-        return this.tidalAPI.getArtistTopTracks(artistId, options);
+        const api = this.getAPI();
+        const cleanId = this.stripProviderPrefix(artistId);
+        if (typeof api.getArtistTopTracks === 'function') return api.getArtistTopTracks(cleanId, options);
+        return [];
     }
 
     async getSimilarAlbums(albumId) {
@@ -361,17 +390,20 @@ export class MusicAPI {
     }
 
     async getRecommendedTracksForPlaylist(tracks, limit = 20, options = {}) {
-        // Use Tidal for recommendations
-        return this.tidalAPI.getRecommendedTracksForPlaylist(tracks, limit, options);
+        const api = this.getAPI();
+        if (typeof api.getRecommendedTracksForPlaylist === 'function') {
+            return api.getRecommendedTracksForPlaylist(tracks, limit, options);
+        }
+        return [];
     }
 
     // Cache methods
     async clearCache() {
-        await this.tidalAPI.clearCache();
+        // No-op for local mode
     }
 
     getCacheStats() {
-        return this.tidalAPI.getCacheStats();
+        return {};
     }
 
     // Settings accessor for compatibility
@@ -379,5 +411,3 @@ export class MusicAPI {
         return this._settings;
     }
 }
-
-export const musicAPI = new MusicAPI();

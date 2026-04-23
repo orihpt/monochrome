@@ -1326,50 +1326,51 @@ class HiFiClient {
         params?: Params | URLSearchParams,
         signal: AbortSignal = new AbortController().signal
     ): Promise<Response> {
-        const final = HiFiClient.#buildUrl(url, params);
-        let res: Response | undefined;
-
-        while (true) {
-            const unauthorized = res?.status === 401;
-            const previousResponse = res;
-            const token = await this.#fetchAppToken({
-                clientId: this.#clientId,
-                clientSecret: this.#clientSecret,
-                signal,
-                refreshToken: this.refreshToken || undefined,
-                force: unauthorized,
-            });
-
-            const headers: Record<string, string> = {
-                authorization: `Bearer ${token}`,
-            };
-            if (final.includes('openapi.tidal.com')) {
-                // Prefer JSON:API for OpenAPI endpoints, but do not require it exclusively.
-                // Some endpoints/proxies can still return compatible JSON.
-                headers['Accept'] = 'application/vnd.api+json, application/json;q=0.9, */*;q=0.8';
-            }
-
-            try {
-                res = await fetch(final, {
-                    headers,
-                    signal,
-                });
-            } catch (err: unknown) {
-                throw new ResponseError(0, err instanceof Error ? err.message : String(err));
-            }
-
-            if (previousResponse && unauthorized && res.status === 401) {
-                throw new ResponseError(401, 'Unauthorized: Invalid or expired token');
-            }
-
-            if (res.status !== 401) break;
-        }
-
-        if (!res.ok) {
-            throw new ResponseError(res.status, res.statusText);
-        }
-
-        return res;
+        throw new Error(`External API calls disabled in Standalone Mode: ${url}`);
+        // const final = HiFiClient.#buildUrl(url, params);
+        // let res: Response | undefined;
+        //
+        // while (true) {
+        //     const unauthorized = res?.status === 401;
+        //     const previousResponse = res;
+        //     const token = await this.#fetchAppToken({
+        //         clientId: this.#clientId,
+        //         clientSecret: this.#clientSecret,
+        //         signal,
+        //         refreshToken: this.refreshToken || undefined,
+        //         force: unauthorized,
+        //     });
+        //
+        //     const headers: Record<string, string> = {
+        //         authorization: `Bearer ${token}`,
+        //     };
+        //     if (final.includes('openapi.tidal.com')) {
+        //         // Prefer JSON:API for OpenAPI endpoints, but do not require it exclusively.
+        //         // Some endpoints/proxies can still return compatible JSON.
+        //         headers['Accept'] = 'application/vnd.api+json, application/json;q=0.9, */*;q=0.8';
+        //     }
+        //
+        //     try {
+        //         res = await fetch(final, {
+        //             headers,
+        //             signal,
+        //         });
+        //     } catch (err: unknown) {
+        //         throw new ResponseError(0, err instanceof Error ? err.message : String(err));
+        //     }
+        //
+        //     if (previousResponse && unauthorized && res.status === 401) {
+        //         throw new ResponseError(401, 'Unauthorized: Invalid or expired token');
+        //     }
+        //
+        //     if (res.status !== 401) break;
+        // }
+        //
+        // if (!res.ok) {
+        //     throw new ResponseError(res.status, res.statusText);
+        // }
+        //
+        // return res;
     }
 
     async #fetchJson<T = unknown>(
@@ -1775,7 +1776,7 @@ class HiFiClient {
                 cover = {
                     id: artist_data.id,
                     name: artist_data.name,
-                    '750': `https://resources.tidal.com/images/${slug}/750x750.jpg`,
+                    '750': 'assets/1024w_new.png',
                 };
             }
 
@@ -1945,9 +1946,9 @@ class HiFiClient {
         return {
             id: track_id ?? 0,
             name: name ?? '',
-            '1280': `https://resources.tidal.com/images/${slug}/1280x1280.jpg`,
-            '640': `https://resources.tidal.com/images/${slug}/640x640.jpg`,
-            '80': `https://resources.tidal.com/images/${slug}/80x80.jpg`,
+            '1280': 'assets/1024w_new.png',
+            '640': 'assets/1024w_new.png',
+            '80': 'assets/1024w_new.png',
         };
     }
 

@@ -1,5 +1,6 @@
 {
     "api": [
+        "http://localhost:4533",
         "https://eu-central.monochrome.tf",
         "https://us-west.monochrome.tf",
         "https://arran.monochrome.tf",
@@ -13,6 +14,7 @@
         "https://tidal.kinoplus.online"
     ],
     "streaming": [
+        "http://localhost:4533",
         "https://arran.monochrome.tf",
         "https://triton.squid.wtf",
         "https://wolf.qqdl.site",

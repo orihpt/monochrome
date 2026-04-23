@@ -517,6 +517,7 @@ export async function getCoverBlob(api, coverId) {
     }
 
     const fetchWithProxy = async (url) => {
+        /* Disabled for Standalone Mode
         try {
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
             const response = await fetch(proxyUrl);
@@ -524,6 +525,7 @@ export async function getCoverBlob(api, coverId) {
         } catch (e) {
             console.warn('Proxy fetch failed:', e);
         }
+        */
         return null;
     };
 

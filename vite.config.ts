@@ -65,9 +65,13 @@ export default defineConfig((_options) => {
         server: {
             fs: {
                 allow: ['.', 'node_modules'],
-                // host: true,
-                // allowedHosts: ['<your_tailscale_hostname>'], // e.g. pi5.tailf5f622.ts.net
             },
+            proxy: {
+                '/rest': {
+                    target: 'http://127.0.0.1:4533',
+                    changeOrigin: true,
+                }
+            }
         },
         // preview: {
         //     host: true,

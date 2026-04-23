@@ -219,26 +219,31 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const lastfmUseOAuthBtn = document.getElementById('lastfm-use-oauth');
 
     function updateLastFMUI() {
-        if (scrobbler.lastfm.isAuthenticated()) {
-            lastfmStatus.textContent = `Connected as ${scrobbler.lastfm.username}`;
-            lastfmConnectBtn.textContent = 'Disconnect';
-            lastfmConnectBtn.classList.add('danger');
-            lastfmToggleSetting.style.display = 'flex';
-            lastfmLoveSetting.style.display = 'flex';
-            lastfmToggle.checked = lastFMStorage.isEnabled();
-            lastfmLoveToggle.checked = lastFMStorage.shouldLoveOnLike();
-            lastfmCustomCredsToggleSetting.style.display = 'flex';
-            lastfmCustomCredsToggle.checked = lastFMStorage.useCustomCredentials();
+        const isAuthenticated = scrobbler.lastfm.isAuthenticated();
+        if (isAuthenticated) {
+            if (lastfmStatus) lastfmStatus.textContent = `Connected as ${scrobbler.lastfm.username}`;
+            if (lastfmConnectBtn) {
+                lastfmConnectBtn.textContent = 'Disconnect';
+                lastfmConnectBtn.classList.add('danger');
+            }
+            if (lastfmToggleSetting) lastfmToggleSetting.style.display = 'flex';
+            if (lastfmLoveSetting) lastfmLoveSetting.style.display = 'flex';
+            if (lastfmToggle) lastfmToggle.checked = lastFMStorage.isEnabled();
+            if (lastfmLoveToggle) lastfmLoveToggle.checked = lastFMStorage.shouldLoveOnLike();
+            if (lastfmCustomCredsToggleSetting) lastfmCustomCredsToggleSetting.style.display = 'flex';
+            if (lastfmCustomCredsToggle) lastfmCustomCredsToggle.checked = lastFMStorage.useCustomCredentials();
             updateCustomCredsUI();
             hideCredentialAuth();
         } else {
-            lastfmStatus.textContent = 'Connect your Last.fm account to scrobble tracks';
-            lastfmConnectBtn.textContent = 'Connect Last.fm';
-            lastfmConnectBtn.classList.remove('danger');
-            lastfmToggleSetting.style.display = 'none';
-            lastfmLoveSetting.style.display = 'none';
-            lastfmCustomCredsToggleSetting.style.display = 'none';
-            lastfmCustomCredsSetting.style.display = 'none';
+            if (lastfmStatus) lastfmStatus.textContent = 'Connect your Last.fm account to scrobble tracks';
+            if (lastfmConnectBtn) {
+                lastfmConnectBtn.textContent = 'Connect Last.fm';
+                lastfmConnectBtn.classList.remove('danger');
+            }
+            if (lastfmToggleSetting) lastfmToggleSetting.style.display = 'none';
+            if (lastfmLoveSetting) lastfmLoveSetting.style.display = 'none';
+            if (lastfmCustomCredsToggleSetting) lastfmCustomCredsToggleSetting.style.display = 'none';
+            if (lastfmCustomCredsSetting) lastfmCustomCredsSetting.style.display = 'none';
             // Hide credential auth by default - only show on OAuth failure
             hideCredentialAuth();
         }
@@ -260,14 +265,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateCustomCredsUI() {
         const useCustom = lastFMStorage.useCustomCredentials();
-        lastfmCustomCredsSetting.style.display = useCustom ? 'flex' : 'none';
+        if (lastfmCustomCredsSetting) lastfmCustomCredsSetting.style.display = useCustom ? 'flex' : 'none';
 
         if (useCustom) {
-            lastfmCustomApiKey.value = lastFMStorage.getCustomApiKey();
-            lastfmCustomApiSecret.value = lastFMStorage.getCustomApiSecret();
+            if (lastfmCustomApiKey) lastfmCustomApiKey.value = lastFMStorage.getCustomApiKey();
+            if (lastfmCustomApiSecret) lastfmCustomApiSecret.value = lastFMStorage.getCustomApiSecret();
 
             const hasCreds = lastFMStorage.getCustomApiKey() && lastFMStorage.getCustomApiSecret();
-            lastfmClearCustomCreds.style.display = hasCreds ? 'inline-block' : 'none';
+            if (lastfmClearCustomCreds) lastfmClearCustomCreds.style.display = hasCreds ? 'inline-block' : 'none';
         }
     }
 
@@ -609,19 +614,23 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateLibreFmUI() {
         if (scrobbler.librefm.isAuthenticated()) {
-            librefmStatus.textContent = `Connected as ${scrobbler.librefm.username}`;
-            librefmConnectBtn.textContent = 'Disconnect';
-            librefmConnectBtn.classList.add('danger');
-            librefmToggleSetting.style.display = 'flex';
-            librefmLoveSetting.style.display = 'flex';
-            librefmToggle.checked = libreFmSettings.isEnabled();
-            librefmLoveToggle.checked = libreFmSettings.shouldLoveOnLike();
+            if (librefmStatus) librefmStatus.textContent = `Connected as ${scrobbler.librefm.username}`;
+            if (librefmConnectBtn) {
+                librefmConnectBtn.textContent = 'Disconnect';
+                librefmConnectBtn.classList.add('danger');
+            }
+            if (librefmToggleSetting) librefmToggleSetting.style.display = 'flex';
+            if (librefmLoveSetting) librefmLoveSetting.style.display = 'flex';
+            if (librefmToggle) librefmToggle.checked = libreFmSettings.isEnabled();
+            if (librefmLoveToggle) librefmLoveToggle.checked = libreFmSettings.shouldLoveOnLike();
         } else {
-            librefmStatus.textContent = 'Connect your Libre.fm account to scrobble tracks';
-            librefmConnectBtn.textContent = 'Connect Libre.fm';
-            librefmConnectBtn.classList.remove('danger');
-            librefmToggleSetting.style.display = 'none';
-            librefmLoveSetting.style.display = 'none';
+            if (librefmStatus) librefmStatus.textContent = 'Connect your Libre.fm account to scrobble tracks';
+            if (librefmConnectBtn) {
+                librefmConnectBtn.textContent = 'Connect Libre.fm';
+                librefmConnectBtn.classList.remove('danger');
+            }
+            if (librefmToggleSetting) librefmToggleSetting.style.display = 'none';
+            if (librefmLoveSetting) librefmLoveSetting.style.display = 'none';
         }
     }
 

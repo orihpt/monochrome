@@ -38,6 +38,10 @@ export class Player {
         return Player.#instance;
     }
 
+    static resetInstance() {
+        Player.#instance = null;
+    }
+
     /** @private */
     constructor(audioElement, api, quality = 'LOSSLESS') {
         this.audio = audioElement;
@@ -78,6 +82,18 @@ export class Player {
             isFetching: false,
             hasMore: true,
         };
+
+        this.radioEnabled = radioSettings.isEnabled();
+        this.radioSeeds = [];
+        this.isFetchingRadio = false;
+        this.radioFetchPromise = null;
+
+        this.autoplayEnabled = autoplaySettings.isEnabled();
+        this.autoplaySeeds = [];
+        this.isFetchingAutoplay = false;
+        this.autoplayFetchPromise = null;
+        this._recentlyPlayedIds = [];
+        this._maxRecentlyPlayed = 100;
     }
 
     static async initialize(audioElement, api, quality) {
@@ -130,7 +146,6 @@ export class Player {
                     bufferingGoal: 30,
                     rebufferingGoal: 2,
                     bufferBehind: 30,
-                    jumpLargeGaps: true,
                 },
                 abr: {
                     enabled: true,
@@ -144,14 +159,7 @@ export class Player {
                 },
             });
             this.shakaPlayer.getNetworkingEngine().registerRequestFilter((type, request) => {
-                if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
-                    const uris = request.uris;
-                    for (let i = 0; i < uris.length; i++) {
-                        if (uris[i].includes('tidal.com')) {
-                            uris[i] = getProxyUrl(uris[i]);
-                        }
-                    }
-                }
+                // Networking filters disabled for offline-first mode
             });
             this.shakaPlayer.addEventListener('adaptation', this.updateAdaptiveQualityBadge.bind(this));
             this.shakaPlayer.addEventListener('variantchanged', this.updateAdaptiveQualityBadge.bind(this));
@@ -166,18 +174,6 @@ export class Player {
 
         this.loadQueueState();
         await this.setupMediaSession();
-
-        this.radioEnabled = radioSettings.isEnabled();
-        this.radioSeeds = [];
-        this.isFetchingRadio = false;
-        this.radioFetchPromise = null;
-
-        this.autoplayEnabled = autoplaySettings.isEnabled();
-        this.autoplaySeeds = [];
-        this.isFetchingAutoplay = false;
-        this.autoplayFetchPromise = null;
-        this._recentlyPlayedIds = [];
-        this._maxRecentlyPlayed = 100;
 
         this.playbackSequence = 0;
 

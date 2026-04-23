@@ -4,52 +4,69 @@
         <meta charset="UTF-8" />
         <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-        <title>Monochrome</title>
-        <link rel="canonical" href="https://monochrome.tf/" />
-        <link rel="alternate" hreflang="en" href="https://monochrome.tf/" />
+        <title>Spotiman</title>
+        <script>
+            window.onerror = function(msg, url, lineNo, columnNo, error) {
+                const errDiv = document.createElement('div');
+                errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:red;color:white;padding:20px;font-family:monospace;white-space:pre-wrap;';
+                errDiv.textContent = 'Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\n' + (error ? error.stack : '');
+                if (document.body) document.body.appendChild(errDiv);
+                else window.addEventListener('DOMContentLoaded', () => document.body.appendChild(errDiv));
+                return false;
+            };
+            window.addEventListener('unhandledrejection', function(event) {
+                const errDiv = document.createElement('div');
+                errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:orange;color:white;padding:20px;font-family:monospace;white-space:pre-wrap;';
+                errDiv.textContent = 'Unhandled Promise Rejection: ' + (event.reason ? (event.reason.stack || event.reason) : event);
+                if (document.body) document.body.appendChild(errDiv);
+                else window.addEventListener('DOMContentLoaded', () => document.body.appendChild(errDiv));
+            });
+        </script>
+        <link rel="canonical" href="https://spotiman.tf/" />
+        <link rel="alternate" hreflang="en" href="https://spotiman.tf/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <base href="/" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Monochrome" />
+        <meta name="apple-mobile-web-app-title" content="Spotiman" />
         <meta
             name="description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Monochrome."
+            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Spotiman."
         />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="en_US" />
-        <meta property="og:site_name" content="Monochrome" />
-        <meta property="og:title" content="Monochrome" />
+        <meta property="og:site_name" content="Spotiman" />
+        <meta property="og:title" content="Spotiman" />
         <meta
             property="og:description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Monochrome."
+            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Spotiman."
         />
-        <meta property="og:url" content="https://monochrome.tf/" />
-        <meta property="og:image" content="https://monochrome.tf/assets/banner.jpg" />
+        <meta property="og:url" content="https://spotiman.tf/" />
+        <meta property="og:image" content="https://spotiman.tf/assets/banner.jpg" />
         <meta property="og:image:type" content="image/jpeg" />
-        <meta property="og:image:alt" content="Monochrome banner" />
+        <meta property="og:image:alt" content="Spotiman banner" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://monochrome.tf/" />
-        <meta name="twitter:title" content="Monochrome" />
+        <meta name="twitter:url" content="https://spotiman.tf/" />
+        <meta name="twitter:title" content="Spotiman" />
         <meta
             name="twitter:description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Monochrome."
+            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Spotiman."
         />
-        <meta name="twitter:image" content="https://monochrome.tf/assets/banner-twitter.jpg" />
-        <meta name="twitter:image:alt" content="Monochrome banner" />
+        <meta name="twitter:image" content="https://spotiman.tf/assets/banner-twitter.jpg" />
+        <meta name="twitter:image:alt" content="Spotiman banner" />
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
                 "@type": "WebSite",
-                "name": "Monochrome",
-                "url": "https://monochrome.tf/",
-                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Monochrome.",
+                "name": "Spotiman",
+                "url": "https://spotiman.tf/",
+                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Spotiman.",
                 "potentialAction": {
                     "@type": "SearchAction",
-                    "target": "https://monochrome.tf/search/{search_term_string}",
+                    "target": "https://spotiman.tf/search/{search_term_string}",
                     "query-input": "required name=search_term_string"
                 }
             }
@@ -58,12 +75,12 @@
             {
                 "@context": "https://schema.org",
                 "@type": "WebApplication",
-                "name": "Monochrome",
-                "url": "https://monochrome.tf/",
+                "name": "Spotiman",
+                "url": "https://spotiman.tf/",
                 "applicationCategory": "MusicApplication",
                 "operatingSystem": "Web Browser",
-                "image": "https://monochrome.tf/assets/logo.svg",
-                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Monochrome."
+                "image": "https://spotiman.tf/assets/1024w_new.png",
+                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Spotiman."
             }
         </script>
         <!-- bini's seo thing -->
@@ -73,44 +90,15 @@
         />
         <meta name="google-site-verification" content="ChAPlKFJ5Dk2YbWhiUfnH5sHgCC8SnNdCBtjVcahArY" />
 
-        <!-- Preconnect to critical third-party origins -->
-        <link rel="preconnect" href="https://api.fonts.coollabs.io" crossorigin />
-        <link rel="preconnect" href="https://resources.tidal.com" crossorigin />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <!-- Preconnect to critical third-party origins (Removed for Standalone Mode) -->
 
-        <link rel="apple-touch-icon" href="/assets/logo.svg" />
+        <link rel="apple-touch-icon" href="/assets/1024w_new.png" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/assets/logo.svg" type="image/svg+xml" />
-        <link
-            rel="preload"
-            as="style"
-            href="https://api.fonts.coollabs.io/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        />
-        <link
-            href="https://api.fonts.coollabs.io/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-            rel="stylesheet"
-            media="print"
-            onload="this.media = 'all'"
-        />
-        <noscript>
-            <link
-                href="https://api.fonts.coollabs.io/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-                rel="stylesheet"
-            />
-        </noscript>
+        <link rel="icon" href="/assets/1024w_new.png" type="image/svg+xml" />
         <link
             rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Sans+HK:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Noto+Sans+Georgian:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap"
-            media="print"
-            onload="this.media = 'all'"
+            href="/fonts/apple/sf-pro-display.css"
         />
-        <noscript>
-            <link
-                rel="stylesheet"
-                href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Sans+HK:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Noto+Sans+Georgian:wght@400;500;600;700&family=Noto+Sans+Armenian:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap"
-            />
-        </noscript>
         <link rel="stylesheet" href="/styles.css" />
     </head>
 
@@ -682,20 +670,6 @@
                     </p>
                 </div>
 
-                <div
-                    class="setting-item"
-                    style="margin-bottom: 1rem; padding: 0; border: none; background: transparent"
-                >
-                    <div class="info">
-                        <span class="label">Public Playlist</span>
-                        <span class="description">Visible to anyone with the link.</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="playlist-public-toggle" />
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
                 <div class="modal-actions">
                     <button id="playlist-share-btn" class="btn-secondary" style="display: none">Share</button>
                     <button id="playlist-modal-cancel" class="btn-secondary">Cancel</button>
@@ -1107,7 +1081,7 @@
                 <div class="missing-tracks-content">
                     <p>
                         Unfortunately, some songs weren't able to be added. This could be an issue with our import
-                        system - try searching for the song and adding it. It could also be due to Monochrome not having
+                        system - try searching for the song and adding it. It could also be due to Spotiman not having
                         the song :(
                     </p>
                     <div class="missing-tracks-list">
@@ -1213,7 +1187,7 @@
                     <br />
                     A Guide To Set This Up Can Be Found
                     <a
-                        href="https://github.com/monochrome-music/monochrome/blob/main/DOCKER.md"
+                        href="https://github.com/spotiman-music/spotiman/blob/main/DOCKER.md"
                         style="text-decoration: underline"
                         >Here</a
                     >.
@@ -1237,7 +1211,7 @@
                         type="text"
                         id="custom-appwrite-project"
                         class="template-input"
-                        placeholder="auth-for-monochrome"
+                        placeholder="auth-for-spotiman"
                     />
                 </div>
                 <div class="modal-actions">
@@ -1414,7 +1388,7 @@
                                 placeholder="https://example.com"
                             />
                             <p style="font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.25rem">
-                                It is recommended to create a Monochrome profile instead.
+                                It is recommended to create a Spotiman profile instead.
                             </p>
                         </div>
                         <div style="margin-bottom: 1rem">
@@ -1422,7 +1396,7 @@
                             <p style="font-size: 0.8rem; color: var(--muted-foreground); margin-bottom: 0.5rem">
                                 Define your CSS variables or custom styles here.
                                 <a
-                                    href="https://github.com/monochrome-music/monochrome/blob/main/THEME_GUIDE.md"
+                                    href="https://github.com/spotiman-music/spotiman/blob/main/THEME_GUIDE.md"
                                     target="_blank"
                                     style="text-decoration: underline; color: var(--primary)"
                                     >Read the Theme Guide</a
@@ -1577,7 +1551,7 @@
             <div class="modal-overlay"></div>
             <div class="modal-content">
                 <h3>Update Available</h3>
-                <p>A new version of Monochrome is available.</p>
+                <p>A new version of Spotiman is available.</p>
                 <div
                     id="desktop-update-notes"
                     style="
@@ -1666,9 +1640,9 @@
             <aside class="sidebar">
                 <div class="sidebar-content">
                     <div class="sidebar-logo">
-                        <a href="https://monochrome.tf/" class="sidebar-logo-link">
-                            <use svg="./images/monochrome-logo.svg" size="200" class="app-logo" />
-                            <span>Monochrome</span>
+                        <a href="https://spotiman.tf/" class="sidebar-logo-link">
+                            <img src="/assets/1024w_new.png" style="width: 32px; height: 32px; border-radius: 4px;" class="app-logo" alt="Spotiman Logo" />
+                            <span>Spotiman</span>
                         </a>
                         <button
                             id="sidebar-toggle"
@@ -1700,18 +1674,7 @@
                                     <span>Recent</span>
                                 </a>
                             </li>
-                            <li class="nav-item" id="sidebar-nav-unreleased">
-                                <a href="/unreleased">
-                                    <use svg="./images/squares.svg" size="24" />
-                                    <span>Unreleased</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" id="sidebar-nav-donate">
-                                <a id="sidebar-donate-link" href="/donate">
-                                    <use svg="!lucide/hand-heart.svg" size="24" />
-                                    <span>Donate</span>
-                                </a>
-                            </li>
+
                             <li class="nav-item" id="sidebar-nav-settings">
                                 <a href="/settings">
                                     <use svg="!lucide/settings.svg" size="24" />
@@ -1729,19 +1692,7 @@
                         </nav>
 
                         <div class="sidebar-nav-bottom">
-                            <div id="server-disruption-banner" class="server-disruption-sidebar" style="display: none">
-                                <span class="disruption-icon">&#9888;</span>
-                                <span
-                                    >Services are currently unstable. <br /><br />Use the extension
-                                    <a href="https://github.com/monochrome-music/monochrome/tree/main/extension"
-                                        >here</a
-                                    >
-                                    for the best experience.</span
-                                >
-                                <button id="dismiss-disruption-btn" class="disruption-dismiss" title="Dismiss">
-                                    &times;
-                                </button>
-                            </div>
+
                             <nav class="sidebar-nav bottom">
                                 <ul>
                                     <li class="nav-item" id="sidebar-nav-about-bottom">
@@ -1750,12 +1701,7 @@
                                             <span>About</span>
                                         </a>
                                     </li>
-                                    <li class="nav-item" id="sidebar-nav-discordbtn">
-                                        <a href="discord.html" target="_blank">
-                                            <use svg="./images/discord.svg" size="64" />
-                                            <span>Discord</span>
-                                        </a>
-                                    </li>
+
                                     <li class="nav-item" id="sidebar-nav-party">
                                         <a href="/parties" id="sidebar-party-btn">
                                             <use svg="!lucide/users.svg" size="24" />
@@ -1763,7 +1709,7 @@
                                         </a>
                                     </li>
                                     <li class="nav-item" id="sidebar-nav-githubbtn" style="display: none">
-                                        <a href="https://github.com/monochrome-music/monochrome" target="_blank">
+                                        <a href="https://github.com/spotiman-music/spotiman" target="_blank">
                                             <use svg="./images/github.svg" size="24" />
                                             <span>GitHub</span>
                                         </a>
@@ -1845,29 +1791,11 @@
 
                     <div id="home-view-for-you" class="home-view active">
                         <div id="home-welcome" style="display: none; text-align: center; padding: 4rem 2rem">
-                            <h2 style="margin-bottom: 1rem">Welcome to Monochrome</h2>
+                            <h2 style="margin-bottom: 1rem">Welcome to Spotiman</h2>
                             <p style="color: var(--muted-foreground)">
                                 You haven't listened to anything yet. Search for your favorite songs to get started!
                             </p>
                         </div>
-
-                        <section
-                            class="content-section"
-                            id="home-editors-picks-section-empty"
-                            style="margin-top: 0; display: none"
-                        >
-                            <div
-                                style="
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: space-between;
-                                    margin-bottom: 1rem;
-                                "
-                            >
-                                <h2 class="section-title" style="margin-bottom: 0">Editor's Picks</h2>
-                            </div>
-                            <div class="card-grid" id="home-editors-picks-empty"></div>
-                        </section>
 
                         <div id="home-content" style="display: none">
                             <section class="content-section">
@@ -1963,19 +1891,6 @@
                                     </button>
                                 </div>
                                 <div class="card-grid" id="home-recent-mixed"></div>
-                            </section>
-                            <section class="content-section" id="home-editors-picks-section">
-                                <div
-                                    style="
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: space-between;
-                                        margin-bottom: 1rem;
-                                    "
-                                >
-                                    <h2 class="section-title" style="margin-bottom: 0">Editor's Picks</h2>
-                                </div>
-                                <div class="card-grid" id="home-editors-picks"></div>
                             </section>
                         </div>
                     </div>
@@ -2907,7 +2822,7 @@
                                 </div>
                                 <div class="theme-picker" id="theme-picker">
                                     <div class="theme-option" data-theme="system">System</div>
-                                    <div class="theme-option" data-theme="monochrome">Black</div>
+                                    <div class="theme-option" data-theme="spotiman">Black</div>
                                     <div class="theme-option" data-theme="white">White</div>
                                     <div class="theme-option" data-theme="dark">Dark</div>
                                     <div class="theme-option" data-theme="ocean">Ocean</div>
@@ -3380,34 +3295,6 @@
                                         <input type="checkbox" id="show-editors-picks-toggle" checked />
                                         <span class="slider"></span>
                                     </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label">Shuffle Editor's Picks</span>
-                                        <span class="description"
-                                            >Randomize the order of editor's picks on each load</span
-                                        >
-                                    </div>
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="shuffle-editors-picks-toggle" checked />
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label">Editor's Picks Source</span>
-                                        <span class="description">Choose which editor's picks file to display</span>
-                                    </div>
-                                    <select id="editors-picks-source-select" class="select-dropdown">
-                                        <option value="current">Current</option>
-                                    </select>
-                                </div>
                             </div>
 
                             <div class="settings-group">
@@ -3669,175 +3556,10 @@
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label">Last.fm Scrobbling</span>
-                                        <span class="description" id="lastfm-status"
-                                            >Connect your Last.fm account to scrobble tracks</span
-                                        >
+                                        <span class="description" id="lastfm-status">Connect your Last.fm account to scrobble tracks</span>
                                     </div>
                                     <div id="lastfm-controls">
                                         <button id="lastfm-connect-btn" class="btn-secondary">Connect Last.fm</button>
-                                    </div>
-                                    <div id="lastfm-credential-auth" style="display: none; margin-top: 12px">
-                                        <div id="lastfm-credential-form" style="display: none">
-                                            <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: var(--muted)">
-                                                Enter your Last.fm credentials:
-                                            </p>
-                                            <input
-                                                type="text"
-                                                id="lastfm-username"
-                                                placeholder="Username"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                    width: 100%;
-                                                    margin-bottom: 8px;
-                                                "
-                                            />
-                                            <input
-                                                type="password"
-                                                id="lastfm-password"
-                                                placeholder="Password"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                    width: 100%;
-                                                    margin-bottom: 8px;
-                                                "
-                                            />
-                                            <div style="display: flex; gap: 8px">
-                                                <button
-                                                    id="lastfm-login-credentials"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem; flex: 1"
-                                                >
-                                                    Login
-                                                </button>
-                                                <button
-                                                    id="lastfm-use-oauth"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem; flex: 1"
-                                                >
-                                                    Use OAuth Instead
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div id="lastfm-credential-auth-secondary" style="display: none; margin-top: 12px">
-                                        <div style="display: flex; flex-direction: column; gap: 8px">
-                                            <div id="lastfm-credential-toggle-container-secondary">
-                                                <button
-                                                    id="lastfm-show-credential-auth-secondary"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem; width: 100%"
-                                                >
-                                                    Login with Username/Password
-                                                </button>
-                                            </div>
-                                            <div id="lastfm-credential-form-secondary" style="display: none">
-                                                <input
-                                                    type="text"
-                                                    id="lastfm-username-secondary"
-                                                    placeholder="Last.fm Username"
-                                                    style="
-                                                        padding: 8px;
-                                                        border-radius: 4px;
-                                                        border: 1px solid var(--border);
-                                                        background: var(--background);
-                                                        color: var(--foreground);
-                                                        width: 100%;
-                                                        margin-bottom: 8px;
-                                                    "
-                                                />
-                                                <input
-                                                    type="password"
-                                                    id="lastfm-password-secondary"
-                                                    placeholder="Last.fm Password"
-                                                    style="
-                                                        padding: 8px;
-                                                        border-radius: 4px;
-                                                        border: 1px solid var(--border);
-                                                        background: var(--background);
-                                                        color: var(--foreground);
-                                                        width: 100%;
-                                                        margin-bottom: 8px;
-                                                    "
-                                                />
-                                                <div style="display: flex; gap: 8px">
-                                                    <button
-                                                        id="lastfm-login-credentials-secondary"
-                                                        class="btn-secondary"
-                                                        style="padding: 6px 12px; font-size: 0.85rem; flex: 1"
-                                                    >
-                                                        Login
-                                                    </button>
-                                                    <button
-                                                        id="lastfm-use-oauth-secondary"
-                                                        class="btn-secondary"
-                                                        style="padding: 6px 12px; font-size: 0.85rem; flex: 1"
-                                                    >
-                                                        Use OAuth
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div id="lastfm-credential-auth-alt" style="margin-top: 12px; display: none">
-                                        <div style="display: flex; flex-direction: column; gap: 8px">
-                                            <input
-                                                type="text"
-                                                id="lastfm-username-alt"
-                                                placeholder="Last.fm Username"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                "
-                                            />
-                                            <input
-                                                type="password"
-                                                id="lastfm-password-alt"
-                                                placeholder="Last.fm Password"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                "
-                                            />
-                                            <div style="display: flex; gap: 8px; margin-top: 4px">
-                                                <button
-                                                    id="lastfm-login-credentials-alt"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem"
-                                                >
-                                                    Login with Credentials
-                                                </button>
-                                                <button
-                                                    id="lastfm-use-oauth-alt"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem"
-                                                >
-                                                    Use OAuth Instead
-                                                </button>
-                                            </div>
-                                            <div style="display: flex; gap: 8px; margin-top: 4px">
-                                                <button
-                                                    id="lastfm-show-credential-auth-alt"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem"
-                                                >
-                                                    Login with Username/Password
-                                                </button>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
 
@@ -3847,7 +3569,7 @@
                                         <span class="description">Automatically scrobble played tracks</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="lastfm-toggle" />
+                                        <input type="checkbox" id="lastfm-toggle">
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -3855,71 +3577,49 @@
                                 <div class="setting-item" id="lastfm-love-setting" style="display: none">
                                     <div class="info">
                                         <span class="label">Love on Like</span>
-                                        <span class="description"
-                                            >Automatically 'love' tracks on Last.fm when you like them</span
-                                        >
+                                        <span class="description">Automatically 'love' tracks on Last.fm when you like them</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="lastfm-love-toggle" />
+                                        <input type="checkbox" id="lastfm-love-toggle">
                                         <span class="slider"></span>
                                     </label>
                                 </div>
 
                                 <div class="setting-item" id="lastfm-custom-creds-toggle-setting" style="display: none">
                                     <div class="info">
-                                        <span class="label">Use Custom API Credentials</span>
-                                        <span class="description">Use your own Last.fm API key and secret</span>
+                                        <span class="label">Custom API Credentials</span>
+                                        <span class="description">Use your own Last.fm API Key and Secret</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="lastfm-custom-creds-toggle" />
+                                        <input type="checkbox" id="lastfm-custom-creds-toggle">
                                         <span class="slider"></span>
                                     </label>
                                 </div>
 
-                                <div class="setting-item" id="lastfm-custom-creds-setting" style="display: none">
-                                    <div class="info" style="flex: 1; min-width: 0">
-                                        <span class="label">Custom API Credentials</span>
-                                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px">
-                                            <input
-                                                type="text"
-                                                id="lastfm-custom-api-key"
-                                                placeholder="API Key"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                "
-                                            />
-                                            <input
-                                                type="password"
-                                                id="lastfm-custom-api-secret"
-                                                placeholder="API Secret"
-                                                style="
-                                                    padding: 8px;
-                                                    border-radius: 4px;
-                                                    border: 1px solid var(--border);
-                                                    background: var(--background);
-                                                    color: var(--foreground);
-                                                "
-                                            />
-                                            <div style="display: flex; gap: 8px; margin-top: 4px">
-                                                <button
-                                                    id="lastfm-save-custom-creds"
-                                                    class="btn-secondary"
-                                                    style="padding: 6px 12px; font-size: 0.85rem"
-                                                >
-                                                    Save Credentials
-                                                </button>
-                                                <button
-                                                    id="lastfm-clear-custom-creds"
-                                                    class="btn-secondary danger"
-                                                    style="padding: 6px 12px; font-size: 0.85rem; display: none"
-                                                >
-                                                    Clear
-                                                </button>
-                                            </div>
+                                <div id="lastfm-custom-creds-setting" style="display: none; flex-direction: column; gap: 0.75rem; margin: 0.5rem 1rem 1rem 1rem; padding: 1rem; background: var(--background-secondary); border-radius: var(--radius); border: 1px solid var(--border);">
+                                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                        <label for="lastfm-custom-api-key" style="font-size: 0.8rem; opacity: 0.7;">API Key</label>
+                                        <input type="text" id="lastfm-custom-api-key" class="template-input" placeholder="Your Last.fm API Key" style="width: 100%;">
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                        <label for="lastfm-custom-api-secret" style="font-size: 0.8rem; opacity: 0.7;">API Secret</label>
+                                        <input type="password" id="lastfm-custom-api-secret" class="template-input" placeholder="Your Last.fm API Secret" style="width: 100%;">
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                        <button id="lastfm-save-custom-creds" class="btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Save Credentials</button>
+                                        <button id="lastfm-clear-custom-creds" class="btn-secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">Clear</button>
+                                    </div>
+                                </div>
+
+                                <div id="lastfm-credential-auth" style="display: none; margin: 0.5rem 1rem 1rem 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--background-secondary);">
+                                    <h4 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 0.9rem;">Login with Credentials</h4>
+                                    <p style="font-size: 0.8rem; margin-bottom: 1rem; opacity: 0.7;">Use your Last.fm username and password if OAuth is not working.</p>
+                                    <div id="lastfm-credential-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                        <input type="text" id="lastfm-username" class="template-input" placeholder="Last.fm Username" style="width: 100%;">
+                                        <input type="password" id="lastfm-password" class="template-input" placeholder="Last.fm Password" style="width: 100%;">
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <button id="lastfm-login-credentials" class="btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Login</button>
+                                            <button id="lastfm-use-oauth" class="btn-secondary" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">Use Standard</button>
                                         </div>
                                     </div>
                                 </div>
@@ -5452,7 +5152,7 @@
                                         type="text"
                                         id="zip-folder-template"
                                         class="template-input"
-                                        placeholder="{albumTitle} - {albumArtist} - monochrome.tf"
+                                        placeholder="{albumTitle} - {albumArtist} - spotiman.tf"
                                     />
                                 </div>
                             </div>
@@ -5668,6 +5368,16 @@
                             <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
+                                        <span class="label">Library Scanning</span>
+                                        <span class="description">Manually trigger a scan for new songs in Navidrome</span>
+                                    </div>
+                                    <button id="trigger-scan-btn" class="btn-secondary">Trigger Scan</button>
+                                </div>
+                            </div>
+
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
                                         <span class="label">Reset Local Data</span>
                                         <span class="description"
                                             >Clear all local storage and cached data (does not affect cloud sync)</span
@@ -5812,18 +5522,18 @@
                 </div>
 
                 <div id="page-about" class="page">
-                    <h2 class="section-title" style="text-align: center">About Monochrome</h2>
+                    <h2 class="section-title" style="text-align: center">About Spotiman</h2>
                     <div class="about-content">
                         <p class="about-description">
-                            Monochrome is a lightweight, privacy-focused music streaming client designed for
+                            Spotiman is a lightweight, privacy-focused music streaming client designed for
                             high-fidelity audio playback. Built with modern web technologies, it provides a clean,
                             distraction-free listening experience.
                             <br />
                         </p>
                         <div class="about-donate">
-                            <h2 class="section-title" style="text-align: center">Support Monochrome</h2>
+                            <h2 class="section-title" style="text-align: center">Support Spotiman</h2>
                             <p style="text-align: center" class="donate-description">
-                                If Monochrome has been useful to you and you're able to, consider making a donation.
+                                If Spotiman has been useful to you and you're able to, consider making a donation.
                                 <br />
                                 It helps pay for the server and domain, and you get to support us :)
                             </p>
@@ -5853,10 +5563,10 @@
                                         gap: 0.5rem;
                                     "
                                 >
-                                    Donate to Monochrome
+                                    Donate to Spotiman
                                 </a>
                                 <a
-                                    href="https://github.com/monochrome-music/monochrome"
+                                    href="https://github.com/spotiman-music/spotiman"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="btn-secondary"
@@ -5919,10 +5629,7 @@
                                 flex-wrap: wrap;
                             "
                         >
-                            <button id="auth-connect-btn" class="btn-secondary">Connect with Google</button>
-                            <button id="auth-github-btn" class="btn-secondary">Connect with GitHub</button>
-                            <button id="auth-discord-btn" class="btn-secondary">Connect with Discord</button>
-                            <button id="toggle-email-auth-btn" class="btn-secondary">Connect with Email</button>
+                            
                             <button id="view-my-profile-btn" class="btn-secondary" style="display: none">
                                 View My Profile
                             </button>
@@ -5932,7 +5639,7 @@
                             Sync your library across devices
                         </p>
                         <p style="padding-top: 50px; text-align: center; color: #8b8b93">
-                            We only store music data and a randomized ID to find out which Google/Email account is
+                            We only store music data and a randomized ID to find out which Email account is
                             which.
                             <br />
                             All data is anonymous. We do not store anything like emails, usernames, or anything
@@ -5959,13 +5666,13 @@
                 </div>
                 <div id="page-donate" class="page">
                     <div style="text-align: center; padding: 2rem; max-width: 500px; margin: 0 auto">
-                        <h2 class="section-title" style="margin-bottom: 1.5rem">Support Monochrome</h2>
+                        <h2 class="section-title" style="margin-bottom: 1.5rem">Support Spotiman</h2>
                         <p style="margin-bottom: 1.5rem; line-height: 1.6; color: var(--muted-foreground)">
-                            If Monochrome has been useful to you and you're able to, consider making a donation. It
+                            If Spotiman has been useful to you and you're able to, consider making a donation. It
                             helps pay for the server and domain, and you get to support us :)
                         </p>
                         <a
-                            href="https://ko-fi.com/monochromemusic"
+                            href="https://ko-fi.com/spotimanmusic"
                             target="_blank"
                             rel="noopener noreferrer"
                             class="btn-primary"
@@ -5985,7 +5692,7 @@
                                 sharing with friends!
                             </p>
                             <a
-                                href="https://github.com/monochrome-music/monochrome"
+                                href="https://github.com/spotiman-music/spotiman"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="btn-secondary"
@@ -6105,7 +5812,7 @@
 
             <footer class="now-playing-bar">
                 <div class="track-info">
-                    <img src="/assets/appicon.png" alt="Current Track Cover" class="cover" fetchpriority="high" />
+                    <img src="/assets/1024w_new.png" alt="Current Track Cover" class="cover" fetchpriority="high" />
                     <div class="details">
                         <div class="title">Select a song</div>
                         <div class="album"></div>
@@ -6205,5 +5912,33 @@
             </footer>
         </div>
         <script type="module" src="/js/app.js"></script>
+
+        <div id="spotiman-auth-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content auth-card">
+                <div class="auth-header">
+                    <img src="/assets/1024w_new.png" alt="Spotiman Logo" class="auth-logo" />
+                    <h2>Welcome to Spotiman</h2>
+                    <p>Please sign in to your ecosystem</p>
+                </div>
+                <form id="spotiman-auth-form">
+                    <div class="input-group">
+                        <label for="spotiman-auth-username">Username</label>
+                        <input type="text" id="spotiman-auth-username" placeholder="Enter username" required />
+                    </div>
+                    <div class="input-group">
+                        <label for="spotiman-auth-password">Password</label>
+                        <input type="password" id="spotiman-auth-password" placeholder="Enter password" required />
+                    </div>
+                    <div id="spotiman-auth-error" class="error-message" style="display: none;"></div>
+                    <button type="submit" class="btn-primary auth-submit-btn">
+                        <span>Sign In</span>
+                        <div class="spinner" style="display: none;"></div>
+                    </button>
+                </form>
+                <div class="auth-footer">
+                    <p>Powered by Spotiman Music Ecosystem</p>
+                </div>
+            </div>
+        </div>
     </body>
 </html>

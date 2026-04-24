@@ -272,6 +272,14 @@ export class SubsonicAPI {
             const res = await this.fetchAPI('getLyricsBySongId', `id=${id}`);
             const lyrics = res?.lyricsList?.structuredLyrics?.[0];
             if (lyrics) {
+                const format = (lyrics.format || '').toLowerCase();
+                const raw = lyrics.raw || '';
+                if (raw && (format === 'ttml' || format === 'ttlm')) {
+                    return { subtitles: raw, raw, format: 'ttml', lyricsProvider: 'Navidrome' };
+                }
+                if (raw && format === 'lrc') {
+                    return { subtitles: raw, raw, format: 'lrc', lyricsProvider: 'Navidrome' };
+                }
                 // Convert structured lyrics to LRC format
                 if (lyrics.synced && lyrics.line?.length > 0) {
                     const lrc = lyrics.line
@@ -284,11 +292,11 @@ export class SubsonicAPI {
                             return `[${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(cs).padStart(2, '0')}]${l.value}`;
                         })
                         .join('\n');
-                    return { subtitles: lrc, lyricsProvider: 'Navidrome' };
+                    return { subtitles: lrc, format: 'lrc', lyricsProvider: 'Navidrome' };
                 }
                 // Unsynced
                 const text = lyrics.line?.map(l => l.value).join('\n');
-                if (text) return { subtitles: text, lyricsProvider: 'Navidrome' };
+                if (text) return { subtitles: text, format: 'text', lyricsProvider: 'Navidrome' };
             }
         } catch (e) {
             console.warn('getLyricsBySongId failed, trying getLyrics:', e);

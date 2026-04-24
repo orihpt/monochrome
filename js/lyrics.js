@@ -1,15 +1,15 @@
 //js/lyrics.js
-import { getTrackTitle, getTrackArtists, buildTrackFilename } from './utils.js';
 import {
     SVG_CLOSE,
     SVG_GENIUS_ACTIVE,
     SVG_GENIUS_INACTIVE,
+    SVG_GLOBE,
     SVG_MINUS,
     SVG_PLUS,
     SVG_RESET,
-    SVG_GLOBE,
 } from './icons.js';
 import { sidePanelManager } from './side-panel.js';
+import { buildTrackFilename, getTrackArtists, getTrackTitle } from './utils.js';
 
 const loadAmLyrics = () => {
     const images = Array.from(document.images).filter((img) => !img.complete);
@@ -99,15 +99,6 @@ class GeniusManager {
         */
         return null;
 
-        const normalize = (str) => str.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
-        const targetArtist = normalize(artist);
-
-        const hit = data.response.hits.find((h) => {
-            const hitArtist = normalize(h.result.primary_artist.name);
-            return hitArtist.includes(targetArtist) || targetArtist.includes(hitArtist);
-        });
-
-        return hit ? hit.result : data.response.hits[0].result;
     }
 
     async getReferents(songId) {
@@ -315,31 +306,6 @@ export class LyricsManager {
             */
             throw new Error('Kuroshiro not available in Standalone Mode');
 
-            /* Disabled for Standalone Mode
-            if (!window.KuromojiAnalyzer) {
-                await this.loadScript(
-                    'https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js'
-                );
-            }
-            */
-
-            // Initialize Kuroshiro (CDN version exports as .default)
-            const Kuroshiro = window.Kuroshiro.default || window.Kuroshiro;
-            const KuromojiAnalyzer = window.KuromojiAnalyzer.default || window.KuromojiAnalyzer;
-
-            this.kuroshiro = new Kuroshiro();
-
-            // Initialize with a dummy path - our fetch interceptor will redirect to CDN
-            await this.kuroshiro.init(
-                new KuromojiAnalyzer({
-                    dictPath: '/dict/', // This gets mangled but our interceptor fixes it
-                })
-            );
-
-            this.kuroshiroLoaded = true;
-            this.kuroshiroLoading = false;
-            console.log('✓ Kuroshiro loaded and initialized successfully');
-            return true;
         } catch (error) {
             console.error('✗ Failed to load Kuroshiro:', error);
             this.kuroshiroLoaded = false;
@@ -443,6 +409,8 @@ export class LyricsManager {
             if (subsonicLyrics) {
                 const lyricsData = {
                     subtitles: subsonicLyrics.subtitles || subsonicLyrics.value || subsonicLyrics.text || subsonicLyrics,
+                    raw: subsonicLyrics.raw,
+                    format: subsonicLyrics.format,
                     lyricsProvider: subsonicLyrics.lyricsProvider || 'Navidrome',
                 };
                 this.lyricsCache.set(trackId, lyricsData);
@@ -459,7 +427,6 @@ export class LyricsManager {
 
         return null;
 
-        return null;
     }
 
     parseSyncedLyrics(subtitles) {
@@ -1044,6 +1011,171 @@ function applyFullscreenLyricsShadowTweaks(amLyrics, container) {
     requestAnimationFrame(tryInject);
 }
 
+function parseLocalLyricsForAmLyrics(lyricsData) {
+    const raw = lyricsData?.raw || lyricsData?.subtitles || '';
+    if (!raw) return [];
+
+    const format = (lyricsData.format || (raw.trim().startsWith('<') ? 'ttml' : 'lrc')).toLowerCase();
+
+    if (format === 'ttml' || format === 'ttlm') {
+        return parseLocalTtml(raw);
+    }
+
+    if (format === 'lrc') {
+        return parseLocalLrc(raw);
+    }
+
+    return raw
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => ({
+            text: [{ text: line, part: false, timestamp: 0, endtime: 0, lineSynced: true }],
+            background: false,
+            backgroundText: [],
+            oppositeTurn: false,
+            timestamp: 0,
+            endtime: 0,
+            isWordSynced: false,
+        }));
+}
+
+function parseLyricsTimeToMs(value) {
+    if (!value) return 0;
+    const parts = String(value).trim().split(':');
+    let seconds = 0;
+
+    if (parts.length === 3) {
+        seconds = parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+        seconds = parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+    } else {
+        seconds = parseFloat(parts[0]);
+    }
+
+    return Number.isFinite(seconds) ? Math.round(seconds * 1000) : 0;
+}
+
+function getXmlAttr(node, ...names) {
+    if (!node) return null;
+    for (const name of names) {
+        const value = node.getAttribute(name);
+        if (value != null) return value;
+    }
+    return null;
+}
+
+function getDirectTextAfterSpan(span) {
+    const nextNode = span.nextSibling;
+    if (nextNode && nextNode.nodeType === Node.TEXT_NODE && /^\s/.test(nextNode.textContent || '')) {
+        return ' ';
+    }
+    return '';
+}
+
+function parseLocalTtml(ttml) {
+    const doc = new DOMParser().parseFromString(ttml, 'text/xml');
+    if (doc.querySelector('parsererror')) return [];
+
+    return Array.from(doc.getElementsByTagName('p'))
+        .map((p) => {
+            const timestamp = parseLyricsTimeToMs(getXmlAttr(p, 'begin'));
+            const endtime = parseLyricsTimeToMs(getXmlAttr(p, 'end'));
+            const spans = Array.from(p.getElementsByTagName('span')).filter((span) => getXmlAttr(span, 'begin'));
+            const syllables =
+                spans.length > 0
+                    ? spans.map((span) => {
+                        let text = span.textContent || '';
+                        if (getDirectTextAfterSpan(span) && !text.endsWith(' ')) text += ' ';
+                        return {
+                            text,
+                            part: false,
+                            timestamp: parseLyricsTimeToMs(getXmlAttr(span, 'begin')),
+                            endtime: parseLyricsTimeToMs(getXmlAttr(span, 'end')),
+                        };
+                    })
+                    : [
+                        {
+                            text: (p.textContent || '').trim(),
+                            part: false,
+                            timestamp,
+                            endtime,
+                            lineSynced: true,
+                        },
+                    ];
+
+            return {
+                text: syllables,
+                background: false,
+                backgroundText: [],
+                oppositeTurn: false,
+                timestamp,
+                endtime,
+                isWordSynced: spans.length > 0,
+                songPart: getXmlAttr(p.parentElement, 'itunes:song-part', 'itunes:songPart') || undefined,
+            };
+        })
+        .filter((line) => line.text.some((syllable) => syllable.text.trim()));
+}
+
+function parseLocalLrc(lrc) {
+    const parsed = [];
+    for (const rawLine of lrc.split('\n')) {
+        const match = rawLine.match(/^\[(\d{1,3}):(\d{2})(?:\.(\d{2,3}))?\]\s?(.*)$/);
+        if (!match) continue;
+
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const fraction = match[3] || '0';
+        const millis = fraction.length === 3 ? parseInt(fraction, 10) : parseInt(fraction, 10) * 10;
+        parsed.push({
+            timestamp: (minutes * 60 + seconds) * 1000 + millis,
+            text: match[4] || '',
+        });
+    }
+
+    return parsed
+        .map(({ timestamp, text }, index) => ({
+            text: [{ text, part: false, timestamp, endtime: parsed[index + 1]?.timestamp || timestamp + 5000, lineSynced: true }],
+            background: false,
+            backgroundText: [],
+            oppositeTurn: false,
+            timestamp,
+            endtime: parsed[index + 1]?.timestamp || timestamp + 5000,
+            isWordSynced: false,
+        }))
+        .filter((line) => line.text[0].text.trim());
+}
+
+async function applyLocalLyricsToElement(amLyrics, lyricsData) {
+    const lines = parseLocalLyricsForAmLyrics(lyricsData);
+    if (!lines.length) return false;
+
+    const source = lyricsData?.format ? `Navidrome (${lyricsData.format.toUpperCase()})` : 'Navidrome';
+    amLyrics.availableSources = [{ lines, source }];
+    amLyrics.currentSourceIndex = 0;
+    amLyrics.hasFetchedAllProviders = true;
+    amLyrics.lyrics = lines;
+    amLyrics.lyricsSource = source;
+    amLyrics.isLoading = false;
+
+    if (typeof amLyrics.onLyricsLoaded === 'function') {
+        await amLyrics.onLyricsLoaded();
+    } else if (typeof amLyrics.requestUpdate === 'function') {
+        amLyrics.requestUpdate();
+    }
+
+    if (amLyrics.updateComplete && typeof amLyrics.requestUpdate === 'function') {
+        // am-lyrics builds its line render cache in updated(), after the first lyrics render.
+        // Request one more render so local lyrics do not appear as empty line containers.
+        await amLyrics.updateComplete;
+        amLyrics.requestUpdate();
+        await amLyrics.updateComplete;
+    }
+
+    return true;
+}
+
 async function renderLyricsComponent(container, track, audioPlayer, lyricsManager) {
     container.innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
 
@@ -1069,8 +1201,18 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
             queryArtist = cleanTrackerSearch(artist);
         }
 
+        const localLyricsData = await lyricsManager.fetchLyrics(track.id, track);
+        if (!localLyricsData) {
+            container.innerHTML = '<div class="lyrics-error">No lyrics available</div>';
+            return null;
+        }
+
         container.innerHTML = '';
         const amLyrics = document.createElement('am-lyrics');
+        amLyrics.fetchLyrics = async () => { };
+        amLyrics.switchSource = async () => { };
+        amLyrics.applyTranslation = async () => { };
+        amLyrics.applyRomanization = async () => { };
         amLyrics.setAttribute('song-title', queryTitle);
         amLyrics.setAttribute('song-artist', queryArtist);
         if (album) amLyrics.setAttribute('song-album', album);
@@ -1087,6 +1229,11 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
 
         container.appendChild(amLyrics);
         applyFullscreenLyricsShadowTweaks(amLyrics, container);
+        const hasLocalLyrics = await applyLocalLyricsToElement(amLyrics, localLyricsData);
+        if (!hasLocalLyrics) {
+            container.innerHTML = '<div class="lyrics-error">No lyrics available</div>';
+            return null;
+        }
 
         lyricsManager.setupLyricsObserver(amLyrics);
 
@@ -1094,23 +1241,6 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         if (lyricsManager.isRomajiMode && trackHasAsianText(track) && !lyricsManager.kuroshiroLoaded) {
             await lyricsManager.loadKuroshiro();
         }
-
-        lyricsManager
-            .fetchLyrics(track.id, track)
-            .then(async () => {
-                if (lyricsManager.isGeniusMode) {
-                    try {
-                        const data = await lyricsManager.geniusManager.getDataForTrack(track);
-                        if (data) {
-                            lyricsManager.currentGeniusData = data;
-                            lyricsManager.applyGeniusAnnotations(amLyrics, data.referents);
-                        }
-                    } catch (e) {
-                        console.warn('Genius auto-load failed', e);
-                    }
-                }
-            })
-            .catch((e) => console.warn('Background lyrics fetch failed', e));
 
         // Wait for lyrics to appear, then do an immediate conversion
         const waitForLyrics = () => {

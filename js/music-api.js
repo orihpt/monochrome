@@ -314,11 +314,7 @@ export class MusicAPI {
     }
 
     async getLyrics(id) {
-        const api = this.getAPI();
-        if (typeof api.getLyrics === 'function') {
-            return api.getLyrics(id);
-        }
-        return null;
+        return this.subsonicAPI.getLyrics(this.stripProviderPrefix(id));
     }
 
     getArtistPictureUrl(id, size = '320') {

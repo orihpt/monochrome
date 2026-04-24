@@ -299,7 +299,6 @@ function updateSelectionBar() {
                 <button data-action="play-selected">Play</button>
                 <button data-action="add-to-queue-selected">Add to queue</button>
                 <button data-action="add-to-playlist-selected">Add to playlist</button>
-                <button data-action="download-selected">Download</button>
                 <button data-action="like-selected">Like</button>
             </div>
             <button data-action="clear-selection" style="margin-left: 8px;">Clear</button>

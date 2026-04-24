@@ -1994,7 +1994,6 @@ export class UIRenderer {
         const fsLikeBtn = document.getElementById('fs-like-btn');
         const fsAddPlaylistBtn = document.getElementById('fs-add-playlist-btn');
         const fsDownloadBtn = document.getElementById('fs-download-btn');
-        const fsCastBtn = document.getElementById('fs-cast-btn');
         const fsQueueBtn = document.getElementById('fs-queue-btn');
         const artistEl = document.getElementById('fullscreen-track-artist');
 
@@ -2152,9 +2151,6 @@ export class UIRenderer {
         }
         if (fsDownloadBtn) {
             fsDownloadBtn.onclick = () => document.getElementById('download-current-btn')?.click();
-        }
-        if (fsCastBtn) {
-            fsCastBtn.onclick = () => document.getElementById('cast-btn')?.click();
         }
         if (fsQueueBtn) {
             fsQueueBtn.onclick = () => {

@@ -311,17 +311,6 @@ class CommandPalette {
                 },
             },
             {
-                id: 'download-current',
-                group: 'Now Playing',
-                icon: 'download',
-                label: 'Download Current Track',
-                keywords: ['download', 'save', 'current'],
-                action: () => {
-                    document.querySelector('.now-playing-bar .download-btn')?.click();
-                },
-            },
-
-            {
                 id: 'queue-open',
                 group: 'Queue',
                 icon: 'list',
@@ -351,15 +340,6 @@ class CommandPalette {
                 keywords: ['like', 'all', 'queue', 'heart', 'favorite'],
                 action: () => this.likeAllInQueue(),
             },
-            {
-                id: 'queue-download',
-                group: 'Queue',
-                icon: 'download',
-                label: 'Download Queue',
-                keywords: ['download', 'queue', 'save', 'all'],
-                action: () => this.downloadQueue(),
-            },
-
             {
                 id: 'lyrics-toggle',
                 group: 'View',
@@ -1259,22 +1239,6 @@ class CommandPalette {
             }
         }
         await this.notify(`Liked ${likedCount} new track(s)`);
-    }
-
-    async downloadQueue() {
-        const player = Player.instance;
-        const ui = UIRenderer.instance;
-        if (!player || !ui) return;
-
-        const queue = player.getCurrentQueue();
-        if (queue.length === 0) {
-            await this.notify('Queue is empty');
-            return;
-        }
-
-        const { downloadTracks } = await import('./downloads.js');
-        const { downloadQualitySettings } = await import('./storage.js');
-        await downloadTracks(queue, ui.api, downloadQualitySettings.getQuality(), ui.lyricsManager);
     }
 
     async createPlaylist() {

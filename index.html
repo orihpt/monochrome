@@ -136,7 +136,6 @@
                 <li data-action="open-in-harmony" data-type-filter="album">Open in Harmony</li>
                 <li data-action="track-info" data-type-filter="track,video">Track info</li>
                 <li data-action="open-original-url" data-type-filter="track,video">Open original URL</li>
-                <li data-action="download">Download</li>
                 <li class="separator"></li>
                 <li
                     data-action="block-track"
@@ -263,17 +262,11 @@
                                     <h3 id="fullscreen-track-artist"></h3>
                                 </div>
                                 <div class="fullscreen-actions">
-                                    <button id="fs-like-btn" class="btn-icon like-btn" title="Like">
-                                        <use svg="!lucide/heart.svg" class="heart-icon" size="24" />
-                                    </button>
                                     <button id="fs-add-playlist-btn" class="btn-icon" title="Add to Playlist">
                                         <use svg="!lucide/square-pen.svg" size="24" />
                                     </button>
-                                    <button id="fs-download-btn" class="btn-icon" title="Download">
-                                        <use svg="!lucide/download.svg" size="24" />
-                                    </button>
-                                    <button id="fs-cast-btn" class="btn-icon" title="Cast">
-                                        <use svg="!lucide/cast.svg" size="24" />
+                                    <button id="fs-like-btn" class="btn-icon like-btn" title="Like">
+                                        <use svg="!lucide/heart.svg" class="heart-icon" size="24" />
                                     </button>
                                     <button id="fs-queue-btn" class="btn-icon" title="Queue">
                                         <use svg="!lucide/list.svg" size="24" />
@@ -1164,7 +1157,6 @@
                 </div>
                 <div class="modal-actions" style="margin-top: 1.5rem">
                     <button class="btn-secondary" id="cancel-discography-download">Cancel</button>
-                    <button class="btn-primary" id="start-discography-download">Download</button>
                 </div>
             </div>
         </div>
@@ -2151,21 +2143,6 @@
                                     >
                                         <use svg="!lucide/shuffle.svg" size="16" />
                                     </button>
-                                    <button
-                                        id="download-liked-tracks-btn"
-                                        class="btn-secondary"
-                                        style="
-                                            width: 32px;
-                                            height: 32px;
-                                            padding: 0;
-                                            align-items: center;
-                                            justify-content: center;
-                                            border-radius: 50%;
-                                        "
-                                        title="Download Liked Tracks"
-                                    >
-                                        <use svg="!lucide/download.svg" size="16" />
-                                    </button>
                                 </div>
                             </div>
                             <div class="track-list" id="library-tracks-container"></div>
@@ -2298,10 +2275,6 @@
                                     <use svg="./images/play.svg" size="20" />
                                     <span>Shuffle Play</span>
                                 </button>
-                                <button id="download-tracker-artist-btn" class="btn-primary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download All</span>
-                                </button>
                             </div>
                         </div>
                     </header>
@@ -2335,10 +2308,6 @@
                                 <button id="album-mix-btn" class="btn-primary" style="display: none" title="Mix">
                                     <use svg="./images/mix.svg" size="20" />
                                     <span>Mix</span>
-                                </button>
-                                <button id="download-album-btn" class="btn-primary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download</span>
                                 </button>
                                 <button id="add-album-to-playlist-btn" class="btn-secondary" title="Add to Playlist">
                                     <use svg="!lucide/plus.svg" size="20" />
@@ -2426,10 +2395,6 @@
                                 <button id="shuffle-playlist-btn" class="btn-primary" title="Shuffle">
                                     <use svg="!lucide/shuffle.svg" size="18" />
                                     <span>Shuffle</span>
-                                </button>
-                                <button id="download-playlist-btn" class="btn-primary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download</span>
                                 </button>
                                 <button
                                     id="like-playlist-btn"
@@ -2525,10 +2490,6 @@
                                     <use svg="./images/play.svg" size="20" />
                                     <span>Play</span>
                                 </button>
-                                <button id="download-mix-btn" class="btn-primary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download</span>
-                                </button>
                                 <button
                                     id="like-mix-btn"
                                     class="btn-secondary like-btn"
@@ -2572,10 +2533,6 @@
                                 <button id="artist-mix-btn" class="btn-primary" style="display: none" title="Mix">
                                     <use svg="./images/mix.svg" size="20" />
                                     <span>Mix</span>
-                                </button>
-                                <button id="download-discography-btn" class="btn-primary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download</span>
                                 </button>
                                 <button
                                     id="like-artist-btn"
@@ -2691,10 +2648,6 @@
                                     <use svg="!lucide/heart.svg" class="heart-icon" size="20" />
                                     <span>Save</span>
                                 </button>
-                                <button id="download-track-btn" class="btn-secondary" title="Download">
-                                    <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download</span>
-                                </button>
                             </div>
                         </div>
                     </header>
@@ -2807,7 +2760,6 @@
                         <button class="settings-tab" data-tab="interface">Interface</button>
                         <button class="settings-tab" data-tab="scrobbling">Scrobbling</button>
                         <button class="settings-tab" data-tab="audio">Audio</button>
-                        <button class="settings-tab" data-tab="downloads">Downloads</button>
                         <button class="settings-tab" data-tab="instances">Instances</button>
                         <button class="settings-tab" data-tab="system">System</button>
                     </div>
@@ -4529,14 +4481,6 @@
                                         </div>
 
                                         <div class="autoeq-actions-row">
-                                            <button
-                                                id="autoeq-download-btn"
-                                                class="autoeq-download-btn"
-                                                title="Export EQ settings"
-                                                aria-label="Export EQ settings"
-                                            >
-                                                <use svg="!lucide/download.svg" size="20" />
-                                            </button>
                                         </div>
                                         <span
                                             id="autoeq-status"
@@ -5850,13 +5794,6 @@
                 <div class="volume-controls">
                     <div class="player-actions-row">
                         <button
-                            id="now-playing-like-btn"
-                            class="like-btn"
-                            data-action="toggle-like"
-                            title="Save to Favorites"
-                            style="display: none"
-                        ></button>
-                        <button
                             id="now-playing-add-playlist-btn"
                             title="Add to playlist"
                             class="desktop-only"
@@ -5877,11 +5814,13 @@
                         <button id="toggle-lyrics-btn" title="Lyrics" style="display: none" aria-label="Lyrics">
                             <use svg="!lucide/mic-vocal.svg" size="20" />
                         </button>
-                        <button id="download-current-btn" title="Download current track" class="desktop-only">
-                            <use svg="!lucide/download.svg" size="20" />
-                        </button>
-                        <button id="cast-btn" title="Cast">
-                            <use svg="!lucide/cast.svg" size="20" />
+                        <button
+                            id="now-playing-like-btn"
+                            class="like-btn"
+                            data-action="toggle-like"
+                            title="Save to Favorites"
+                        >
+                            <use svg="!lucide/heart.svg" class="heart-icon" size="20" />
                         </button>
 
                         <button

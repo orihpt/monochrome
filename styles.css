@@ -2627,6 +2627,12 @@ body.multi-select-mode .track-item:hover {
     display: block;
 }
 
+.detail-header-banner.local-image {
+    background-position: center;
+    background-size: cover;
+    filter: brightness(0.7);
+}
+
 #page-artist .detail-header {
     position: relative;
     padding: 12rem 3rem 4rem;

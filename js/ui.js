@@ -4922,6 +4922,8 @@ export class UIRenderer {
             }
             bannerContainer.innerHTML = '';
             bannerContainer.style.opacity = '0';
+            bannerContainer.style.backgroundImage = '';
+            bannerContainer.classList.remove('local-image');
         }
 
         const imageEl = document.getElementById('artist-detail-image');
@@ -4973,37 +4975,43 @@ export class UIRenderer {
             const artist = await this.api.getArtist(artistId, provider);
 
             const currentId = this.currentArtistId;
-            this.api
-                .getArtistBanner(artist.name)
-                .then(async (banner) => {
-                    if (this.currentArtistId !== currentId) return;
+            if (artist.localHeaderUrl && bannerContainer) {
+                bannerContainer.classList.add('local-image');
+                bannerContainer.style.backgroundImage = `url("${artist.localHeaderUrl}")`;
+                bannerContainer.style.opacity = '1';
+            } else {
+                this.api
+                    .getArtistBanner(artist.name)
+                    .then(async (banner) => {
+                        if (this.currentArtistId !== currentId) return;
 
-                    if (banner && banner.hlsUrl && bannerContainer) {
-                        const video = document.createElement('video');
-                        video.autoplay = true;
-                        video.loop = true;
-                        video.muted = true;
-                        video.playsInline = true;
-                        video.setAttribute('muted', '');
-                        video.setAttribute('autoplay', '');
-                        video.setAttribute('playsinline', '');
-                        video.style.opacity = '1';
+                        if (banner && banner.hlsUrl && bannerContainer) {
+                            const video = document.createElement('video');
+                            video.autoplay = true;
+                            video.loop = true;
+                            video.muted = true;
+                            video.playsInline = true;
+                            video.setAttribute('muted', '');
+                            video.setAttribute('autoplay', '');
+                            video.setAttribute('playsinline', '');
+                            video.style.opacity = '1';
 
-                        try {
-                            await this.setupHlsVideo(video, banner, null);
-                            if (this.currentArtistId === currentId) {
-                                bannerContainer.appendChild(video);
-                                bannerContainer.style.opacity = '1';
-                                video.play().catch(() => {});
+                            try {
+                                await this.setupHlsVideo(video, banner, null);
+                                if (this.currentArtistId === currentId) {
+                                    bannerContainer.appendChild(video);
+                                    bannerContainer.style.opacity = '1';
+                                    video.play().catch(() => {});
+                                }
+                            } catch (e) {
+                                console.warn('Failed to setup artist banner video:', e);
                             }
-                        } catch (e) {
-                            console.warn('Failed to setup artist banner video:', e);
                         }
-                    }
-                })
-                .catch((e) => {
-                    console.warn('Failed to fetch artist banner:', e);
-                });
+                    })
+                    .catch((e) => {
+                        console.warn('Failed to fetch artist banner:', e);
+                    });
+            }
 
             // Handle Biography
             if (bioEl) {
@@ -5204,26 +5212,31 @@ export class UIRenderer {
                     });
             }
 
-            imageEl.src = this.api.getArtistPictureUrl(artist.picture);
+            const artistImageUrl = artist.localAvatarUrl || this.api.getArtistPictureUrl(artist.picture);
+            imageEl.src = artistImageUrl;
             imageEl.style.backgroundColor = '';
             nameEl.textContent = artist.name;
 
             // Set background
-            this.setPageBackground(imageEl.src);
+            this.setPageBackground(artist.localHeaderUrl || imageEl.src);
 
             // Extract vibrant color using robust image extraction (160x160 for speed/accuracy balance)
-            const artistPic160 = this.api.getArtistPictureUrl(artist.picture, '160');
+            const artistPic160 = artist.localAvatarUrl || this.api.getArtistPictureUrl(artist.picture, '160');
             await this.extractAndApplyColor(artistPic160);
 
             this.adjustTitleFontSize(nameEl, artist.name);
 
+            const metaParts = [];
+            if (typeof artist.popularity === 'number') metaParts.push(`<span>${artist.popularity}% popularity</span>`);
+            if (typeof artist.followers === 'number') metaParts.push(`<span>${artist.followers.toLocaleString()} followers</span>`);
+            const artistTags = [
+                ...(Array.isArray(artist.genres) ? artist.genres : []),
+                ...(artist.artistRoles || []).map((role) => role.category).filter(Boolean),
+            ];
             metaEl.innerHTML = `
-                <span>${artist.popularity}% popularity</span>
+                ${metaParts.join('')}
                 <div class="artist-tags">
-                    ${(artist.artistRoles || [])
-                        .filter((role) => role.category)
-                        .map((role) => `<span class="artist-tag">${role.category}</span>`)
-                        .join('')}
+                    ${artistTags.map((tag) => `<span class="artist-tag">${escapeHtml(tag)}</span>`).join('')}
                 </div>
             `;
 

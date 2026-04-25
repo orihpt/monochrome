@@ -48,9 +48,15 @@ export class SubsonicAPI {
     }
 
     getArtistPictureUrl(id /*, size */) {
+        if (typeof id === 'string' && id.startsWith('/rest/')) return id;
         // Navidrome serves artist art via getCoverArt with the artist id
         if (!id) return '/assets/appicon.png';
         return `${this.baseUrl}/getCoverArt.view${this.credentials}&id=ar-${id}&size=300`;
+    }
+
+    getArtistRichImageUrl(id, type) {
+        if (!id) return null;
+        return `${this.baseUrl}/getArtistRichImage.view${this.credentials}&id=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}`;
     }
 
     getArtistPictureSrcset(id) {
@@ -180,7 +186,20 @@ export class SubsonicAPI {
         const res = await this.fetchAPI('getArtist', `id=${id}`);
         const artist = res?.artist;
         if (!artist) return null;
-        return this.prepareArtist(artist);
+        const prepared = this.prepareArtist(artist);
+        const richInfo = await this.getArtistRichInfo(id);
+        if (richInfo) {
+            Object.assign(prepared, {
+                name: richInfo.name || prepared.name,
+                genres: Array.isArray(richInfo.genres) ? richInfo.genres : [],
+                followers: richInfo.followers,
+                popularity: richInfo.popularity,
+                biography: richInfo.biography || null,
+                localAvatarUrl: richInfo.hasAvatar ? this.getArtistRichImageUrl(id, 'avatar') : null,
+                localHeaderUrl: richInfo.hasHeader ? this.getArtistRichImageUrl(id, 'header') : null,
+            });
+        }
+        return prepared;
     }
 
     async getArtistTopTracks(artistId) {
@@ -203,9 +222,20 @@ export class SubsonicAPI {
 
     async getArtistBiography(id) {
         try {
-            const res = await this.fetchAPI('getArtistInfo', `id=${id}`);
-            return res?.artistInfo?.biography || null;
+            const richInfo = await this.getArtistRichInfo(id);
+            if (richInfo?.biography) return richInfo.biography;
         } catch {
+            return null;
+        }
+        return null;
+    }
+
+    async getArtistRichInfo(id) {
+        try {
+            const res = await this.fetchAPI('getArtistRichInfo', `id=${id}`);
+            return res?.artistRichInfo || null;
+        } catch (e) {
+            console.warn('getArtistRichInfo failed:', e);
             return null;
         }
     }

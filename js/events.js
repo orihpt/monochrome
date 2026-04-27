@@ -1192,6 +1192,8 @@ export async function handleTrackAction(
     if (action === 'track-mix' && type === 'track') {
         if (item.mixes && item.mixes.TRACK_MIX) {
             navigate(`/mix/${item.mixes.TRACK_MIX}`);
+        } else if (item.id) {
+            navigate(`/radio/track/${item.id}`);
         }
         return;
     }
@@ -1908,7 +1910,7 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
 
     const trackMixItem = contextMenu.querySelector('li[data-action="track-mix"]');
     if (trackMixItem) {
-        const hasMix = contextTrack.mixes && contextTrack.mixes.TRACK_MIX;
+        const hasMix = (contextTrack.mixes && contextTrack.mixes.TRACK_MIX) || contextTrack.id;
         trackMixItem.style.display = hasMix ? 'block' : 'none';
     }
 

@@ -279,32 +279,61 @@ export class SubsonicAPI {
 
     // --- Recommendations / similar ---
 
-    async getRecommendedTracksForPlaylist(_seeds, limit = 20) {
-        const res = await this.fetchAPI('getRandomSongs', `size=${limit}`);
-        return (res?.randomSongs?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
+    async getRecommendedTracksForPlaylist(seeds = [], limit = 20, options = {}) {
+        try {
+            const knownTrackIds = Array.from(options.knownTrackIds || []);
+            const response = await fetch('/api/v1/recommend/tracks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.user,
+                    seedTrackIds: (seeds || []).map((track) => track?.id).filter(Boolean),
+                    knownTrackIds,
+                    limit,
+                }),
+            });
+
+            if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
+            const data = await response.json();
+            const ids = (data?.tracks || []).map((track) => track.id).filter(Boolean);
+            const tracks = await Promise.all(ids.map((id) => this.getTrack(id).catch(() => null)));
+            return tracks.filter(Boolean);
+        } catch (e) {
+            console.warn('LightFM recommendations failed:', e);
+            return [];
+        }
     }
 
     async getSimilarAlbums(albumId) {
-        // Navidrome doesn't have "similar albums", fall back to newest
-        const res = await this.fetchAPI('getAlbumList2', 'type=newest&size=12');
-        const albums = res?.albumList2?.album || [];
-        return albums.map(a => this.prepareAlbum(a)).filter(Boolean);
+        try {
+            const response = await fetch(`/api/v1/recommend/similar/albums/${encodeURIComponent(albumId)}?limit=12`);
+            if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
+            const data = await response.json();
+            const ids = (data?.albums || []).map((album) => album.id).filter(Boolean);
+            const albums = await Promise.all(
+                ids.map((id) =>
+                    this.getAlbum(id)
+                        .then((result) => result?.album)
+                        .catch(() => null)
+                )
+            );
+            return albums.filter(Boolean);
+        } catch (e) {
+            console.warn('LightFM similar albums failed, falling back to newest albums:', e);
+            const res = await this.fetchAPI('getAlbumList2', 'type=newest&size=12');
+            const albums = res?.albumList2?.album || [];
+            return albums.map(a => this.prepareAlbum(a)).filter(Boolean);
+        }
     }
 
     async getSimilarArtists(artistId) {
         try {
-            const res = await this.fetchAPI('getSimilarSongs', `id=${artistId}&count=5`);
-            const songs = res?.similarSongs?.song || [];
-            // Extract unique artists from similar songs
-            const seen = new Set();
-            const artists = [];
-            for (const song of songs) {
-                if (song.artistId && !seen.has(song.artistId)) {
-                    seen.add(song.artistId);
-                    artists.push({ id: song.artistId, name: song.artist, coverArt: song.coverArt });
-                }
-            }
-            if (artists.length > 0) return artists.map(a => this.prepareArtist(a)).filter(Boolean);
+            const response = await fetch(`/api/v1/recommend/similar/artists/${encodeURIComponent(artistId)}?limit=12`);
+            if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
+            const data = await response.json();
+            const ids = (data?.artists || []).map((artist) => artist.id).filter(Boolean);
+            const artists = await Promise.all(ids.map((id) => this.getArtist(id).catch(() => null)));
+            return artists.filter(Boolean);
         } catch (e) {
             console.warn('getSimilarArtists fallback:', e);
         }
@@ -315,9 +344,14 @@ export class SubsonicAPI {
 
     async getTrackRecommendations(id) {
         try {
-            const res = await this.fetchAPI('getSimilarSongs2', `id=${id}&count=20`);
-            return (res?.similarSongs2?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
-        } catch {
+            const response = await fetch(`/api/v1/recommend/similar/tracks/${encodeURIComponent(id)}?limit=20`);
+            if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
+            const data = await response.json();
+            const ids = (data?.tracks || []).map((track) => track.id).filter(Boolean);
+            const tracks = await Promise.all(ids.map((trackId) => this.getTrack(trackId).catch(() => null)));
+            return tracks.filter(Boolean);
+        } catch (e) {
+            console.warn('LightFM track recommendations failed:', e);
             return [];
         }
     }

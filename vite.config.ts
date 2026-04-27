@@ -67,6 +67,11 @@ export default defineConfig((_options) => {
                 allow: ['.', 'node_modules'],
             },
             proxy: {
+                '/api/v1/recommend': {
+                    target: 'http://127.0.0.1:8050',
+                    changeOrigin: true,
+                    rewrite: (requestPath) => requestPath.replace(/^\/api\/v1\/recommend/, ''),
+                },
                 '/rest': {
                     target: 'http://127.0.0.1:4533',
                     changeOrigin: true,

@@ -3073,17 +3073,10 @@ export class UIRenderer {
                     ...history.map((t) => t.id),
                 ]);
 
-                let recommendedTracks = [];
-                if (seeds.length > 0) {
-                    recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
-                        skipCache: forceRefresh,
-                        knownTrackIds: knownTrackIds,
-                    });
-                } else {
-                    // Fallback to random songs if no seeds
-                    const res = await this.api.fetchAPI('getRandomSongs', 'size=20');
-                    recommendedTracks = (res?.randomSongs?.song || []).map(s => this.api.prepareTrack(s));
-                }
+                let recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
+                    skipCache: forceRefresh,
+                    knownTrackIds: knownTrackIds,
+                });
 
                 try {
                     const { smartRecommendations } = await import('./smart-recommendations.js');
@@ -3899,6 +3892,7 @@ export class UIRenderer {
         const tracklistContainer = document.getElementById('album-detail-tracklist');
         const playBtn = document.getElementById('play-album-btn');
         if (playBtn) playBtn.innerHTML = `${SVG_PLAY(20)}<span>Play Album</span>`;
+        const radioBtn = document.getElementById('album-radio-btn');
         const dlBtn = document.getElementById('download-album-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download Album</span>`;
         const mixBtn = document.getElementById('album-mix-btn');
@@ -4138,6 +4132,29 @@ export class UIRenderer {
                 return a.trackNumber - b.trackNumber;
             });
             await this.renderListWithTracks(tracklistContainer, tracks, false, true);
+
+            if (playBtn) {
+                playBtn.onclick = async () => {
+                    await this.player.setQueue(tracks, 0);
+                    await this.player.playTrackFromQueue();
+                };
+            }
+
+            const shuffleBtn = document.getElementById('shuffle-album-btn');
+            if (shuffleBtn) {
+                shuffleBtn.onclick = async () => {
+                    const shuffledTracks = [...tracks].sort(() => Math.random() - 0.5);
+                    await this.player.setQueue(shuffledTracks, 0);
+                    await this.player.playTrackFromQueue();
+                };
+            }
+
+            if (radioBtn) {
+                radioBtn.onclick = async () => {
+                    await this.player.enableRadio(tracks);
+                    showNotification(`Started radio based on ${album.title}`);
+                };
+            }
 
             recentActivityManager.addAlbum(album);
 
@@ -4917,6 +4934,64 @@ export class UIRenderer {
         }
     }
 
+    async renderTrackRadioPage(trackId) {
+        await this.showPage('mix');
+
+        const imageEl = document.getElementById('mix-detail-image');
+        const titleEl = document.getElementById('mix-detail-title');
+        const metaEl = document.getElementById('mix-detail-meta');
+        const descEl = document.getElementById('mix-detail-description');
+        const tracklistContainer = document.getElementById('mix-detail-tracklist');
+        const playBtn = document.getElementById('play-mix-btn');
+        const likeBtn = document.getElementById('like-mix-btn');
+        const dlBtn = document.getElementById('download-mix-btn');
+
+        titleEl.textContent = 'Song Radio';
+        metaEl.textContent = '';
+        descEl.textContent = '';
+        tracklistContainer.innerHTML = this.createSkeletonTracks(8, true);
+        if (likeBtn) likeBtn.style.display = 'none';
+        if (dlBtn) dlBtn.style.display = 'none';
+
+        try {
+            const seedTrack = await this.api.getTrackMetadata(trackId);
+            const recommended = await this.api.getTrackRecommendations(trackId);
+            const tracks = [seedTrack, ...recommended.filter((track) => track.id !== seedTrack.id)];
+            const coverUrl = this.api.getCoverUrl(seedTrack.image || seedTrack.cover || seedTrack.album?.cover);
+
+            imageEl.src = coverUrl;
+            this.setPageBackground(coverUrl);
+            if (backgroundSettings.isEnabled()) {
+                await this.extractAndApplyColor(this.api.getCoverUrl(seedTrack.album?.cover || seedTrack.cover, '80'));
+            }
+
+            titleEl.textContent = `${getTrackTitle(seedTrack)} Radio`;
+            metaEl.textContent = getTrackArtists(seedTrack);
+            descEl.textContent = tracks.length > 1 ? `${tracks.length - 1} recommended tracks` : 'No recommendations yet';
+
+            await this.renderListWithTracks(tracklistContainer, tracks, true, false, false, true);
+
+            playBtn.onclick = async () => {
+                await this.player.enableRadio([seedTrack]);
+            };
+
+            recentActivityManager.addMix({
+                id: `radio-track-${seedTrack.id}`,
+                title: `${getTrackTitle(seedTrack)} Radio`,
+                subTitle: getTrackArtists(seedTrack),
+                cover: coverUrl,
+            });
+
+            document.title = `${getTrackTitle(seedTrack)} Radio`;
+        } catch (error) {
+            console.error('Failed to load song radio:', error);
+            titleEl.textContent = 'Song Radio';
+            metaEl.textContent = '';
+            descEl.textContent = '';
+            tracklistContainer.innerHTML = createPlaceholder(`Could not load song radio. ${error.message}`);
+        }
+    }
+
     async renderArtistPage(artistId, provider = null) {
         await this.showPage('artist');
         this.currentArtistId = artistId;
@@ -4946,6 +5021,8 @@ export class UIRenderer {
         const similarSection = document.getElementById('artist-section-similar');
         const inLibraryContainer = document.getElementById('artist-detail-in-library');
         const inLibrarySection = document.getElementById('artist-section-in-library');
+        const artistRadioBtn = document.getElementById('play-artist-radio-btn');
+        const shuffleArtistBtn = document.getElementById('shuffle-artist-btn');
         const dlBtn = document.getElementById('download-discography-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download Discography</span>`;
 
@@ -5264,6 +5341,28 @@ export class UIRenderer {
             }
 
             await this.renderListWithTracks(tracksContainer, artist.tracks, true);
+
+            if (artistRadioBtn) {
+                artistRadioBtn.onclick = async () => {
+                    const seeds = artist.tracks && artist.tracks.length > 0 ? artist.tracks : await this.api.getArtistTopTracks(artist.id, { limit: 20 }).then((result) => result.tracks || []);
+                    if (seeds.length > 0) {
+                        await this.player.enableRadio(seeds);
+                        showNotification(`Started radio based on ${artist.name}`);
+                    } else {
+                        showNotification('Could not start artist radio');
+                    }
+                };
+            }
+
+            if (shuffleArtistBtn) {
+                shuffleArtistBtn.onclick = async () => {
+                    const tracksToPlay = [...(artist.tracks || [])].sort(() => Math.random() - 0.5);
+                    if (tracksToPlay.length > 0) {
+                        await this.player.setQueue(tracksToPlay, 0);
+                        await this.player.playTrackFromQueue();
+                    }
+                };
+            }
 
             // "In your library" section: find liked tracks and playlist tracks for this artist
             if (inLibraryContainer && inLibrarySection) {
@@ -6188,8 +6287,10 @@ export class UIRenderer {
         const albumSection = document.getElementById('track-album-section');
         const albumTracksContainer = document.getElementById('track-detail-album-tracks');
         const similarSection = document.getElementById('track-similar-section');
+        const similarTracksContainer = document.getElementById('track-detail-similar-tracks');
 
         const playBtn = document.getElementById('play-track-btn');
+        const radioBtn = document.getElementById('track-radio-btn');
         const likeBtn = document.getElementById('like-track-btn');
 
         imageEl.src = '';
@@ -6327,6 +6428,10 @@ export class UIRenderer {
                 this.player.playTrackFromQueue();
             };
 
+            if (radioBtn) {
+                radioBtn.onclick = () => navigate(`/radio/track/${track.id}`);
+            }
+
             if (likeBtn) {
                 const isLiked = await db.isFavorite('track', track.id);
                 likeBtn.innerHTML = this.createHeartIcon(isLiked);
@@ -6338,6 +6443,16 @@ export class UIRenderer {
                 if (tracks && tracks.length > 0) {
                     albumSection.style.display = 'block';
                     await this.renderListWithTracks(albumTracksContainer, tracks, false);
+                }
+            }
+
+            if (similarTracksContainer && similarSection) {
+                const similarTracks = await this.api.getTrackRecommendations(track.id);
+                if (similarTracks && similarTracks.length > 0) {
+                    similarSection.style.display = 'block';
+                    await this.renderListWithTracks(similarTracksContainer, similarTracks, true, false, false, true);
+                } else {
+                    similarSection.style.display = 'none';
                 }
             }
 

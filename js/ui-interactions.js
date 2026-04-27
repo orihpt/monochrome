@@ -328,7 +328,7 @@ export function initializeUIInteractions(player, api, ui) {
 
                     const trackMixItem = contextMenu.querySelector('li[data-action="track-mix"]');
                     if (trackMixItem) {
-                        const hasMix = track.mixes && track.mixes.TRACK_MIX;
+                        const hasMix = (track.mixes && track.mixes.TRACK_MIX) || track.id;
                         trackMixItem.style.display = hasMix ? 'block' : 'none';
                     }
 

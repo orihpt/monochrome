@@ -424,7 +424,7 @@ export class Player {
 
                 const mixBtn = document.getElementById('now-playing-mix-btn');
                 if (mixBtn) {
-                    mixBtn.style.display = track.mixes && track.mixes.TRACK_MIX ? 'flex' : 'none';
+                    mixBtn.style.display = track.id ? 'flex' : 'none';
                 }
                 const totalDurationEl = document.getElementById('total-duration');
                 if (totalDurationEl) totalDurationEl.textContent = formatTime(track.duration);
@@ -1042,7 +1042,7 @@ export class Player {
 
         const mixBtn = document.getElementById('now-playing-mix-btn');
         if (mixBtn) {
-            mixBtn.style.display = track.mixes && track.mixes.TRACK_MIX ? 'flex' : 'none';
+            mixBtn.style.display = track.id ? 'flex' : 'none';
         }
         document.title = `${trackTitle} • ${getTrackArtists(track)}`;
 
@@ -1352,6 +1352,15 @@ export class Player {
                 });
                 return;
             }
+            if (this.repeatMode === REPEAT_MODE.OFF && isLastTrack) {
+                this.fetchAutoplayRecommendations().then(async () => {
+                    const updatedQueue = this.getCurrentQueue();
+                    if (this.currentQueueIndex < updatedQueue.length - 1) {
+                        await this.playNext(0);
+                    }
+                });
+                return;
+            }
             if (this.artistPopularTracksState.artistId && this.artistPopularTracksState.hasMore) {
                 await this.fetchMoreArtistPopularTracks().then(async (newTracks) => {
                     if (newTracks && newTracks.length > 0) {
@@ -1393,6 +1402,14 @@ export class Player {
                     });
                     return;
                 } else if (this.autoplayEnabled) {
+                    this.fetchAutoplayRecommendations().then(async () => {
+                        const updatedQueue = this.getCurrentQueue();
+                        if (this.currentQueueIndex < updatedQueue.length - 1) {
+                            await this.playNext(0);
+                        }
+                    });
+                    return;
+                } else if (this.repeatMode === REPEAT_MODE.OFF) {
                     this.fetchAutoplayRecommendations().then(async () => {
                         const updatedQueue = this.getCurrentQueue();
                         if (this.currentQueueIndex < updatedQueue.length - 1) {

@@ -75,6 +75,15 @@ export function createRouter(ui) {
                 await ui.renderMixPage(id, provider);
                 break;
             }
+            case 'radio': {
+                const [kind, ...idParts] = param.split('/');
+                if (kind === 'track' && idParts.length > 0) {
+                    await ui.renderTrackRadioPage(decodeURIComponent(idParts.join('/')));
+                } else {
+                    await ui.renderHomePage();
+                }
+                break;
+            }
             case 'track': {
                 const { provider, id } = extractProviderAndId(param);
                 if (id.startsWith('tracker-')) {

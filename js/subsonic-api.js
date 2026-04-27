@@ -1,6 +1,5 @@
 // js/subsonic-api.js
 import { PreparedTrack, PreparedAlbum } from './container-classes.js';
-import { md5 } from './md5.js';
 
 export class SubsonicAPI {
     constructor() {
@@ -12,9 +11,10 @@ export class SubsonicAPI {
     }
 
     get credentials() {
-        const salt = Math.random().toString(36).substring(2, 15);
-        const token = md5(this.password + salt);
-        return `?u=${this.user}&t=${token}&s=${salt}&v=${this.version}&c=${this.client}`;
+        const encodedPassword = Array.from(new TextEncoder().encode(this.password))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+        return `?u=${encodeURIComponent(this.user)}&p=enc:${encodedPassword}&v=${this.version}&c=${this.client}`;
     }
 
     async fetchAPI(endpoint, params = '') {

@@ -4,10 +4,13 @@ import { SVG_RIGHT_ARROW } from './icons';
 
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
-    INSTANCES_URLS: [
-        'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
-        'https://tidal-uptime.props-76styles.workers.dev/',
-    ],
+    INSTANCES_URLS:
+        __OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__
+            ? []
+            : [
+                  'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
+                  'https://tidal-uptime.props-76styles.workers.dev/',
+              ],
     defaultInstances: { api: [], streaming: [] },
     userInstances: null,
     instancesLoaded: false,
@@ -29,6 +32,15 @@ export const apiSettings = {
     },
 
     async loadInstancesFromGitHub() {
+        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+            // Offline-first mode: keep the upstream instance discovery code below
+            // recoverable, but never call public uptime workers unless opted in.
+            this.defaultInstances = { api: [], streaming: [] };
+            this.instancesLoaded = true;
+            this._loadPromise = null;
+            return this.defaultInstances;
+        }
+
         if (this.instancesLoaded) {
             return this.defaultInstances;
         }

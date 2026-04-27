@@ -19,6 +19,12 @@ function parseBody(req) {
 }
 
 function buildInjectionScript(env) {
+    if (env.OFFLINE_MODE !== 'false' || env.ENABLE_EXTERNAL_AUTH !== 'true') {
+        // Offline-first mode: leave Appwrite/PocketBase auth config recoverable,
+        // but do not inject remote auth endpoints unless explicitly enabled.
+        return null;
+    }
+
     const AUTH_ENABLED = (env.AUTH_ENABLED ?? 'false') !== 'false';
     const APPWRITE_ENDPOINT = env.APPWRITE_ENDPOINT;
     const APPWRITE_PROJECT_ID = env.APPWRITE_PROJECT_ID;

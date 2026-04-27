@@ -8,6 +8,14 @@ export default function uploadPlugin() {
 
     const handler = async (req, res, next) => {
         if (req.url === '/upload' && req.method === 'POST') {
+            if (env.OFFLINE_MODE !== 'false' || env.ENABLE_EXTERNAL_UPLOADS !== 'true') {
+                // Offline-first mode: keep the Catbox integration available in
+                // source, but never post files externally unless explicitly enabled.
+                res.statusCode = 403;
+                res.end(JSON.stringify({ success: false, error: 'External uploads are disabled' }));
+                return;
+            }
+
             const form = formidable({});
 
             try {

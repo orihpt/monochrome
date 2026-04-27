@@ -1320,12 +1320,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const url = ytmUrlInput.value.trim();
                         const playlistId = url.split('list=')[1]?.split('&')[0];
 
-                        const workerUrl = `https://ytmimport.samidy.workers.dev?playlistId=${playlistId}`;
-
                         if (!playlistId) {
                             alert("Invalid URL. Make sure it has 'list=' in it.");
                             return;
                         }
+
+                        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+                            // Offline-first mode: keep the YouTube Music importer
+                            // recoverable, but do not call the public worker.
+                            alert('YouTube Music import is disabled in offline mode.');
+                            return;
+                        }
+
+                        const workerUrl = `https://ytmimport.samidy.workers.dev?playlistId=${playlistId}`;
 
                         const {
                             progressElement,

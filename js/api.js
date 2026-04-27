@@ -183,7 +183,7 @@ export class LosslessAPI {
             return response;
         }
 
-        const shouldTryNative = type !== 'streaming';
+        const shouldTryNative = type !== 'streaming' && !__OFFLINE_MODE__ && __ENABLE_TIDAL_API__;
 
         if (shouldTryNative) {
             try {
@@ -211,6 +211,13 @@ export class LosslessAPI {
                     );
                 }
             }
+        }
+
+        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+            // Offline-first mode: do not fall back to public HiFi/Monochrome
+            // worker instances. Local Navidrome/Subsonic paths are handled by
+            // subsonic-api.js and nginx, not this external API client.
+            throw new Error(`External API instances are disabled for: ${relativePath}`);
         }
 
         try {

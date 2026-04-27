@@ -4621,7 +4621,7 @@ export class UIRenderer {
                     numberOfTracks: playlistData.tracks ? playlistData.tracks.length : 0,
                     isUserPlaylist: true,
                 });
-                document.title = `${playlistData.name || playlistData.title} - Monochrome`;
+                document.title = `${playlistData.name || playlistData.title} - Waves`;
 
                 // Setup playlist search
                 this.setupTracklistSearch();
@@ -6487,7 +6487,7 @@ export class UIRenderer {
             trendingContainer.innerHTML = createPlaceholder('Failed to load trending podcasts.');
         }
 
-        document.title = 'Podcasts - Monochrome Music';
+        document.title = 'Podcasts - Waves Music';
     }
 
     cleanupPodcastState() {
@@ -6533,7 +6533,7 @@ export class UIRenderer {
                 this.podcastState.podcastTitle = 'Unknown Podcast';
             }
 
-            document.title = `${podcastResult?.title || 'Podcast'} - Monochrome Music`;
+            document.title = `${podcastResult?.title || 'Podcast'} - Waves Music`;
 
             episodesContainer.innerHTML = '';
             await this.loadAllPodcastEpisodes();

@@ -2023,8 +2023,14 @@ export class Player {
             .then(({ album }) => {
                 if (album?.releaseDate && this.currentTrack?.id === track.id) {
                     track.album.releaseDate = album.releaseDate;
-                    const year = new Date(album.releaseDate).getFullYear();
-                    if (!isNaN(year) && artistEl) {
+                    const releaseDate = new Date(album.releaseDate);
+                    const year = releaseDate.getFullYear();
+                    const is1970 =
+                        year === 1970 &&
+                        releaseDate.getUTCMonth() === 0 &&
+                        releaseDate.getUTCDate() === 1;
+
+                    if (!isNaN(year) && !is1970 && artistEl) {
                         artistEl.innerHTML = `${trackArtistsHTML} • ${year}`;
                     }
                 }

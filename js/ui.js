@@ -52,6 +52,16 @@ import {
 } from './tracker.js';
 
 let _isBlockedCopyright = (_c) => false;
+const _isInvalidDate = (releaseDate) => {
+    if (!releaseDate) return false;
+    const date = new Date(releaseDate);
+    if (isNaN(date.getTime())) return false;
+    // January 1, 1970 is the Unix epoch, often used as a placeholder for missing dates.
+    const isEpoch = date.getTime() === 0;
+    const is1970 =
+        date.getUTCFullYear() === 1970 && date.getUTCMonth() === 0 && date.getUTCDate() === 1;
+    return isEpoch || is1970;
+};
 import('./content-filter.ts')
     .then((m) => {
         _isBlockedCopyright = m.isBlockedCopyright;
@@ -757,7 +767,7 @@ export class UIRenderer {
         const qualityBadge = createQualityBadgeHTML(album);
         const isBlocked = contentBlockingSettings?.shouldHideAlbum(album);
         let yearDisplay = '';
-        if (album.releaseDate) {
+        if (album.releaseDate && !_isInvalidDate(album.releaseDate)) {
             const date = new Date(album.releaseDate);
             if (!isNaN(date.getTime())) yearDisplay = `${date.getFullYear()}`;
         }
@@ -1356,19 +1366,17 @@ export class UIRenderer {
             lyricsManager && activeElement && lyricsPane && lyricsContent && track.type !== 'video'
         );
         if (canRenderLyrics) {
-            this.fullscreenLyricsVisible = true;
             if (lyricsToggleBtn) lyricsToggleBtn.style.removeProperty('display');
             overlay.classList.remove('lyrics-unavailable');
             clearFullscreenLyricsSync(lyricsContent);
-            await renderLyricsInFullscreen(track, activeElement, lyricsManager, lyricsContent);
+            const renderedLyrics = await renderLyricsInFullscreen(track, activeElement, lyricsManager, lyricsContent);
+            overlay.classList.toggle('lyrics-unavailable', !renderedLyrics);
         } else {
-            this.fullscreenLyricsVisible = false;
-            if (lyricsToggleBtn) lyricsToggleBtn.style.display = 'none';
+            if (lyricsToggleBtn) lyricsToggleBtn.style.removeProperty('display');
             overlay.classList.add('lyrics-unavailable');
             if (lyricsContent) {
                 clearFullscreenLyricsSync(lyricsContent);
-                lyricsContent.innerHTML =
-                    '<div class="fullscreen-lyrics-empty">Lyrics are not available for this track.</div>';
+                lyricsContent.innerHTML = '';
             }
         }
         this.updateFullscreenLyricsVisibility(overlay);
@@ -1429,13 +1437,11 @@ export class UIRenderer {
 
         lyricsToggleButtons.forEach((lyricsToggleBtn) => {
             lyricsToggleBtn.classList.toggle('active', shouldShowLyrics);
-            lyricsToggleBtn.title = shouldShowLyrics ? 'Hide Lyrics' : 'Show Lyrics';
+            lyricsToggleBtn.title = lyricsUnavailable ? 'Lyrics unavailable' : shouldShowLyrics ? 'Hide Lyrics' : 'Show Lyrics';
             lyricsToggleBtn.setAttribute('aria-pressed', shouldShowLyrics ? 'true' : 'false');
-            if (lyricsUnavailable) {
-                lyricsToggleBtn.style.display = 'none';
-            } else {
-                lyricsToggleBtn.style.removeProperty('display');
-            }
+            lyricsToggleBtn.setAttribute('aria-disabled', lyricsUnavailable ? 'true' : 'false');
+            lyricsToggleBtn.disabled = lyricsUnavailable;
+            lyricsToggleBtn.style.removeProperty('display');
         });
     }
 
@@ -3930,6 +3936,7 @@ export class UIRenderer {
                 tracklistContainer.innerHTML = '';
                 if (playBtn) playBtn.style.display = 'none';
                 if (dlBtn) dlBtn.style.display = 'none';
+                    
                 document.getElementById('page-album').innerHTML =
                     '<p style="padding: 2rem; color: var(--muted-foreground);">This content is unavailable due to a DMCA notice.</p>';
                 return;
@@ -4007,7 +4014,7 @@ export class UIRenderer {
 
             const totalDuration = calculateTotalDuration(tracks);
             let dateDisplay = '';
-            if (album.releaseDate) {
+            if (album.releaseDate && !_isInvalidDate(album.releaseDate)) {
                 const releaseDate = new Date(album.releaseDate);
                 if (!isNaN(releaseDate.getTime())) {
                     const year = releaseDate.getFullYear();
@@ -4108,8 +4115,8 @@ export class UIRenderer {
 
                     rateUsersEl.innerHTML = `<a href="${data.url}" target="_blank" style="color: var(--muted-foreground);">User Score: <span style="text-decoration: underline;">${data.user.score}</span>, Based on ${data.user.count} reviews</a>`;
                 } catch (e) {
-                    rateCriticsEl.innerHTML = `<a style="color: var(--muted-foreground);">Unable to Fetch Critic Score</a>`;
-                    rateUsersEl.innerHTML = `<a style="color: var(--muted-foreground);">Unable to Fetch User Score</a>`;
+                    rateCriticsEl.innerHTML = '';
+                    rateUsersEl.innerHTML = '';
                 }
             }
 
@@ -6305,11 +6312,13 @@ export class UIRenderer {
                 albumEl.innerHTML = `<a href="/album/${track.album.id}">${escapeHtml(track.album.title)}</a>`;
             }
 
-            if (track.album?.releaseDate) {
+            if (track.album?.releaseDate && !_isInvalidDate(track.album.releaseDate)) {
                 const date = new Date(track.album.releaseDate);
                 if (!isNaN(date.getTime())) {
                     yearEl.textContent = date.getFullYear();
                 }
+            } else {
+                yearEl.textContent = '';
             }
 
             playBtn.onclick = () => {

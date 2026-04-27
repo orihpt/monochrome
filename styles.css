@@ -1030,12 +1030,14 @@ ul {
 }
 
 .main-content {
+    --main-content-padding-inline: var(--spacing-xl);
+
     grid-area: main;
     min-height: 0;
     min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--spacing-xl);
+    padding: 0 var(--main-content-padding-inline) var(--spacing-xl);
     scroll-behavior: smooth;
     position: relative;
 
@@ -1316,7 +1318,9 @@ ul {
     justify-content: flex-start;
     align-items: center;
     padding: var(--spacing-md) var(--spacing-xl);
-    margin: calc(var(--spacing-xl) * -1) calc(var(--spacing-xl) * -1) var(--spacing-xl) calc(var(--spacing-xl) * -1);
+    margin:
+        0 calc(var(--main-content-padding-inline) * -1) var(--spacing-xl)
+        calc(var(--main-content-padding-inline) * -1);
     gap: var(--spacing-md);
     position: sticky;
     top: 0;
@@ -4326,6 +4330,19 @@ input:checked + .slider::before {
     background: var(--primary);
 }
 
+.fullscreen-lyrics-toggle:disabled,
+#toggle-fullscreen-lyrics-mobile-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+    transform: none;
+}
+
+.fullscreen-lyrics-toggle:disabled:hover,
+#toggle-fullscreen-lyrics-mobile-btn:disabled:hover {
+    background: rgb(0, 0, 0, 0.5);
+    transform: none;
+}
+
 #toggle-fullscreen-lyrics-mobile-btn {
     display: none;
     position: absolute;
@@ -5673,12 +5690,12 @@ input:checked + .slider::before {
         padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
     }
 
-    .main-content,
-    .sidebar {
+    .main-header {
         padding-top: max(var(--spacing-md), env(safe-area-inset-top));
     }
 
     .sidebar {
+        padding-top: max(var(--spacing-md), env(safe-area-inset-top));
         padding-bottom: env(safe-area-inset-bottom);
     }
 
@@ -6909,7 +6926,7 @@ img[src=''] {
     }
 
     .main-content {
-        padding: var(--spacing-lg);
+        --main-content-padding-inline: var(--spacing-lg);
     }
 
     .now-playing-bar {
@@ -6972,7 +6989,9 @@ img[src=''] {
     }
 
     .main-content {
-        padding: var(--spacing-md);
+        --main-content-padding-inline: var(--spacing-md);
+
+        padding: 0 var(--main-content-padding-inline) var(--spacing-md);
         grid-area: main;
         overflow-y: visible;
         overflow-x: hidden;
@@ -6984,8 +7003,13 @@ img[src=''] {
         top: 0;
         z-index: 1000;
         background: var(--background);
-        margin: 0 -1rem var(--spacing-md) -1rem;
-        padding: var(--spacing-sm) 1rem;
+        margin:
+            0 calc(var(--main-content-padding-inline) * -1) var(--spacing-md)
+            calc(var(--main-content-padding-inline) * -1);
+        padding:
+            max(var(--spacing-sm), env(safe-area-inset-top))
+            var(--main-content-padding-inline)
+            var(--spacing-sm);
         border-bottom: 1px solid var(--border);
     }
 

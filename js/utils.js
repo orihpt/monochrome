@@ -60,7 +60,15 @@ export const getTrackYearDisplay = (track) => {
         : track?.streamStartDate || track?.album?.releaseDate;
     if (!releaseDate) return '';
     const date = new Date(releaseDate);
-    return isNaN(date.getTime()) ? '' : ` • ${date.getFullYear()}`;
+    if (isNaN(date.getTime())) return '';
+
+    // January 1, 1970 is the Unix epoch, often used as a placeholder for missing dates.
+    const isEpoch = date.getTime() === 0;
+    const is1970 =
+        date.getUTCFullYear() === 1970 && date.getUTCMonth() === 0 && date.getUTCDate() === 1;
+    if (isEpoch || is1970) return '';
+
+    return ` • ${date.getFullYear()}`;
 };
 
 export const createPlaceholder = (text, isLoading = false) => {

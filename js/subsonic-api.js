@@ -85,6 +85,8 @@ export class SubsonicAPI {
             duration: song.duration,
             albumId: song.albumId,
             trackNumber: song.track,
+            popularity: song.playCount || 0,
+            playCount: song.playCount || 0,
             isLocal: true,
         });
     }
@@ -99,6 +101,14 @@ export class SubsonicAPI {
                 : album.artist || { name: 'Unknown Artist' },
             cover: album.coverArt || album.id,
             year: album.year,
+            releaseDate: album.releaseDate?.value || album.originalReleaseDate?.value || album.year,
+            numberOfTracks: album.songCount,
+            duration: album.duration,
+            popularity: album.playCount || 0,
+            playCount: album.playCount || 0,
+            type: Array.isArray(album.releaseTypes) && album.releaseTypes.length > 0
+                ? album.releaseTypes[0]?.toUpperCase()
+                : undefined,
             isLocal: true,
         });
     }
@@ -187,6 +197,9 @@ export class SubsonicAPI {
         const artist = res?.artist;
         if (!artist) return null;
         const prepared = this.prepareArtist(artist);
+        prepared.albums = (artist.album || []).map(a => this.prepareAlbum(a)).filter(Boolean);
+        const topTracks = await this.getArtistTopTracks(id, { limit: 15 });
+        prepared.tracks = topTracks.tracks || [];
         const richInfo = await this.getArtistRichInfo(id);
         if (richInfo) {
             Object.assign(prepared, {
@@ -202,22 +215,37 @@ export class SubsonicAPI {
         return prepared;
     }
 
-    async getArtistTopTracks(artistId) {
-        // Navidrome: getTopSongs by artist name (requires name)
-        // Fall back to searching for the artist's songs
+    async getArtistTopTracks(artistId, options = {}) {
+        const offset = options.offset || 0;
+        const limit = options.limit || 15;
+        const count = offset + limit + 1;
+
         try {
-            const artist = await this.getArtist(artistId);
+            const artistRes = await this.fetchAPI('getArtist', `id=${artistId}`);
+            const artist = artistRes?.artist;
             if (artist?.name) {
-                const res = await this.fetchAPI('getTopSongs', `artist=${encodeURIComponent(artist.name)}&count=10`);
+                const res = await this.fetchAPI('getTopSongs', `artist=${encodeURIComponent(artist.name)}&count=${count}`);
                 const songs = res?.topSongs?.song || [];
-                if (songs.length > 0) return songs.map(s => this.prepareTrack(s)).filter(Boolean);
+                const tracks = songs.map(s => this.prepareTrack(s)).filter(Boolean);
+                return {
+                    tracks: tracks.slice(offset, offset + limit),
+                    offset,
+                    limit,
+                    hasMore: tracks.length > offset + limit,
+                };
             }
         } catch (e) {
             console.warn('getArtistTopTracks fallback:', e);
         }
-        // fallback: search for artist name
-        const res = await this.fetchAPI('search3', `query=${artistId}&songCount=10&albumCount=0&artistCount=0`);
-        return (res?.searchResult3?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
+
+        const res = await this.fetchAPI('search3', `query=${artistId}&songCount=${count}&albumCount=0&artistCount=0`);
+        const tracks = (res?.searchResult3?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
+        return {
+            tracks: tracks.slice(offset, offset + limit),
+            offset,
+            limit,
+            hasMore: tracks.length > offset + limit,
+        };
     }
 
     async getArtistBiography(id) {

@@ -935,21 +935,31 @@ themeObserver.observe(document.documentElement, {
     attributeFilter: ['data-theme', 'style'],
 });
 
-function applyFullscreenLyricsShadowTweaks(amLyrics, container) {
-    if (!amLyrics || container?.id !== 'fullscreen-lyrics-content') return;
+function applyLyricsShadowTweaks(amLyrics, container) {
+    if (!amLyrics) return;
+
+    const isFullscreenLyrics = container?.id === 'fullscreen-lyrics-content';
 
     const injectStyle = () => {
         const root = amLyrics.shadowRoot;
         if (!root) return false;
 
-        let styleEl = root.getElementById('monochrome-fullscreen-lyrics-tweaks');
+        let styleEl = root.getElementById('monochrome-lyrics-tweaks');
         if (!styleEl) {
             styleEl = document.createElement('style');
-            styleEl.id = 'monochrome-fullscreen-lyrics-tweaks';
+            styleEl.id = 'monochrome-lyrics-tweaks';
             root.appendChild(styleEl);
         }
 
         styleEl.textContent = `
+            .lyrics-header,
+            .lyrics-footer {
+                display: none !important;
+            }
+
+            ${
+                isFullscreenLyrics
+                    ? `
             .lyrics-container {
                 scrollbar-width: none !important;
                 -ms-overflow-style: none !important;
@@ -990,6 +1000,9 @@ function applyFullscreenLyricsShadowTweaks(amLyrics, container) {
 
             .lyrics-line.active .lyrics-line-container {
                 transform: scale(1.015);
+            }
+                    `
+                    : ''
             }
         `;
 
@@ -1176,7 +1189,8 @@ async function applyLocalLyricsToElement(amLyrics, lyricsData) {
     return true;
 }
 
-async function renderLyricsComponent(container, track, audioPlayer, lyricsManager) {
+async function renderLyricsComponent(container, track, audioPlayer, lyricsManager, options = {}) {
+    const unavailableHTML = options.unavailableHTML ?? '<div class="lyrics-error">No lyrics available</div>';
     container.innerHTML = '<div class="lyrics-loading">Loading lyrics...</div>';
 
     try {
@@ -1203,7 +1217,7 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
 
         const localLyricsData = await lyricsManager.fetchLyrics(track.id, track);
         if (!localLyricsData) {
-            container.innerHTML = '<div class="lyrics-error">No lyrics available</div>';
+            container.innerHTML = unavailableHTML;
             return null;
         }
 
@@ -1228,10 +1242,10 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         amLyrics.style.width = '100%';
 
         container.appendChild(amLyrics);
-        applyFullscreenLyricsShadowTweaks(amLyrics, container);
+        applyLyricsShadowTweaks(amLyrics, container);
         const hasLocalLyrics = await applyLocalLyricsToElement(amLyrics, localLyricsData);
         if (!hasLocalLyrics) {
-            container.innerHTML = '<div class="lyrics-error">No lyrics available</div>';
+            container.innerHTML = unavailableHTML;
             return null;
         }
 
@@ -1437,7 +1451,7 @@ function showGeniusAnnotations(annotations, lineText) {
 }
 
 export async function renderLyricsInFullscreen(track, audioPlayer, lyricsManager, container) {
-    return renderLyricsComponent(container, track, audioPlayer, lyricsManager);
+    return renderLyricsComponent(container, track, audioPlayer, lyricsManager, { unavailableHTML: '' });
 }
 
 export function clearFullscreenLyricsSync(container) {

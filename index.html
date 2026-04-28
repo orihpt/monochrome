@@ -864,6 +864,7 @@
                             </button>
                         </div>
                     </div>
+
                 </div>
                 <div style="margin-bottom: 1rem">
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem"
@@ -2765,11 +2766,13 @@
                     </form>
                     <div class="settings-tabs">
                         <button class="settings-tab active" data-tab="appearance">Appearance</button>
-                        <button class="settings-tab" data-tab="interface">Interface</button>
-                        <button class="settings-tab" data-tab="scrobbling">Scrobbling</button>
-                        <button class="settings-tab" data-tab="audio">Audio</button>
-                        <button class="settings-tab" data-tab="instances">Instances</button>
-                        <button class="settings-tab" data-tab="system">System</button>
+	                        <button class="settings-tab" data-tab="interface">Interface</button>
+	                        <button class="settings-tab" data-tab="scrobbling">Scrobbling</button>
+	                        <button class="settings-tab" data-tab="audio">Audio</button>
+	                        <button class="settings-tab" data-tab="system">System</button>
+	                        <button class="settings-tab" data-tab="admin" id="settings-admin-tab" style="display: none">
+	                            Admin
+	                        </button>
                     </div>
                     <div class="settings-tab-content active" id="settings-tab-appearance">
                         <div class="settings-list">
@@ -3251,13 +3254,14 @@
                                             >Display curated album selections on the home page</span
                                         >
                                     </div>
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="show-editors-picks-toggle" checked />
-                                        <span class="slider"></span>
-                                    </label>
-                            </div>
+	                                    <label class="toggle-switch">
+	                                        <input type="checkbox" id="show-editors-picks-toggle" checked />
+	                                        <span class="slider"></span>
+	                                    </label>
+	                                </div>
+	                            </div>
 
-                            <div class="settings-group">
+	                            <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label">Compact Artists</span>
@@ -5205,74 +5209,7 @@
                         </div>
                     </div>
 
-                    <div class="settings-tab-content" id="settings-tab-instances">
-                        <div class="settings-list">
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label" style="color: #f59e0b">Dev Mode</span>
-                                        <span class="description"
-                                            >Route all API requests through a local Tidal HiFi API server. Requires a
-                                            compatible server running at the specified URL.</span
-                                        >
-                                    </div>
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="dev-mode-toggle" />
-                                        <span class="slider"></span>
-                                    </label>
-                                </div>
-                                <div class="setting-item" id="dev-mode-url-setting" style="display: none">
-                                    <div class="info">
-                                        <span class="label">Dev Mode API URL</span>
-                                        <span class="description">The URL of your local Tidal HiFi API instance</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        id="dev-mode-url-input"
-                                        placeholder="http://127.0.0.1:8000"
-                                        style="
-                                            width: 220px;
-                                            padding: 0.35rem 0.5rem;
-                                            border: 1px solid var(--border);
-                                            border-radius: var(--radius-md);
-                                            background: var(--card);
-                                            color: var(--foreground);
-                                            font-size: 0.8rem;
-                                        "
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label">ADVANCED: Custom Database/Auth</span>
-                                        <span class="description"
-                                            >Configure custom PocketBase and Appwrite instances</span
-                                        >
-                                    </div>
-                                    <button id="custom-db-btn" class="btn-secondary">Configure</button>
-                                </div>
-                            </div>
-
-                            <div class="settings-group">
-                                <div id="api-instance-manager">
-                                    <div class="setting-item">
-                                        <div class="info">
-                                            <span class="label">API Instances</span>
-                                            <span class="description">Manage and prioritize API instances.</span>
-                                        </div>
-                                        <button id="refresh-speed-test-btn" class="btn-secondary">
-                                            Refresh Instance List
-                                        </button>
-                                    </div>
-                                    <ul id="api-instance-list"></ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-tab-content" id="settings-tab-system">
+	                    <div class="settings-tab-content" id="settings-tab-system">
                         <div class="settings-list">
                             <div class="settings-group">
                                 <div class="setting-item">
@@ -5314,16 +5251,6 @@
                                         <input type="checkbox" id="analytics-toggle" checked />
                                         <span class="slider"></span>
                                     </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <div class="info">
-                                        <span class="label">Library Scanning</span>
-                                        <span class="description">Manually trigger a scan for new songs in Navidrome</span>
-                                    </div>
-                                    <button id="trigger-scan-btn" class="btn-secondary">Trigger Scan</button>
                                 </div>
                             </div>
 
@@ -5468,12 +5395,104 @@
                                     font-size: 0.75rem;
                                     padding: 1rem 0 0.5rem;
                                 "
-                            ></p>
-                        </div>
-                    </div>
-                </div>
+	                            ></p>
+	                        </div>
+	                    </div>
 
-                <div id="page-about" class="page">
+	                    <div class="settings-tab-content" id="settings-tab-admin" style="display: none">
+	                        <div class="settings-list">
+	                            <div class="settings-group">
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label" style="color: #f59e0b">Dev Mode</span>
+	                                        <span class="description"
+	                                            >Route all API requests through a local Tidal HiFi API server. Requires a
+	                                            compatible server running at the specified URL.</span
+	                                        >
+	                                    </div>
+	                                    <label class="toggle-switch">
+	                                        <input type="checkbox" id="dev-mode-toggle" />
+	                                        <span class="slider"></span>
+	                                    </label>
+	                                </div>
+	                                <div class="setting-item" id="dev-mode-url-setting" style="display: none">
+	                                    <div class="info">
+	                                        <span class="label">Dev Mode API URL</span>
+	                                        <span class="description">The URL of your local Tidal HiFi API instance</span>
+	                                    </div>
+	                                    <input
+	                                        type="text"
+	                                        id="dev-mode-url-input"
+	                                        placeholder="http://127.0.0.1:8000"
+	                                        style="
+	                                            width: 220px;
+	                                            padding: 0.35rem 0.5rem;
+	                                            border: 1px solid var(--border);
+	                                            border-radius: var(--radius-md);
+	                                            background: var(--card);
+	                                            color: var(--foreground);
+	                                            font-size: 0.8rem;
+	                                        "
+	                                    />
+	                                </div>
+	                            </div>
+
+	                            <div class="settings-group">
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">ADVANCED: Custom Database/Auth</span>
+	                                        <span class="description"
+	                                            >Configure custom PocketBase and Appwrite instances</span
+	                                        >
+	                                    </div>
+	                                    <button id="custom-db-btn" class="btn-secondary">Configure</button>
+	                                </div>
+	                            </div>
+
+	                            <div class="settings-group">
+	                                <div id="api-instance-manager">
+	                                    <div class="setting-item">
+	                                        <div class="info">
+	                                            <span class="label">API Instances</span>
+	                                            <span class="description">Manage and prioritize API instances.</span>
+	                                        </div>
+	                                        <button id="refresh-speed-test-btn" class="btn-secondary">
+	                                            Refresh Instance List
+	                                        </button>
+	                                    </div>
+	                                    <ul id="api-instance-list"></ul>
+	                                </div>
+	                            </div>
+
+	                            <div class="settings-group">
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Library Scanning</span>
+	                                        <span class="description">Manually trigger a scan for new songs in Navidrome</span>
+	                                    </div>
+	                                    <button id="trigger-scan-btn" class="btn-secondary">Rescan Library</button>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Music Recommendations</span>
+	                                        <span class="description">Retrain and refresh generated music recommendations</span>
+	                                    </div>
+	                                    <button id="trigger-recommendations-btn" class="btn-secondary">
+	                                        Retrigger Recommendations
+	                                    </button>
+	                                </div>
+	                                <div class="setting-item" id="admin-actions-status-setting" style="display: none">
+	                                    <div class="info">
+	                                        <span class="label">Status</span>
+	                                        <span class="description" id="admin-actions-status"></span>
+	                                    </div>
+	                                </div>
+	                            </div>
+	                        </div>
+	                    </div>
+	                </div>
+
+	                <div id="page-about" class="page">
                     <h2 class="section-title" style="text-align: center">About Waves</h2>
                     <div class="about-content">
                         <p class="about-description">
@@ -5560,9 +5579,9 @@
                                 Users are solely responsible for how they use this application and for ensuring that
                                 their use complies with applicable laws and regulations in their jurisdiction.
                             </p>
-                        </div>
-                    </div>
-                </div>
+	                        </div>
+	                    </div>
+	                </div>
                 <div id="page-account" class="page">
                     <h2 class="section-title" style="text-align: center">Sign Up / Sign In</h2>
                     <div class="account-content">

@@ -29,6 +29,22 @@ export class SubsonicAPI {
         }
     }
 
+    async getCurrentUser() {
+        const username = localStorage.getItem('subsonic_user') || this.user;
+        const res = await this.fetchAPI('getUser', `username=${encodeURIComponent(username)}`);
+        return res?.user || null;
+    }
+
+    async isCurrentUserAdmin() {
+        try {
+            const user = await this.getCurrentUser();
+            return user?.adminRole === true || user?.adminRole === 'true';
+        } catch (error) {
+            console.warn('Unable to determine admin permissions:', error);
+            return false;
+        }
+    }
+
     // --- URL helpers ---
 
     getStreamUrl(id) {
@@ -436,6 +452,22 @@ export class SubsonicAPI {
     // --- Library Management ---
     async triggerScan() {
         return this.fetchAPI('startScan');
+    }
+
+    async retriggerRecommendations() {
+        const isAdmin = await this.isCurrentUserAdmin();
+        if (!isAdmin) {
+            throw new Error('Admin permissions are required');
+        }
+
+        const response = await fetch('/api/v1/recommend/train', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) {
+            throw new Error(`Recommendation service returned ${response.status}`);
+        }
+        return response.json();
     }
 
     // --- Download (no-op for local) ---

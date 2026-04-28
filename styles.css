@@ -1786,7 +1786,13 @@ input[type='search']::-webkit-search-cancel-button {
     gap: var(--spacing-xs);
     margin-bottom: var(--spacing-lg);
     border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
 }
 
 .settings-tab {
@@ -1804,6 +1810,8 @@ input[type='search']::-webkit-search-cancel-button {
         background-color var(--transition-fast),
         transform var(--transition-fast);
     position: relative;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .settings-tab:hover {
@@ -7443,6 +7451,21 @@ img[src=''] {
 
     .section-title {
         font-size: 1.25rem;
+    }
+
+    .settings-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        margin-bottom: var(--spacing-md);
+        overflow: visible;
+        border-bottom: none;
+    }
+
+    .settings-tab {
+        min-width: 0;
+        padding: var(--spacing-sm) var(--spacing-xs);
+        font-size: 0.85rem;
     }
 
     /* Fix library page horizontal scrolling */

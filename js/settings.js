@@ -79,6 +79,91 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     authManager.updateUI(authManager.user);
 
     // ========================================
+    // Admin-only actions
+    // ========================================
+    const adminTab = document.getElementById('settings-admin-tab');
+    const adminTabContent = document.getElementById('settings-tab-admin');
+    const triggerScanBtn = document.getElementById('trigger-scan-btn');
+    const triggerRecommendationsBtn = document.getElementById('trigger-recommendations-btn');
+    const adminActionsStatusSetting = document.getElementById('admin-actions-status-setting');
+    const adminActionsStatus = document.getElementById('admin-actions-status');
+    const adminApi = api.subsonicAPI || api;
+
+    const setAdminStatus = (message) => {
+        if (adminActionsStatusSetting) adminActionsStatusSetting.style.display = message ? 'flex' : 'none';
+        if (adminActionsStatus) adminActionsStatus.textContent = message || '';
+    };
+
+    const setAdminButtonsDisabled = (disabled) => {
+        if (triggerScanBtn) triggerScanBtn.disabled = disabled;
+        if (triggerRecommendationsBtn) triggerRecommendationsBtn.disabled = disabled;
+    };
+
+    const activateSettingsTab = (tabName) => {
+        document.querySelectorAll('.settings-tab').forEach((tab) => tab.classList.remove('active'));
+        document.querySelectorAll('.settings-tab-content').forEach((content) => content.classList.remove('active'));
+        const tab = document.querySelector(`.settings-tab[data-tab="${tabName}"]`);
+        const content = document.getElementById(`settings-tab-${tabName}`);
+        if (tab && content) {
+            tab.classList.add('active');
+            content.classList.add('active');
+            settingsUiState.setActiveTab(tabName);
+        }
+    };
+
+    const isAdmin = await adminApi.isCurrentUserAdmin();
+    if (isAdmin) {
+        if (adminTab) adminTab.style.display = '';
+        if (adminTabContent) adminTabContent.style.display = '';
+    } else {
+        if (adminTab) {
+            adminTab.classList.remove('active');
+            adminTab.style.display = 'none';
+        }
+        if (adminTabContent) {
+            adminTabContent.classList.remove('active');
+            adminTabContent.style.display = 'none';
+        }
+        if (settingsUiState.getActiveTab() === 'admin') {
+            activateSettingsTab('appearance');
+        }
+    }
+
+    if (triggerScanBtn) {
+        triggerScanBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            setAdminStatus('Starting library rescan...');
+            try {
+                await adminApi.triggerScan();
+                setAdminStatus('Library rescan started.');
+            } catch (error) {
+                console.error('Failed to start library rescan:', error);
+                setAdminStatus('Failed to start library rescan.');
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (triggerRecommendationsBtn) {
+        triggerRecommendationsBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            setAdminStatus('Scheduling recommendation retraining...');
+            try {
+                await adminApi.retriggerRecommendations();
+                setAdminStatus('Recommendation retraining scheduled.');
+            } catch (error) {
+                console.error('Failed to retrigger recommendations:', error);
+                setAdminStatus('Failed to retrigger recommendations.');
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    // ========================================
     // Dev Mode
     // ========================================
     const devModeToggle = document.getElementById('dev-mode-toggle');
@@ -91,16 +176,18 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (devModeUrlInput) devModeUrlInput.value = devModeSettings.getUrl();
     }
 
-    updateDevModeUI();
+    if (isAdmin) {
+        updateDevModeUI();
+    }
 
-    if (devModeToggle) {
+    if (isAdmin && devModeToggle) {
         devModeToggle.addEventListener('change', (e) => {
             devModeSettings.setEnabled(e.target.checked);
             updateDevModeUI();
         });
     }
 
-    if (devModeUrlInput) {
+    if (isAdmin && devModeUrlInput) {
         devModeUrlInput.addEventListener('change', (e) => {
             devModeSettings.setUrl(e.target.value.trim());
         });
@@ -6448,73 +6535,75 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     }
 
     // API settings
-    document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
-        const btn = document.getElementById('refresh-speed-test-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Testing...';
-        btn.disabled = true;
+    if (isAdmin) {
+        document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-speed-test-btn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Testing...';
+            btn.disabled = true;
 
-        try {
-            await api.settings.refreshInstances();
-            ui.renderApiSettings();
-            btn.textContent = 'Done!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }, 1500);
-        } catch (error) {
-            console.error('Failed to refresh speed tests:', error);
-            btn.textContent = 'Error';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }, 1500);
-        }
-    });
+            try {
+                await api.settings.refreshInstances();
+                ui.renderApiSettings();
+                btn.textContent = 'Done!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 1500);
+            } catch (error) {
+                console.error('Failed to refresh speed tests:', error);
+                btn.textContent = 'Error';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 1500);
+            }
+        });
 
-    document.getElementById('api-instance-list')?.addEventListener('click', async (e) => {
-        const button = e.target.closest('button');
-        if (!button) return;
+        document.getElementById('api-instance-list')?.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
 
-        const li = button.closest('li');
-        const type = button.dataset.type || li?.dataset.type || 'api';
+            const li = button.closest('li');
+            const type = button.dataset.type || li?.dataset.type || 'api';
 
-        if (button.classList.contains('add-instance')) {
-            const url = prompt(`Enter custom ${type.toUpperCase()} instance URL (e.g. https://my-instance.com):`);
-            if (url && url.trim()) {
-                let formattedUrl = url.trim();
-                if (!formattedUrl.startsWith('http')) {
-                    formattedUrl = 'https://' + formattedUrl;
+            if (button.classList.contains('add-instance')) {
+                const url = prompt(`Enter custom ${type.toUpperCase()} instance URL (e.g. https://my-instance.com):`);
+                if (url && url.trim()) {
+                    let formattedUrl = url.trim();
+                    if (!formattedUrl.startsWith('http')) {
+                        formattedUrl = 'https://' + formattedUrl;
+                    }
+                    api.settings.addUserInstance(type, formattedUrl);
+                    ui.renderApiSettings();
                 }
-                api.settings.addUserInstance(type, formattedUrl);
-                ui.renderApiSettings();
+                return;
             }
-            return;
-        }
 
-        if (button.classList.contains('delete-instance')) {
-            const url = li.dataset.url;
-            if (url && confirm(`Delete custom instance ${url}?`)) {
-                api.settings.removeUserInstance(type, url);
-                ui.renderApiSettings();
+            if (button.classList.contains('delete-instance')) {
+                const url = li.dataset.url;
+                if (url && confirm(`Delete custom instance ${url}?`)) {
+                    api.settings.removeUserInstance(type, url);
+                    ui.renderApiSettings();
+                }
+                return;
             }
-            return;
-        }
 
-        const index = parseInt(li?.dataset.index, 10);
-        if (isNaN(index)) return;
+            const index = parseInt(li?.dataset.index, 10);
+            if (isNaN(index)) return;
 
-        const instances = await api.settings.getInstances(type);
+            const instances = await api.settings.getInstances(type);
 
-        if (button.classList.contains('move-up') && index > 0) {
-            [instances[index], instances[index - 1]] = [instances[index - 1], instances[index]];
-        } else if (button.classList.contains('move-down') && index < instances.length - 1) {
-            [instances[index], instances[index + 1]] = [instances[index + 1], instances[index]];
-        }
+            if (button.classList.contains('move-up') && index > 0) {
+                [instances[index], instances[index - 1]] = [instances[index - 1], instances[index]];
+            } else if (button.classList.contains('move-down') && index < instances.length - 1) {
+                [instances[index], instances[index + 1]] = [instances[index + 1], instances[index]];
+            }
 
-        api.settings.saveInstances(instances, type);
-        ui.renderApiSettings();
-    });
+            api.settings.saveInstances(instances, type);
+            ui.renderApiSettings();
+        });
+    }
 
     document.getElementById('clear-cache-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('clear-cache-btn');
@@ -6655,7 +6744,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const customDbResetBtn = document.getElementById('custom-db-reset');
     const customDbCancelBtn = document.getElementById('custom-db-cancel');
 
-    if (customDbBtn && customDbModal) {
+    if (isAdmin && customDbBtn && customDbModal) {
         const appwriteFromEnv = !!(window.__APPWRITE_ENDPOINT__ || window.__APPWRITE_PROJECT_ID__);
         const pbFromEnv = !!window.__POCKETBASE_URL__;
 

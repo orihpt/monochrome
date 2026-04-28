@@ -393,6 +393,14 @@ export class MusicAPI {
         return [];
     }
 
+    async recordRecommendationEvent(event) {
+        const api = this.getAPI();
+        if (typeof api.recordRecommendationEvent === 'function') {
+            return api.recordRecommendationEvent(event);
+        }
+        return null;
+    }
+
     // Cache methods
     async clearCache() {
         // No-op for local mode

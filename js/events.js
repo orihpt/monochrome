@@ -389,6 +389,17 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
 
     let _previousTrackId = null;
     let _trackPlayStartTime = null;
+    const sendRecommendationEvent = (track, eventType, playTimeS, durationS) => {
+        if (!track?.id || typeof player.api?.recordRecommendationEvent !== 'function') return;
+        player.api.recordRecommendationEvent({
+            track_id: track.id,
+            event_type: eventType,
+            played_ms: Math.max(0, Math.round((playTimeS || 0) * 1000)),
+            duration_ms: Math.max(0, Math.round((durationS || 0) * 1000)),
+        }).catch((error) => {
+            console.warn('Recommendation event logging failed:', error);
+        });
+    };
 
     const setupMediaListeners = (element) => {
         element.addEventListener('loadstart', () => {
@@ -418,6 +429,7 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
                             player.getCurrentQueue().find((t) => t.id === _previousTrackId);
                         if (prevTrack && prevPlayTime > 0) {
                             listeningTracker.updateArtistAffinity(prevTrack, prevPlayTime, prevDuration, true);
+                            sendRecommendationEvent(prevTrack, 'skip', prevPlayTime, prevDuration);
                         }
                         listeningTracker.forceFlush();
                     }
@@ -460,6 +472,7 @@ export async function initializePlayerEvents(player, audioPlayer, scrobbler, ui)
             if (player.currentTrack) {
                 const effectivePlayTime = elapsedPlayTime || (Date.now() - _trackPlayStartTime) / 1000;
                 listeningTracker.updateArtistAffinity(player.currentTrack, effectivePlayTime, trackDur, false);
+                sendRecommendationEvent(player.currentTrack, 'complete', effectivePlayTime, trackDur);
             }
             listeningTracker.forceFlush();
             _previousTrackId = null;

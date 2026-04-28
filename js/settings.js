@@ -85,6 +85,13 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const adminTabContent = document.getElementById('settings-tab-admin');
     const triggerScanBtn = document.getElementById('trigger-scan-btn');
     const triggerRecommendationsBtn = document.getElementById('trigger-recommendations-btn');
+    const refreshRecommendationsStatusBtn = document.getElementById('refresh-recommendations-status-btn');
+    const recommendationsServerStatus = document.getElementById('recommendations-server-status');
+    const recommendationsCatalogStatus = document.getElementById('recommendations-catalog-status');
+    const recommendationsScanStatus = document.getElementById('recommendations-scan-status');
+    const recommendationsEventsStatus = document.getElementById('recommendations-events-status');
+    const recommendationsNeighborsStatus = document.getElementById('recommendations-neighbors-status');
+    const recommendationsModelStatus = document.getElementById('recommendations-model-status');
     const adminActionsStatusSetting = document.getElementById('admin-actions-status-setting');
     const adminActionsStatus = document.getElementById('admin-actions-status');
     const adminApi = api.subsonicAPI || api;
@@ -97,6 +104,75 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const setAdminButtonsDisabled = (disabled) => {
         if (triggerScanBtn) triggerScanBtn.disabled = disabled;
         if (triggerRecommendationsBtn) triggerRecommendationsBtn.disabled = disabled;
+        if (refreshRecommendationsStatusBtn) refreshRecommendationsStatusBtn.disabled = disabled;
+    };
+
+    const formatNumber = (value) => new Intl.NumberFormat().format(Number(value || 0));
+    const formatDateTime = (value) => {
+        if (!value) return 'never';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString();
+    };
+    const setRecommendationStatusText = (element, text) => {
+        if (element) element.textContent = text;
+    };
+    const renderRecommendationStatus = (status) => {
+        const counts = status?.counts || {};
+        const scan = status?.scan || {};
+        const catalog = status?.catalog || {};
+        const events = status?.events || {};
+        const neighbors = status?.neighbors || {};
+        const activeModel = status?.active_models?.[0] || status?.models?.find((model) => model.is_active);
+
+        setRecommendationStatusText(
+            recommendationsServerStatus,
+            status?.ready
+                ? `Online, checked ${formatDateTime(status.checked_at)}`
+                : `Online but waiting for catalog data, checked ${formatDateTime(status?.checked_at)}`
+        );
+        setRecommendationStatusText(
+            recommendationsCatalogStatus,
+            `${catalog.status || 'unknown'}: ${formatNumber(counts.tracks)} tracks, ${formatNumber(counts.artists)} artists, ${formatNumber(counts.albums)} albums. Last catalog update: ${formatDateTime(catalog.last_track_update)}.`
+        );
+        setRecommendationStatusText(
+            recommendationsScanStatus,
+            `${scan.status || 'unknown'}: ${formatNumber(scan.analyzed_tracks)} analyzed of ${formatNumber(scan.total_tracks)} tracks, ${formatNumber(scan.pending)} pending.`
+        );
+        setRecommendationStatusText(
+            recommendationsEventsStatus,
+            `${formatNumber(events.total ?? counts.events)} events. Latest: ${
+                events.latest
+                    ? `${events.latest.event_type} for ${events.latest.track_id} at ${formatDateTime(events.latest.created_at)}`
+                    : 'none yet'
+            }.`
+        );
+        setRecommendationStatusText(
+            recommendationsNeighborsStatus,
+            `${formatNumber(neighbors.track)} track, ${formatNumber(neighbors.artist)} artist, ${formatNumber(neighbors.album)} album neighbor rows.`
+        );
+        setRecommendationStatusText(
+            recommendationsModelStatus,
+            activeModel
+                ? `${activeModel.model_name} ${activeModel.version}, created ${formatDateTime(activeModel.created_at)}`
+                : 'No active model registered yet.'
+        );
+    };
+    const loadRecommendationStatus = async ({ quiet = false } = {}) => {
+        if (!isAdmin || typeof adminApi.getRecommendationServerStatus !== 'function') return;
+        if (!quiet) setRecommendationStatusText(recommendationsServerStatus, 'Checking recommendation server...');
+        try {
+            const status = await adminApi.getRecommendationServerStatus();
+            renderRecommendationStatus(status);
+        } catch (error) {
+            console.error('Failed to load recommendation server status:', error);
+            setRecommendationStatusText(recommendationsServerStatus, 'Unavailable through Navidrome backend.');
+            setRecommendationStatusText(recommendationsCatalogStatus, 'Could not load catalog mirror status.');
+            setRecommendationStatusText(recommendationsScanStatus, 'Could not load scan status.');
+            setRecommendationStatusText(recommendationsEventsStatus, 'Could not load event status.');
+            setRecommendationStatusText(recommendationsNeighborsStatus, 'Could not load neighbor status.');
+            setRecommendationStatusText(recommendationsModelStatus, 'Could not load model status.');
+        }
     };
 
     const activateSettingsTab = (tabName) => {
@@ -154,6 +230,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             try {
                 await adminApi.retriggerRecommendations();
                 setAdminStatus('Recommendation retraining scheduled.');
+                await loadRecommendationStatus({ quiet: true });
             } catch (error) {
                 console.error('Failed to retrigger recommendations:', error);
                 setAdminStatus('Failed to retrigger recommendations.');
@@ -161,6 +238,22 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 setAdminButtonsDisabled(false);
             }
         });
+    }
+
+    if (refreshRecommendationsStatusBtn) {
+        refreshRecommendationsStatusBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            try {
+                await loadRecommendationStatus();
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (isAdmin) {
+        await loadRecommendationStatus({ quiet: true });
     }
 
     // ========================================

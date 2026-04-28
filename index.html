@@ -5402,6 +5402,9 @@
 	                    <div class="settings-tab-content" id="settings-tab-admin" style="display: none">
 	                        <div class="settings-list">
 	                            <div class="settings-group">
+	                                <div class="sidebar-settings-section">
+	                                    <span class="sidebar-settings-section-label">DEV MODE</span>
+	                                </div>
 	                                <div class="setting-item">
 	                                    <div class="info">
 	                                        <span class="label" style="color: #f59e0b">Dev Mode</span>
@@ -5438,6 +5441,9 @@
 	                            </div>
 
 	                            <div class="settings-group">
+	                                <div class="sidebar-settings-section">
+	                                    <span class="sidebar-settings-section-label">CUSTOM DATABASE & AUTH</span>
+	                                </div>
 	                                <div class="setting-item">
 	                                    <div class="info">
 	                                        <span class="label">ADVANCED: Custom Database/Auth</span>
@@ -5451,6 +5457,9 @@
 
 	                            <div class="settings-group">
 	                                <div id="api-instance-manager">
+	                                    <div class="sidebar-settings-section">
+	                                        <span class="sidebar-settings-section-label">API INSTANCES</span>
+	                                    </div>
 	                                    <div class="setting-item">
 	                                        <div class="info">
 	                                            <span class="label">API Instances</span>
@@ -5465,12 +5474,56 @@
 	                            </div>
 
 	                            <div class="settings-group">
+	                                <div class="sidebar-settings-section">
+	                                    <span class="sidebar-settings-section-label">LIBRARY SCANNING</span>
+	                                </div>
 	                                <div class="setting-item">
 	                                    <div class="info">
 	                                        <span class="label">Library Scanning</span>
 	                                        <span class="description">Manually trigger a scan for new songs in Navidrome</span>
 	                                    </div>
 	                                    <button id="trigger-scan-btn" class="btn-secondary">Rescan Library</button>
+	                                </div>
+	                            </div>
+	
+	                            <div class="settings-group">
+	                                <div class="sidebar-settings-section">
+	                                    <span class="sidebar-settings-section-label">RECOMMENDATIONS SERVER</span>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Server Status</span>
+	                                        <span class="description" id="recommendations-server-status"
+	                                            >Checking recommendation server...</span
+	                                        >
+	                                    </div>
+	                                    <button id="refresh-recommendations-status-btn" class="btn-secondary">
+	                                        Refresh Status
+	                                    </button>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Catalog Mirror</span>
+	                                        <span class="description" id="recommendations-catalog-status">Unknown</span>
+	                                    </div>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Audio Scan</span>
+	                                        <span class="description" id="recommendations-scan-status">Unknown</span>
+	                                    </div>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Signals</span>
+	                                        <span class="description" id="recommendations-events-status">Unknown</span>
+	                                    </div>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Precomputed Neighbors</span>
+	                                        <span class="description" id="recommendations-neighbors-status">Unknown</span>
+	                                    </div>
 	                                </div>
 	                                <div class="setting-item">
 	                                    <div class="info">
@@ -5480,6 +5533,12 @@
 	                                    <button id="trigger-recommendations-btn" class="btn-secondary">
 	                                        Retrigger Recommendations
 	                                    </button>
+	                                </div>
+	                                <div class="setting-item">
+	                                    <div class="info">
+	                                        <span class="label">Active Model</span>
+	                                        <span class="description" id="recommendations-model-status">Unknown</span>
+	                                    </div>
 	                                </div>
 	                                <div class="setting-item" id="admin-actions-status-setting" style="display: none">
 	                                    <div class="info">

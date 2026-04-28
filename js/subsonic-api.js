@@ -7,7 +7,7 @@ export class SubsonicAPI {
         this.user = localStorage.getItem('subsonic_user') || 'admin';
         this.password = localStorage.getItem('subsonic_pass') || 'admin';
         this.version = '1.16.1';
-        this.client = 'spotiman';
+        this.client = 'waves-music';
     }
 
     get credentials() {
@@ -298,13 +298,14 @@ export class SubsonicAPI {
     async getRecommendedTracksForPlaylist(seeds = [], limit = 20, options = {}) {
         try {
             const knownTrackIds = Array.from(options.knownTrackIds || []);
-            const response = await fetch('/api/v1/recommend/tracks', {
+            const response = await fetch('/api/v1/recommend/v1/radio', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId: this.user,
-                    seedTrackIds: (seeds || []).map((track) => track?.id).filter(Boolean),
-                    knownTrackIds,
+                    user_id: this.user,
+                    type: 'track',
+                    id: (seeds || []).map((track) => track?.id).filter(Boolean)[0] || '',
+                    known_track_ids: knownTrackIds,
                     limit,
                 }),
             });
@@ -322,7 +323,7 @@ export class SubsonicAPI {
 
     async getSimilarAlbums(albumId) {
         try {
-            const response = await fetch(`/api/v1/recommend/similar/albums/${encodeURIComponent(albumId)}?limit=12`);
+            const response = await fetch(`/api/v1/recommend/v1/related/albums/${encodeURIComponent(albumId)}?limit=12`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
             const data = await response.json();
             const ids = (data?.albums || []).map((album) => album.id).filter(Boolean);
@@ -344,7 +345,7 @@ export class SubsonicAPI {
 
     async getSimilarArtists(artistId) {
         try {
-            const response = await fetch(`/api/v1/recommend/similar/artists/${encodeURIComponent(artistId)}?limit=12`);
+            const response = await fetch(`/api/v1/recommend/v1/related/artists/${encodeURIComponent(artistId)}?limit=12`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
             const data = await response.json();
             const ids = (data?.artists || []).map((artist) => artist.id).filter(Boolean);
@@ -360,7 +361,7 @@ export class SubsonicAPI {
 
     async getTrackRecommendations(id) {
         try {
-            const response = await fetch(`/api/v1/recommend/similar/tracks/${encodeURIComponent(id)}?limit=20`);
+            const response = await fetch(`/api/v1/recommend/v1/related/tracks/${encodeURIComponent(id)}?limit=20`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
             const data = await response.json();
             const ids = (data?.tracks || []).map((track) => track.id).filter(Boolean);
@@ -460,9 +461,45 @@ export class SubsonicAPI {
             throw new Error('Admin permissions are required');
         }
 
-        const response = await fetch('/api/v1/recommend/train', {
+        const response = await fetch('/api/v1/recommend/v1/jobs/nightly', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) {
+            throw new Error(`Recommendation service returned ${response.status}`);
+        }
+        return response.json();
+    }
+
+    async getRecommendationServerStatus() {
+        const isAdmin = await this.isCurrentUserAdmin();
+        if (!isAdmin) {
+            throw new Error('Admin permissions are required');
+        }
+
+        const response = await fetch('/api/v1/recommend/v1/model/status', {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) {
+            throw new Error(`Recommendation service returned ${response.status}`);
+        }
+        return response.json();
+    }
+
+    async recordRecommendationEvent(event) {
+        if (!event?.track_id && !event?.trackId) return null;
+        const response = await fetch('/api/v1/recommend/v1/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: event.user_id || event.userId || this.user,
+                track_id: event.track_id || event.trackId,
+                event_type: event.event_type || event.eventType || 'play',
+                source: event.source || 'monochrome',
+                played_ms: event.played_ms ?? event.playedMs ?? null,
+                duration_ms: event.duration_ms ?? event.durationMs ?? null,
+            }),
         });
         if (!response.ok) {
             throw new Error(`Recommendation service returned ${response.status}`);

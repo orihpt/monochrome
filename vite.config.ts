@@ -10,6 +10,8 @@ import { playwright } from '@vitest/browser-playwright';
 import { execSync } from 'child_process';
 import purgecss from 'vite-plugin-purgecss';
 
+const navidromeUrl = process.env.NAVIDROME_URL || 'http://127.0.0.1:4533';
+
 function proxyAudioPlugin() {
     return {
         name: 'proxy-audio-dev',
@@ -78,9 +80,8 @@ export default defineConfig((_options) => {
             },
             proxy: {
                 '/api/v1/recommend': {
-                    target: 'http://127.0.0.1:8050',
+                    target: navidromeUrl,
                     changeOrigin: true,
-                    rewrite: (requestPath) => requestPath.replace(/^\/api\/v1\/recommend/, ''),
                 },
                 '/rest': {
                     target: 'http://127.0.0.1:4533',

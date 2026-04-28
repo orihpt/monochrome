@@ -397,13 +397,13 @@ export class SubsonicAPI {
                             const min = Math.floor(totalSec / 60);
                             const sec = totalSec % 60;
                             const cs = Math.floor((ms % 1000) / 10);
-                            return `[${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(cs).padStart(2, '0')}]${l.value}`;
+                            return `[${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(cs).padStart(2, '0')}]${(l.value || '').trim()}`;
                         })
                         .join('\n');
                     return { subtitles: lrc, format: 'lrc', lyricsProvider: 'Navidrome' };
                 }
                 // Unsynced
-                const text = lyrics.line?.map(l => l.value).join('\n');
+                const text = lyrics.line?.map(l => (l.value || '').trim()).join('\n');
                 if (text) return { subtitles: text, format: 'text', lyricsProvider: 'Navidrome' };
             }
         } catch (e) {

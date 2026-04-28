@@ -431,7 +431,7 @@ export class LyricsManager {
 
     parseSyncedLyrics(subtitles) {
         if (!subtitles) return [];
-        const lines = subtitles.split('\n').filter((line) => line.trim());
+        const lines = subtitles.split(/\r?\n/).filter((line) => line.trim());
         return lines
             .map((line) => {
                 const match = line.match(/\[(\d+):(\d+)\.(\d+)\]\s*(.+)/);
@@ -1039,7 +1039,7 @@ function parseLocalLyricsForAmLyrics(lyricsData) {
     }
 
     return raw
-        .split('\n')
+        .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => ({
@@ -1133,7 +1133,7 @@ function parseLocalTtml(ttml) {
 
 function parseLocalLrc(lrc) {
     const parsed = [];
-    for (const rawLine of lrc.split('\n')) {
+    for (const rawLine of lrc.split(/\r?\n/)) {
         const match = rawLine.match(/^\[(\d{1,3}):(\d{2})(?:\.(\d{2,3}))?\]\s?(.*)$/);
         if (!match) continue;
 

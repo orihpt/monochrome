@@ -486,22 +486,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore sidebar state
     sidebarSettings.restoreState();
 
-    // Render pinned items
-    await UIRenderer.instance.renderPinnedItems();
+    // (pinned items removed - sidebar is now a library panel)
 
     // Load settings module and initialize
     const { initializeSettings } = await loadSettingsModule();
     await initializeSettings(scrobbler, Player.instance, MusicAPI.instance, UIRenderer.instance);
 
-    // Track sidebar navigation clicks
-    document.querySelectorAll('.sidebar-nav a').forEach((link) => {
-        link.addEventListener('click', () => {
-            const href = link.getAttribute('href');
-            if (href && !href.startsWith('http')) {
-                const item = link.querySelector('span')?.textContent || href;
-            }
-        });
-    });
+    // (sidebar-nav click tracking removed - sidebar is now a library panel)
 
     await initializePlayerEvents(Player.instance, audioPlayer, scrobbler, UIRenderer.instance);
     initializeTrackInteractions(
@@ -638,16 +629,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-        document.body.classList.toggle('sidebar-collapsed');
-        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-        const toggleBtn = document.getElementById('sidebar-toggle');
-        if (toggleBtn) {
-            toggleBtn.innerHTML = isCollapsed ? SVG_RIGHT_ARROW(20) : SVG_LEFT_ARROW(20);
-        }
-        // Save sidebar state to localStorage
-        sidebarSettings.setCollapsed(isCollapsed);
-    });
+    // (sidebar-toggle removed - sidebar is now a library panel)
 
     // Import tab switching in playlist modal
     document.querySelectorAll('.import-tab').forEach((tab) => {
@@ -2593,11 +2575,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)">${username}</div>
                     </div>
                     <div style="padding: 0.5rem">
+                        <button class="btn-secondary" id="header-nav-settings" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Settings</span>
+                        </button>
+                        <button class="btn-secondary" id="header-nav-about" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                            <span>About</span>
+                        </button>
+                        <div style="border-top: 1px solid var(--border); margin: 0.25rem 0;"></div>
                         <button class="btn-secondary" id="header-sign-out" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <span>Sign Out</span>
                         </button>
                     </div>
                 `;
+
+                document.getElementById('header-nav-settings')?.addEventListener('click', () => {
+                    headerAccountDropdown.classList.remove('active');
+                    navigate('/settings');
+                });
+
+                document.getElementById('header-nav-about')?.addEventListener('click', () => {
+                    headerAccountDropdown.classList.remove('active');
+                    navigate('/about');
+                });
 
                 const signOutBtn = document.getElementById('header-sign-out');
                 if (signOutBtn) {
@@ -2626,6 +2627,294 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (headerAccountImg) headerAccountImg.style.display = 'none';
         if (headerAccountIcon) headerAccountIcon.style.display = 'flex';
     }
+
+    // ========== SIDEBAR LIBRARY ==========
+    const sidebarLibraryList = document.getElementById('sidebar-library-list');
+    const sidebarFilterChips = document.getElementById('sidebar-filter-chips');
+
+    // Restore persisted filter from localStorage
+    let currentSidebarFilter = localStorage.getItem('sidebar-library-filter') || null;
+
+    async function renderSidebarLibrary(filter = null, searchQuery = '') {
+        if (!sidebarLibraryList) return;
+
+        const [playlists, favArtists, favAlbums] = await Promise.all([
+            db.getPlaylists(),
+            db.getFavorites('artist'),
+            db.getFavorites('album'),
+        ]);
+
+        let items = [];
+
+        // Add user playlists
+        if (!filter || filter === 'playlists') {
+            for (const p of playlists) {
+                items.push({
+                    type: 'playlist',
+                    name: p.name || p.title || 'Untitled',
+                    cover: p.cover || null,
+                    images: p.images || [],
+                    id: p.id,
+                    href: `/userplaylist/${p.id}`,
+                    addedAt: p.updatedAt || p.createdAt || 0,
+                });
+            }
+        }
+
+        // Add favorite artists
+        if (!filter || filter === 'artists') {
+            for (const a of favArtists) {
+                items.push({
+                    type: 'artist',
+                    name: a.name || 'Unknown Artist',
+                    artistId: a.id,
+                    id: a.id,
+                    href: `/artist/${a.id}`,
+                    addedAt: a.addedAt || 0,
+                });
+            }
+        }
+
+        // Add favorite albums
+        if (!filter || filter === 'albums') {
+            for (const a of favAlbums) {
+                items.push({
+                    type: 'album',
+                    name: a.title || 'Unknown Album',
+                    cover: a.cover ? MusicAPI.instance.getCoverUrl(a.cover, '160') : null,
+                    artist: a.artist?.name || '',
+                    id: a.id,
+                    href: `/album/${a.id}`,
+                    addedAt: a.addedAt || 0,
+                });
+            }
+        }
+
+        // Sort by recently added
+        items.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+
+        // Apply search filter
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            items = items.filter(item =>
+                item.name.toLowerCase().includes(q) ||
+                (item.artist && item.artist.toLowerCase().includes(q))
+            );
+        }
+
+        // Render
+        if (items.length === 0) {
+            sidebarLibraryList.innerHTML = `
+                <div style="padding: 2rem 1rem; text-align: center; color: var(--muted-foreground); font-size: 0.8rem;">
+                    ${searchQuery ? 'No results found' : 'Your library is empty'}
+                </div>
+            `;
+            return;
+        }
+
+        const currentPath = window.location.pathname;
+
+        sidebarLibraryList.innerHTML = items.map(item => {
+            const isActive = currentPath === item.href;
+            const typeLabel = item.type === 'playlist' ? 'Playlist' :
+                              item.type === 'artist' ? 'Artist' : 'Album';
+            const metaText = item.type === 'album' && item.artist
+                ? `${typeLabel} · ${item.artist}`
+                : typeLabel;
+
+            let coverHTML = '';
+            if (item.type === 'artist') {
+                // Use getArtistPictureUrl (which uses getArtistRichImage endpoint)
+                // with onerror fallback to getCoverUrl (same pattern as home page cards)
+                const artistImgUrl = MusicAPI.instance.getArtistPictureUrl(item.artistId, '160');
+                const fallbackId = (typeof item.artistId === 'string' && item.artistId.startsWith('ar-')) ? item.artistId : `ar-${item.artistId}`;
+                const fallbackUrl = MusicAPI.instance.getCoverUrl(fallbackId, '160');
+                coverHTML = `<img class="sidebar-library-item-cover artist" src="${artistImgUrl}" alt="" loading="lazy" onerror="this.src='${fallbackUrl}'; this.onerror=null;" />`;
+            } else if (item.cover) {
+                coverHTML = `<img class="sidebar-library-item-cover" src="${item.cover}" alt="" loading="lazy" />`;
+            } else if (item.images && item.images.length > 0) {
+                // Playlist collage
+                const imgs = item.images.slice(0, 4);
+                if (imgs.length >= 4) {
+                    coverHTML = `<div class="sidebar-library-item-cover" style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; overflow: hidden;">
+                        ${imgs.map(src => `<img src="${MusicAPI.instance.getCoverUrl(src, '80')}" style="width: 100%; height: 100%; object-fit: cover;" alt="" loading="lazy" />`).join('')}
+                    </div>`;
+                } else {
+                    coverHTML = `<img class="sidebar-library-item-cover" src="${MusicAPI.instance.getCoverUrl(imgs[0], '160')}" alt="" loading="lazy" />`;
+                }
+            } else {
+                const icon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+                coverHTML = `<div class="sidebar-library-item-cover" style="display: flex; align-items: center; justify-content: center; color: var(--muted-foreground);">${icon}</div>`;
+            }
+
+            return `
+                <a class="sidebar-library-item${isActive ? ' active' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}">
+                    ${coverHTML}
+                    <div class="sidebar-library-item-info">
+                        <span class="sidebar-library-item-name">${item.name}</span>
+                        <span class="sidebar-library-item-meta">${metaText}</span>
+                    </div>
+                </a>
+            `;
+        }).join('');
+    }
+
+    // Filter chips
+    if (sidebarFilterChips) {
+        sidebarFilterChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sidebar-filter-chip');
+            if (!chip) {
+                // Check if clear button was clicked
+                const clearBtn = e.target.closest('.sidebar-filter-clear-btn');
+                if (clearBtn) {
+                    currentSidebarFilter = null;
+                    localStorage.removeItem('sidebar-library-filter');
+                    renderFilterChips();
+                    renderSidebarLibrary();
+                }
+                return;
+            }
+
+            const filter = chip.dataset.filter;
+
+            if (chip.classList.contains('active')) {
+                // Deselect
+                currentSidebarFilter = null;
+                localStorage.removeItem('sidebar-library-filter');
+                renderFilterChips();
+                renderSidebarLibrary();
+            } else {
+                currentSidebarFilter = filter;
+                localStorage.setItem('sidebar-library-filter', filter);
+                renderFilterChips();
+                renderSidebarLibrary(filter);
+            }
+        });
+    }
+
+    function renderFilterChips() {
+        if (!sidebarFilterChips) return;
+
+        if (currentSidebarFilter) {
+            // Show only the selected chip with X button
+            const labels = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums' };
+            sidebarFilterChips.innerHTML = `
+                <button class="sidebar-filter-clear-btn" title="Clear filter"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <button class="sidebar-filter-chip active" data-filter="${currentSidebarFilter}">${labels[currentSidebarFilter]}</button>
+            `;
+        } else {
+            sidebarFilterChips.innerHTML = `
+                <button class="sidebar-filter-chip" data-filter="playlists">Playlists</button>
+                <button class="sidebar-filter-chip" data-filter="artists">Artists</button>
+                <button class="sidebar-filter-chip" data-filter="albums">Albums</button>
+            `;
+        }
+    }
+
+    // Sidebar search
+    const sidebarSearchBtn = document.getElementById('sidebar-library-search-btn');
+    const sidebarSearchInput = document.getElementById('sidebar-library-search-input');
+
+    function closeSidebarSearch() {
+        if (sidebarSearchInput) {
+            sidebarSearchInput.style.display = 'none';
+            sidebarSearchInput.value = '';
+            renderSidebarLibrary(currentSidebarFilter);
+        }
+    }
+
+    if (sidebarSearchBtn && sidebarSearchInput) {
+        sidebarSearchBtn.addEventListener('click', () => {
+            const isVisible = sidebarSearchInput.style.display !== 'none';
+            if (isVisible) {
+                closeSidebarSearch();
+            } else {
+                sidebarSearchInput.style.display = 'block';
+                sidebarSearchInput.focus();
+            }
+        });
+
+        sidebarSearchInput.addEventListener('input', debounce((e) => {
+            renderSidebarLibrary(currentSidebarFilter, e.target.value.trim());
+        }, 200));
+
+        // Escape key closes sidebar search
+        sidebarSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebarSearch();
+            }
+        });
+    }
+
+    // Create playlist button - opens actual modal
+    const sidebarCreateBtn = document.getElementById('sidebar-create-btn');
+    if (sidebarCreateBtn) {
+        sidebarCreateBtn.addEventListener('click', () => {
+            const createModal = document.getElementById('playlist-modal');
+            if (!createModal) return;
+            document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
+            document.getElementById('playlist-name-input').value = '';
+            document.getElementById('playlist-cover-input').value = '';
+            document.getElementById('playlist-cover-file-input').value = '';
+            document.getElementById('playlist-description-input').value = '';
+            createModal.dataset.editingId = '';
+            const importSection = document.getElementById('import-section');
+            if (importSection) importSection.style.display = 'none';
+            createModal._pendingTracks = [];
+            createModal.classList.add('active');
+            document.getElementById('playlist-name-input')?.focus();
+        });
+    }
+
+    // Logo click - navigate home
+    const topbarLogo = document.getElementById('topbar-logo');
+    if (topbarLogo) {
+        topbarLogo.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigate('/');
+        });
+    }
+
+    // Home button
+    const topbarHomeBtn = document.getElementById('topbar-home-btn');
+    if (topbarHomeBtn) {
+        topbarHomeBtn.addEventListener('click', () => {
+            navigate('/');
+        });
+    }
+
+    // Update home button state and sidebar active items on navigation
+    function updateTopbarHomeState() {
+        const path = window.location.pathname;
+        const isHome = path === '/' || path === '/home';
+        const homeBtn = document.getElementById('topbar-home-btn');
+        if (homeBtn) {
+            homeBtn.classList.toggle('active', isHome);
+        }
+
+        // Update sidebar active states
+        document.querySelectorAll('.sidebar-library-item').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('href') === path);
+        });
+    }
+
+    // Listen for route changes
+    window.addEventListener('popstate', () => {
+        updateTopbarHomeState();
+    });
+
+    // Initial render with persisted filter
+    renderFilterChips();
+    await renderSidebarLibrary(currentSidebarFilter);
+    updateTopbarHomeState();
+
+    // Re-render sidebar when favorites or playlists change
+    window.addEventListener('favorites-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('playlist-tracks-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('library-changed', () => renderSidebarLibrary(currentSidebarFilter));
+
 });
 
 

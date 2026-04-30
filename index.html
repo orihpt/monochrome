@@ -1618,101 +1618,15 @@
         </div>
 
         <div class="app-container">
-            <aside class="sidebar">
-                <div class="sidebar-content">
-                    <div class="sidebar-logo">
-                        <a href="https://spotiman.tf/" class="sidebar-logo-link">
-                            <img src="/assets/1024w_waves.png" style="width: 32px; height: 32px; border-radius: 4px;" class="app-logo" alt="Waves Logo" />
-                            <span>Waves</span>
-                        </a>
-                        <button
-                            id="sidebar-toggle"
-                            class="btn-icon desktop-only"
-                            style="margin-left: auto"
-                            title="Collapse Sidebar"
-                        >
-                            <use svg="!lucide/chevron-left.svg" size="20" />
-                        </button>
-                    </div>
-
-                    <nav class="sidebar-nav main">
-                        <ul>
-                            <li class="nav-item" id="sidebar-nav-home">
-                                <a href="/">
-                                    <use svg="!lucide/house.svg" size="24" />
-                                    <span>Home</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" id="sidebar-nav-library">
-                                <a href="/library">
-                                    <use svg="!lucide/library.svg" size="24" />
-                                    <span>Library</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" id="sidebar-nav-recent">
-                                <a href="/recent">
-                                    <use svg="./images/recent.svg" size="24" />
-                                    <span>Recent</span>
-                                </a>
-                            </li>
-
-                            <li class="nav-item" id="sidebar-nav-settings">
-                                <a href="/settings">
-                                    <use svg="!lucide/settings.svg" size="24" />
-                                    <span>Settings</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                    <div class="sidebar-bottom-container">
-                        <nav class="sidebar-nav" id="pinned-items-nav" style="display: none">
-                            <h4 class="pinned-items-header">Pinned</h4>
-                            <ul id="pinned-items-list">
-                                <!-- Pinned should be injected here -->
-                            </ul>
-                        </nav>
-
-                        <div class="sidebar-nav-bottom">
-
-                            <nav class="sidebar-nav bottom">
-                                <ul>
-                                    <li class="nav-item" id="sidebar-nav-about-bottom">
-                                        <a href="/about">
-                                            <use svg="!lucide/info.svg" size="24" />
-                                            <span>About</span>
-                                        </a>
-                                    </li>
-
-                                    <li class="nav-item" id="sidebar-nav-party">
-                                        <a href="/parties" id="sidebar-party-btn">
-                                            <use svg="!lucide/users.svg" size="24" />
-                                            <span>Parties</span>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item" id="sidebar-nav-githubbtn" style="display: none">
-                                        <a href="https://github.com/spotiman-music/spotiman" target="_blank">
-                                            <use svg="./images/github.svg" size="24" />
-                                            <span>GitHub</span>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <main class="main-content">
-                <div id="page-background"></div>
-                <header class="main-header">
-                    <div class="navigation-controls desktop-only">
-                        <button id="nav-back" class="nav-btn" title="Go Back">
-                            <use svg="!lucide/chevron-left.svg" size="24" />
-                        </button>
-                        <button id="nav-forward" class="nav-btn" title="Go Forward">
-                            <use svg="!lucide/chevron-right.svg" size="24" />
-                        </button>
-                    </div>
+            <!-- Full-width top bar -->
+            <header class="main-header" id="global-top-bar">
+                <a href="/" class="topbar-logo-link" id="topbar-logo">
+                    <img src="/assets/1024w_waves.png" style="width: 32px; height: 32px; border-radius: 4px;" class="app-logo" alt="Waves Logo" />
+                </a>
+                <div class="topbar-center-group">
+                    <button id="topbar-home-btn" class="topbar-home-btn" title="Home">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    </button>
                     <button class="hamburger-menu" id="hamburger-btn" title="Open navigation">
                         <use svg="!lucide/menu.svg" size="24" />
                     </button>
@@ -1737,32 +1651,77 @@
                         </button>
                         <div id="search-history" class="search-history" style="display: none"></div>
                     </form>
-                    <div class="header-account-control">
-                        <button
-                            id="header-account-btn"
-                            class="btn-icon"
-                            title="Account"
-                            style="
-                                width: 36px;
-                                height: 36px;
-                                border-radius: 50%;
-                                overflow: hidden;
-                                padding: 0;
-                                border: 1px solid var(--border);
-                            "
-                        >
-                            <span id="header-account-icon" class="header-account-icon-wrap">
-                                <use svg="!lucide/user.svg" size="20" />
-                            </span>
-                            <img
-                                id="header-account-img"
-                                alt="Account avatar"
-                                style="width: 100%; height: 100%; object-fit: cover; display: none"
-                            />
+                    <div class="navigation-controls desktop-only">
+                        <button id="nav-back" class="nav-btn" title="Go Back">
+                            <use svg="!lucide/chevron-left.svg" size="24" />
                         </button>
-                        <div id="header-account-dropdown" class="dropdown-menu"></div>
+                        <button id="nav-forward" class="nav-btn" title="Go Forward">
+                            <use svg="!lucide/chevron-right.svg" size="24" />
+                        </button>
                     </div>
-                </header>
+                </div>
+                <div class="header-account-control">
+                    <button
+                        id="header-account-btn"
+                        class="btn-icon"
+                        title="Account"
+                        style="
+                            width: 36px;
+                            height: 36px;
+                            border-radius: 50%;
+                            overflow: hidden;
+                            padding: 0;
+                            border: 1px solid var(--border);
+                        "
+                    >
+                        <span id="header-account-icon" class="header-account-icon-wrap">
+                            <use svg="!lucide/user.svg" size="20" />
+                        </span>
+                        <img
+                            id="header-account-img"
+                            alt="Account avatar"
+                            style="width: 100%; height: 100%; object-fit: cover; display: none"
+                        />
+                    </button>
+                    <div id="header-account-dropdown" class="dropdown-menu"></div>
+                </div>
+            </header>
+
+            <aside class="sidebar">
+                <div class="sidebar-content">
+                    <!-- Your Library header -->
+                    <div class="sidebar-library-header">
+                        <span class="sidebar-library-title">Your Library</span>
+                        <button class="sidebar-create-btn" id="sidebar-create-btn" title="Create playlist">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Create
+                        </button>
+                    </div>
+
+                    <!-- Filter chips -->
+                    <div class="sidebar-filter-chips" id="sidebar-filter-chips">
+                        <button class="sidebar-filter-chip" data-filter="playlists">Playlists</button>
+                        <button class="sidebar-filter-chip" data-filter="artists">Artists</button>
+                        <button class="sidebar-filter-chip" data-filter="albums">Albums</button>
+                    </div>
+
+                    <!-- Sidebar search -->
+                    <div class="sidebar-library-search-row" id="sidebar-library-search-row">
+                        <button class="sidebar-library-search-btn" id="sidebar-library-search-btn" title="Search in Your Library">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </button>
+                        <input type="search" id="sidebar-library-search-input" class="sidebar-library-search-input" placeholder="Search in Your Library" autocomplete="off" style="display: none" />
+                    </div>
+
+                    <!-- Library items list -->
+                    <div class="sidebar-library-list" id="sidebar-library-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <div id="page-background"></div>
 
                 <div id="page-home" class="page">
                     <div class="home-tabs">

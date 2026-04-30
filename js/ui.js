@@ -2402,11 +2402,16 @@ export class UIRenderer {
             page.classList.toggle('active', page.id === `page-${pageId}`);
         });
 
-        document.querySelectorAll('.sidebar-nav a').forEach((link) => {
-            link.classList.toggle(
-                'active',
-                link.pathname === `/${pageId}` || (pageId === 'home' && link.pathname === '/')
-            );
+        // Update topbar home button state
+        const homeBtn = document.getElementById('topbar-home-btn');
+        if (homeBtn) {
+            homeBtn.classList.toggle('active', pageId === 'home');
+        }
+
+        // Update sidebar library active states
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.sidebar-library-item').forEach((item) => {
+            item.classList.toggle('active', item.getAttribute('href') === currentPath);
         });
 
         const mainContent = document.querySelector('.main-content');

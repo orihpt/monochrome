@@ -551,39 +551,6 @@ class CommandPalette {
                 action: () => this.setQuality('LOSSLESS'),
             },
             {
-                id: 'sleep-15',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 15 min',
-                keywords: ['sleep', 'timer', '15', 'minutes'],
-                action: () => this.setSleepTimer(15),
-            },
-            {
-                id: 'sleep-30',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 30 min',
-                keywords: ['sleep', 'timer', '30', 'minutes'],
-                action: () => this.setSleepTimer(30),
-            },
-            {
-                id: 'sleep-60',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 60 min',
-                keywords: ['sleep', 'timer', '60', 'minutes', 'hour'],
-                action: () => this.setSleepTimer(60),
-            },
-            {
-                id: 'sleep-120',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 120 min',
-                keywords: ['sleep', 'timer', '120', 'minutes', 'hours'],
-                action: () => this.setSleepTimer(120),
-            },
-
-            {
                 id: 'lib-create-playlist',
                 group: 'Library',
                 icon: 'plus',
@@ -1206,13 +1173,6 @@ class CommandPalette {
         if (downloadSelect) downloadSelect.value = dlQuality;
 
         await this.notify(`Quality set to ${qualityNames[quality] || quality}`);
-    }
-
-    async setSleepTimer(minutes) {
-        if (Player.instance) {
-            Player.instance.setSleepTimer(minutes);
-            await this.notify(`Sleep timer: ${minutes} minutes`);
-        }
     }
 
     async likeAllInQueue() {

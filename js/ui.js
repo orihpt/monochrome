@@ -106,6 +106,8 @@ import {
     SVG_RIGHT_ARROW,
     SVG_CLOCK,
     SVG_CHECKBOX,
+    SVG_CHECK,
+    SVG_PLUS,
 } from './icons.js';
 
 const setFullscreenUIToggleIcon = (button, visualizerOnlyMode) => {
@@ -216,6 +218,13 @@ export class UIRenderer {
             await this.renderHomeEditorsPicks(true, 'home-editors-picks');
             await this.renderHomeEditorsPicks(true, 'home-editors-picks-empty');
         });
+
+        window.addEventListener('favorites-changed', () => {
+            this.trackLibraryStateCache = null;
+        });
+        window.addEventListener('playlist-tracks-changed', () => {
+            this.trackLibraryStateCache = null;
+        });
     }
 
     static async initialize(api, player) {
@@ -231,6 +240,51 @@ export class UIRenderer {
             return SVG_HEART_FILLED(20);
         }
         return SVG_HEART(20);
+    }
+
+    createTrackLibraryIcon(inLibrary = false, size = 18) {
+        return inLibrary ? SVG_CHECK(size) : SVG_PLUS(size);
+    }
+
+    createTrackLibraryButtonHTML(track, inLibrary = false, extraClasses = '') {
+        return `<button type="button" class="track-library-btn ${extraClasses} ${inLibrary ? 'in-library' : ''}" data-action="track-library" data-type="track" data-track-id="${track.id}" title="${inLibrary ? 'Add to playlist' : 'Add to favorites'}" aria-label="${inLibrary ? 'Add to playlist' : 'Add to favorites'}">
+            ${this.createTrackLibraryIcon(inLibrary)}
+        </button>`;
+    }
+
+    async getTrackLibraryState(trackId) {
+        const now = Date.now();
+        if (!this.trackLibraryStateCache || now - this.trackLibraryStateCache.createdAt > 500) {
+            const [favorites, playlists] = await Promise.all([db.getFavorites('track'), db.getPlaylists(true)]);
+            this.trackLibraryStateCache = {
+                createdAt: now,
+                favoriteIds: new Set(favorites.map((track) => String(track.id))),
+                playlistTrackIds: new Set(
+                    playlists.flatMap((playlist) => (playlist.tracks || []).map((track) => String(track.id)))
+                ),
+            };
+        }
+
+        const id = String(trackId);
+        return (
+            this.trackLibraryStateCache.favoriteIds.has(id) ||
+            this.trackLibraryStateCache.playlistTrackIds.has(id)
+        );
+    }
+
+    async updateTrackLibraryState(element, track) {
+        if (!element || !track?.id) return;
+        const btn = element.matches?.('.track-library-btn')
+            ? element
+            : element.querySelector?.('.track-library-btn');
+        if (!btn) return;
+
+        const inLibrary = await this.getTrackLibraryState(track.id);
+        btn.innerHTML = this.createTrackLibraryIcon(inLibrary);
+        btn.classList.toggle('in-library', inLibrary);
+        btn.dataset.trackId = track.id;
+        btn.title = inLibrary ? 'Add to playlist' : 'Add to favorites';
+        btn.setAttribute('aria-label', inLibrary ? 'Add to playlist' : 'Add to favorites');
     }
 
     async extractAndApplyColor(url) {
@@ -350,9 +404,10 @@ export class UIRenderer {
             const isLocal = track.isLocal;
             const isTracker = track.isTracker || (track.id && String(track.id).startsWith('tracker-'));
             const shouldHideLikes = isLocal || isTracker;
+            const isTrack = !track.type || ['track', 'song'].includes(track.type);
 
             if (likeBtn) {
-                if (shouldHideLikes) {
+                if (shouldHideLikes || isTrack) {
                     likeBtn.style.display = 'none';
                 } else {
                     likeBtn.style.display = 'flex';
@@ -361,19 +416,21 @@ export class UIRenderer {
             }
 
             if (addPlaylistBtn) {
-                if (isLocal) {
+                if (isLocal || !isTrack) {
                     addPlaylistBtn.style.setProperty('display', 'none', 'important');
                 } else {
                     addPlaylistBtn.style.removeProperty('display');
                     addPlaylistBtn.style.display = 'flex';
+                    await this.updateTrackLibraryState(addPlaylistBtn, track);
                 }
             }
             if (mobileAddPlaylistBtn) {
-                if (isLocal) {
+                if (isLocal || !isTrack) {
                     mobileAddPlaylistBtn.style.setProperty('display', 'none', 'important');
                 } else {
                     mobileAddPlaylistBtn.style.removeProperty('display');
                     mobileAddPlaylistBtn.style.display = 'flex';
+                    await this.updateTrackLibraryState(mobileAddPlaylistBtn, track);
                 }
             }
             if (lyricsBtn) {
@@ -382,7 +439,7 @@ export class UIRenderer {
             }
 
             if (fsLikeBtn) {
-                if (shouldHideLikes) {
+                if (shouldHideLikes || isTrack) {
                     fsLikeBtn.style.display = 'none';
                 } else {
                     fsLikeBtn.style.display = 'flex';
@@ -390,8 +447,11 @@ export class UIRenderer {
                 }
             }
             if (fsAddPlaylistBtn) {
-                if (shouldHideLikes) fsAddPlaylistBtn.style.display = 'none';
-                else fsAddPlaylistBtn.style.display = 'flex';
+                if (shouldHideLikes || !isTrack) fsAddPlaylistBtn.style.display = 'none';
+                else {
+                    fsAddPlaylistBtn.style.display = 'flex';
+                    await this.updateTrackLibraryState(fsAddPlaylistBtn, track);
+                }
             }
         } else {
             if (likeBtn) likeBtn.style.display = 'none';
@@ -501,7 +561,7 @@ export class UIRenderer {
         const actionsHTML = isUnavailable
             ? ''
             : `
-            <button class="track-menu-btn" type="button" title="More options" ${track.isLocal ? 'style="display:none"' : ''}>
+            <button class="track-menu-btn" type="button" title="More options">
                 ${SVG_MENU(20)}
             </button>
         `;
@@ -514,9 +574,13 @@ export class UIRenderer {
         const showRowLike = inlineLike && !isUnavailable && !isBlocked;
         const inlineLikeHTML = showRowLike
             ? `<div class="track-item-inline-like">
-                <button type="button" class="like-btn track-row-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
-                    ${this.createHeartIcon(false)}
-                </button>
+                ${
+                    isVideo
+                        ? `<button type="button" class="like-btn track-row-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
+                            ${this.createHeartIcon(false)}
+                        </button>`
+                        : this.createTrackLibraryButtonHTML(track, false, 'track-row-library-btn')
+                }
             </div>`
             : '';
 
@@ -527,6 +591,7 @@ export class UIRenderer {
             isUnavailable ? 'unavailable' : '',
             isBlocked ? 'blocked' : '',
             showRowLike ? 'track-item--inline-like' : '',
+            showRowLike && this.currentPage === 'album' ? 'track-item--album-library' : '',
             this.currentPage === 'search' ? 'no-duration' : '',
         ]
             .filter(Boolean)
@@ -552,8 +617,8 @@ export class UIRenderer {
                         <div class="artist">${getTrackArtistsHTML(track)}${yearDisplay}</div>
                     </div>
                 </div>
-                ${inlineLikeHTML}
                 <div class="track-item-duration">${isUnavailable || isBlocked ? '--:--' : track.duration ? formatTime(track.duration) : '--:--'}</div>
+                ${inlineLikeHTML}
                 <div class="track-item-actions">
                     ${actionsHTML}
                 </div>
@@ -610,7 +675,11 @@ export class UIRenderer {
                 ${SVG_MENU(20)}
             </button>
         `
-                : '';
+                : `
+            <button class="card-menu-btn" data-action="card-menu" data-type="${type}" data-id="${id}" title="Menu">
+                ${SVG_MENU(20)}
+            </button>
+        `;
 
         const cardContent = `
             <div class="card-info">
@@ -1060,6 +1129,9 @@ export class UIRenderer {
                 trackDataStore.set(element, track);
                 // Async update for like button
                 this.updateLikeState(element, track.type || 'track', track.id).catch(console.error);
+                if ((track.type || 'track') === 'track') {
+                    this.updateTrackLibraryState(element, track).catch(console.error);
+                }
             }
         });
 
@@ -2153,7 +2225,21 @@ export class UIRenderer {
             fsLikeBtn.onclick = () => document.getElementById('now-playing-like-btn')?.click();
         }
         if (fsAddPlaylistBtn) {
-            fsAddPlaylistBtn.onclick = () => document.getElementById('now-playing-add-playlist-btn')?.click();
+            fsAddPlaylistBtn.onclick = async () => {
+                if (!this.player.currentTrack) return;
+                const { handleTrackAction } = await import('./events.js');
+                    await handleTrackAction(
+                        'track-library',
+                        this.player.currentTrack,
+                        this.player,
+                        this.api,
+                        null,
+                    'track',
+                        this,
+                        null,
+                        { triggerElement: fsAddPlaylistBtn }
+                );
+            };
         }
         if (fsDownloadBtn) {
             fsDownloadBtn.onclick = () => document.getElementById('download-current-btn')?.click();
@@ -2498,6 +2584,7 @@ export class UIRenderer {
                         trackDataStore.set(el, track);
                         const lt = track.type === 'video' ? 'video' : 'track';
                         await this.updateLikeState(el, lt, track.id);
+                        if (lt === 'track') await this.updateTrackLibraryState(el, track);
                     }
                 });
             } else {
@@ -3187,9 +3274,13 @@ export class UIRenderer {
                 track.videoUrl || track.album?.videoCoverUrl
             ),
             actionButtonsHTML: `
-                <button class="like-btn card-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
-                    ${this.createHeartIcon(false)}
-                </button>
+                ${
+                    likeType === 'track'
+                        ? this.createTrackLibraryButtonHTML(track, false, 'card-like-btn')
+                        : `<button class="like-btn card-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
+                            ${this.createHeartIcon(false)}
+                        </button>`
+                }
             `,
             isCompact,
         });
@@ -4116,14 +4207,7 @@ export class UIRenderer {
 
             fetchAotyWorker(album.title, album.artist.name);
 
-            tracklistContainer.innerHTML = `
-                <div class="track-list-header">
-                    <span style="width: 40px; text-align: center;">#</span>
-                    <span>Title</span>
-                    <span class="duration-header">Duration</span>
-                    <span style="display: flex; justify-content: flex-end; opacity: 0.8;">Menu</span>
-                </div>
-            `;
+            tracklistContainer.innerHTML = TRACKLIST_HEADER_WITH_LIKE_COL_HTML;
 
             tracks.sort((a, b) => {
                 const discA = a.volumeNumber ?? a.discNumber ?? 1;
@@ -4131,7 +4215,7 @@ export class UIRenderer {
                 if (discA !== discB) return discA - discB;
                 return a.trackNumber - b.trackNumber;
             });
-            await this.renderListWithTracks(tracklistContainer, tracks, false, true);
+            await this.renderListWithTracks(tracklistContainer, tracks, false, true, false, true);
 
             if (playBtn) {
                 playBtn.onclick = async () => {
@@ -5023,6 +5107,7 @@ export class UIRenderer {
         const inLibrarySection = document.getElementById('artist-section-in-library');
         const artistRadioBtn = document.getElementById('play-artist-radio-btn');
         const shuffleArtistBtn = document.getElementById('shuffle-artist-btn');
+        const artistMenuBtn = document.getElementById('artist-menu-btn');
         const dlBtn = document.getElementById('download-discography-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download Discography</span>`;
 
@@ -5340,7 +5425,7 @@ export class UIRenderer {
                 artist.eps = artist.eps.filter((t) => !_isBlockedCopyright(t.copyright));
             }
 
-            await this.renderListWithTracks(tracksContainer, artist.tracks, true);
+            await this.renderListWithTracks(tracksContainer, artist.tracks, true, false, false, true);
 
             if (artistRadioBtn) {
                 artistRadioBtn.onclick = async () => {
@@ -5438,7 +5523,7 @@ export class UIRenderer {
 
                         if (libraryTracks.length > 0) {
                             inLibrarySection.style.display = 'block';
-                            await this.renderListWithTracks(inLibraryContainer, libraryTracks, true);
+                            await this.renderListWithTracks(inLibraryContainer, libraryTracks, true, false, false, true);
 
                             // Inject source labels into each track's .artist div
                             const trackElements = inLibraryContainer.querySelectorAll('.track-item');
@@ -5599,6 +5684,11 @@ export class UIRenderer {
                 const isLiked = await db.isFavorite('artist', artist.id);
                 artistLikeBtn.innerHTML = this.createHeartIcon(isLiked);
                 artistLikeBtn.classList.toggle('active', isLiked);
+            }
+
+            if (artistMenuBtn) {
+                artistMenuBtn.dataset.id = artist.id;
+                trackDataStore.set(artistMenuBtn, artist);
             }
 
             // Render Albums
@@ -5847,7 +5937,7 @@ export class UIRenderer {
 
                 // Use a temporary container to render tracks and then move them
                 const tempContainer = document.createElement('div');
-                await this.renderListWithTracks(tempContainer, tracks, true);
+                await this.renderListWithTracks(tempContainer, tracks, true, false, false, true);
 
                 // Move children to main container
                 while (tempContainer.firstChild) {
@@ -6442,7 +6532,7 @@ export class UIRenderer {
                 const { tracks } = await this.api.getAlbum(track.album.id);
                 if (tracks && tracks.length > 0) {
                     albumSection.style.display = 'block';
-                    await this.renderListWithTracks(albumTracksContainer, tracks, false);
+                    await this.renderListWithTracks(albumTracksContainer, tracks, false, false, false, true);
                 }
             }
 

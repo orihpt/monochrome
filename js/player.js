@@ -24,7 +24,7 @@ import { isIos, isSafari } from './platform-detection.js';
 import { db } from './db.js';
 import { getProxyUrl } from './proxy-utils.js';
 
-import { SVG_CLOCK, SVG_ATMOS } from './icons.js';
+import { SVG_ATMOS } from './icons.js';
 import { UIRenderer } from './ui.js';
 import { MediaSession } from '@capgo/capacitor-media-session';
 
@@ -70,10 +70,6 @@ export class Player {
             (window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true);
 
         this.hls = null;
-        // Sleep timer properties
-        this.sleepTimer = null;
-        this.sleepTimerEndTime = null;
-        this.sleepTimerInterval = null;
         // Artist popular tracks state
         this.artistPopularTracksState = {
             artistId: null,
@@ -2472,82 +2468,4 @@ export class Player {
         });
     }
 
-    // Sleep Timer Methods
-    setSleepTimer(minutes) {
-        this.clearSleepTimer(); // Clear any existing timer
-
-        this.sleepTimerEndTime = Date.now() + minutes * 60 * 1000;
-
-        this.sleepTimer = setTimeout(
-            () => {
-                this.activeElement.pause();
-                this.clearSleepTimer();
-                this.updateSleepTimerUI();
-            },
-            minutes * 60 * 1000
-        );
-
-        // Update UI every second
-        this.sleepTimerInterval = setInterval(() => {
-            this.updateSleepTimerUI();
-        }, 1000);
-
-        this.updateSleepTimerUI();
-    }
-
-    clearSleepTimer() {
-        if (this.sleepTimer) {
-            clearTimeout(this.sleepTimer);
-            this.sleepTimer = null;
-        }
-        if (this.sleepTimerInterval) {
-            clearInterval(this.sleepTimerInterval);
-            this.sleepTimerInterval = null;
-        }
-        this.sleepTimerEndTime = null;
-        this.updateSleepTimerUI();
-    }
-
-    getSleepTimerRemaining() {
-        if (!this.sleepTimerEndTime) return null;
-        const remaining = Math.max(0, this.sleepTimerEndTime - Date.now());
-        return Math.ceil(remaining / 1000); // Return seconds remaining
-    }
-
-    isSleepTimerActive() {
-        return this.sleepTimer !== null;
-    }
-
-    updateSleepTimerUI() {
-        const timerBtn = document.getElementById('sleep-timer-btn');
-        const timerBtnDesktop = document.getElementById('sleep-timer-btn-desktop');
-
-        const updateBtn = (btn) => {
-            if (!btn) return;
-            if (this.isSleepTimerActive()) {
-                const remaining = this.getSleepTimerRemaining();
-                if (remaining > 0) {
-                    const minutes = Math.floor(remaining / 60);
-                    const seconds = remaining % 60;
-                    btn.innerHTML = `<span style="font-size: 12px; font-weight: bold;">${minutes}:${seconds.toString().padStart(2, '0')}</span>`;
-                    btn.title = `Sleep Timer: ${minutes}:${seconds.toString().padStart(2, '0')} remaining`;
-                    btn.classList.add('active');
-                    btn.style.color = 'var(--primary)';
-                } else {
-                    btn.innerHTML = SVG_CLOCK(20);
-                    btn.title = 'Sleep Timer';
-                    btn.classList.remove('active');
-                    btn.style.color = '';
-                }
-            } else {
-                btn.innerHTML = SVG_CLOCK(20);
-                btn.title = 'Sleep Timer';
-                btn.classList.remove('active');
-                btn.style.color = '';
-            }
-        };
-
-        updateBtn(timerBtn);
-        updateBtn(timerBtnDesktop);
-    }
 }

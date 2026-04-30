@@ -65,9 +65,15 @@ export class SubsonicAPI {
 
     getArtistPictureUrl(id /*, size */) {
         if (typeof id === 'string' && id.startsWith('/rest/')) return id;
-        // Navidrome serves artist art via getCoverArt with the artist id
         if (!id) return '/assets/appicon.png';
-        return `${this.baseUrl}/getCoverArt.view${this.credentials}&id=ar-${id}&size=300`;
+        
+        // Use Navidrome's rich image endpoint for artists as it's more reliable
+        // Strip 'ar-' prefix and any '_0' suffix to get the raw artist ID
+        let artistId = (typeof id === 'string' && id.startsWith('ar-')) ? id.substring(3) : id;
+        if (typeof artistId === 'string' && artistId.endsWith('_0')) {
+            artistId = artistId.substring(0, artistId.length - 2);
+        }
+        return `${this.baseUrl}/getArtistRichImage.view${this.credentials}&id=${encodeURIComponent(artistId)}&type=avatar`;
     }
 
     getArtistRichImageUrl(id, type) {
@@ -103,7 +109,7 @@ export class SubsonicAPI {
             trackNumber: song.track,
             popularity: song.playCount || 0,
             playCount: song.playCount || 0,
-            isLocal: true,
+            isLocal: false,
         });
     }
 
@@ -125,7 +131,7 @@ export class SubsonicAPI {
             type: Array.isArray(album.releaseTypes) && album.releaseTypes.length > 0
                 ? album.releaseTypes[0]?.toUpperCase()
                 : undefined,
-            isLocal: true,
+            isLocal: false,
         });
     }
 
@@ -134,12 +140,13 @@ export class SubsonicAPI {
         return {
             id: artist.id,
             name: artist.name || 'Unknown Artist',
-            picture: artist.id, // use artist id so getArtistPictureUrl works
+            picture: artist.coverArt || artist.id,
             tracks: [],
             albums: [],
             eps: [],
             videos: [],
-            isLocal: true,
+            albumCount: artist.albumCount || 0,
+            isLocal: false,
         };
     }
 
@@ -293,6 +300,62 @@ export class SubsonicAPI {
         return albums.map(a => this.prepareAlbum(a)).filter(Boolean);
     }
 
+    async getAllArtists(options = {}) {
+        const res = await this.fetchAPI('getArtists');
+        const indices = res?.artists?.index || [];
+        let allArtists = [];
+        for (const index of indices) {
+            if (index.artist) {
+                allArtists = allArtists.concat(index.artist);
+            }
+        }
+        
+        let items = allArtists.map(a => this.prepareArtist(a)).filter(Boolean);
+        
+        // In-memory sorting since getArtists doesn't support it natively
+        const sort = options.sort || 'name';
+        if (sort === 'popularity' || sort === 'most_played') {
+            // Approximation: sort by albumCount for popularity/most played
+            items.sort((a, b) => {
+                const aCount = a.albums ? a.albums.length : (a.albumCount || 0);
+                const bCount = b.albums ? b.albums.length : (b.albumCount || 0);
+                return bCount - aCount;
+            });
+        } else if (sort === 'recent') {
+            // Approximation: sort by ID (if sequential) or reverse alphabetical
+            items.reverse();
+        } else {
+            // name (default is already alphabetical)
+            items.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        
+        const offset = options.offset || 0;
+        const limit = options.limit || 50;
+        
+        return {
+            items: items.slice(offset, offset + limit),
+            total: items.length,
+            hasMore: offset + limit < items.length
+        };
+    }
+
+    async getAllAlbums(options = {}) {
+        const offset = options.offset || 0;
+        const limit = options.limit || 50;
+        const sort = options.sort || 'recent';
+        
+        let type = 'newest'; // default recent
+        if (sort === 'name') type = 'alphabeticalByName';
+        else if (sort === 'most_played') type = 'frequent';
+        
+        const res = await this.fetchAPI('getAlbumList2', `type=${type}&size=${limit}&offset=${offset}`);
+        const albums = res?.albumList2?.album || [];
+        return {
+            items: albums.map(a => this.prepareAlbum(a)).filter(Boolean),
+            hasMore: albums.length === limit // rough guess
+        };
+    }
+
     // --- Recommendations / similar ---
 
     async getRecommendedTracksForPlaylist(seeds = [], limit = 20, options = {}) {
@@ -442,7 +505,7 @@ export class SubsonicAPI {
                         title: p.name,
                         cover: p.coverArt,
                         trackCount: p.songCount,
-                        isLocal: true,
+                        isLocal: false,
                     })),
             };
         } catch {

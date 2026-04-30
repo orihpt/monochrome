@@ -1765,9 +1765,11 @@
                 </header>
 
                 <div id="page-home" class="page">
-                    <div class="home-header-tabs">
+                    <div class="home-tabs">
                         <button class="home-tab active" data-tab="for-you">Home</button>
-                        <button class="home-tab" data-tab="explore">Hot & New</button>
+                        <button class="home-tab" data-tab="explore" style="display: none">Hot & New</button>
+                        <button class="home-tab" data-tab="artists">Artists</button>
+                        <button class="home-tab" data-tab="albums">Albums</button>
                     </div>
 
                     <div id="home-view-for-you" class="home-view active">
@@ -1880,6 +1882,31 @@
                         <div id="explore-content">
                             <div class="card-grid" id="explore-grid"></div>
                         </div>
+                    </div>
+                    <div id="home-view-artists" class="home-view" style="display: none; padding: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 class="section-title" style="margin: 0;">Artists</h2>
+                            <select id="home-artists-sort" class="template-input" style="width: 200px; padding: 0.5rem;">
+                                <option value="name">Name</option>
+                                <option value="recent">Recently Added</option>
+                                <option value="popularity">Popularity</option>
+                                <option value="most_played">Most Played</option>
+                            </select>
+                        </div>
+                        <div class="card-grid" id="home-artists-grid"></div>
+                        <div id="home-artists-loading" class="loading-spinner" style="display: none;"></div>
+                    </div>
+                    <div id="home-view-albums" class="home-view" style="display: none; padding: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 class="section-title" style="margin: 0;">Albums</h2>
+                            <select id="home-albums-sort" class="template-input" style="width: 200px; padding: 0.5rem;">
+                                <option value="recent">Recently Added</option>
+                                <option value="name">Name</option>
+                                <option value="most_played">Most Played</option>
+                            </select>
+                        </div>
+                        <div class="card-grid" id="home-albums-grid"></div>
+                        <div id="home-albums-loading" class="loading-spinner" style="display: none;"></div>
                     </div>
                 </div>
 
@@ -5894,13 +5921,13 @@
                             title="Track Mix"
                             style="display: none"
                         >
-                            <use svg="!lucide/radio.svg" size="20" />
+                            <use svg="!lucide/radio.svg" size="16" />
                         </button>
                         <button id="toggle-lyrics-btn" title="Lyrics" style="display: none" aria-label="Lyrics">
-                            <use svg="!lucide/mic-vocal.svg" size="20" />
+                            <use svg="!lucide/mic-vocal.svg" size="16" />
                         </button>
                         <button id="queue-btn" title="Queue">
-                            <use svg="!lucide/list.svg" size="24" />
+                            <use svg="!lucide/list.svg" size="18" />
                         </button>
                     </div>
                     <div class="volume-slider-row desktop-only">

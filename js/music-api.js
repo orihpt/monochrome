@@ -265,6 +265,22 @@ export class MusicAPI {
         return [];
     }
 
+    async getAllArtists(options = {}) {
+        const api = this.getAPI();
+        if (typeof api.getAllArtists === 'function') {
+            return api.getAllArtists(options);
+        }
+        return { items: [], total: 0, hasMore: false };
+    }
+
+    async getAllAlbums(options = {}) {
+        const api = this.getAPI();
+        if (typeof api.getAllAlbums === 'function') {
+            return api.getAllAlbums(options);
+        }
+        return { items: [], hasMore: false };
+    }
+
     // Stream methods
     async getStreamUrl(id, quality) {
         const api = this.getAPI();

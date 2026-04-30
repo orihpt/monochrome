@@ -242,7 +242,7 @@ export class UIRenderer {
         return SVG_HEART(20);
     }
 
-    createTrackLibraryIcon(inLibrary = false, size = 18) {
+    createTrackLibraryIcon(inLibrary = false, size = 12) {
         return inLibrary ? SVG_CHECK(size) : SVG_PLUS(size);
     }
 
@@ -272,14 +272,14 @@ export class UIRenderer {
         );
     }
 
-    async updateTrackLibraryState(element, track) {
+    async updateTrackLibraryState(element, track, forceInLibrary = false) {
         if (!element || !track?.id) return;
         const btn = element.matches?.('.track-library-btn')
             ? element
             : element.querySelector?.('.track-library-btn');
         if (!btn) return;
 
-        const inLibrary = await this.getTrackLibraryState(track.id);
+        const inLibrary = forceInLibrary || (await this.getTrackLibraryState(track.id));
         btn.innerHTML = this.createTrackLibraryIcon(inLibrary);
         btn.classList.toggle('in-library', inLibrary);
         btn.dataset.trackId = track.id;
@@ -416,7 +416,7 @@ export class UIRenderer {
             }
 
             if (addPlaylistBtn) {
-                if (isLocal || !isTrack) {
+                if (!isTrack) {
                     addPlaylistBtn.style.setProperty('display', 'none', 'important');
                 } else {
                     addPlaylistBtn.style.removeProperty('display');
@@ -425,7 +425,7 @@ export class UIRenderer {
                 }
             }
             if (mobileAddPlaylistBtn) {
-                if (isLocal || !isTrack) {
+                if (!isTrack) {
                     mobileAddPlaylistBtn.style.setProperty('display', 'none', 'important');
                 } else {
                     mobileAddPlaylistBtn.style.removeProperty('display');
@@ -447,7 +447,7 @@ export class UIRenderer {
                 }
             }
             if (fsAddPlaylistBtn) {
-                if (shouldHideLikes || !isTrack) fsAddPlaylistBtn.style.display = 'none';
+                if (!isTrack) fsAddPlaylistBtn.style.display = 'none';
                 else {
                     fsAddPlaylistBtn.style.display = 'flex';
                     await this.updateTrackLibraryState(fsAddPlaylistBtn, track);
@@ -649,7 +649,9 @@ export class UIRenderer {
             return `<video src="${videoCoverUrl}" poster="${imageUrl}" class="${className}" alt="${alt}" preload="metadata" playsinline muted></video>`;
         }
 
-        return `<img src="${imageUrl}" class="${className}" alt="${alt}" loading="${loading}">`;
+        const artistFallbackId = (typeof cover === 'string' && cover.startsWith('ar-')) ? cover : `ar-${cover}`;
+        const fallbackUrl = type === 'artist' ? this.api.getCoverUrl(artistFallbackId, size) : 'assets/1024w_new.png';
+        return `<img src="${imageUrl}" class="${className}" alt="${alt}" loading="${loading}" onerror="this.src='${fallbackUrl}'; this.onerror=null;">`;
     }
 
 
@@ -1108,7 +1110,8 @@ export class UIRenderer {
         showCover,
         append = false,
         useTrackNumber = false,
-        inlineLike = false
+        inlineLike = false,
+        forceInLibrary = false
     ) {
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
@@ -1130,7 +1133,7 @@ export class UIRenderer {
                 // Async update for like button
                 this.updateLikeState(element, track.type || 'track', track.id).catch(console.error);
                 if ((track.type || 'track') === 'track') {
-                    this.updateTrackLibraryState(element, track).catch(console.error);
+                    this.updateTrackLibraryState(element, track, forceInLibrary).catch(console.error);
                 }
             }
         });
@@ -2878,9 +2881,185 @@ export class UIRenderer {
 
                 if (tab.dataset.tab === 'explore') {
                     await this.renderExplorePage();
+                } else if (tab.dataset.tab === 'artists') {
+                    await this.renderHomeArtistsPage();
+                } else if (tab.dataset.tab === 'albums') {
+                    await this.renderHomeAlbumsPage();
                 }
             });
         }
+    }
+
+    async renderHomeArtistsPage() {
+        const container = document.getElementById('home-artists-grid');
+        const view = document.getElementById('home-view-artists');
+        const loadingSpinner = document.getElementById('home-artists-loading');
+        const sortSelect = document.getElementById('home-artists-sort');
+        if (!container || !view || !sortSelect) return;
+
+        if (!container.dataset.initialized) {
+            container.dataset.initialized = 'true';
+            container.dataset.offset = '0';
+            container.dataset.loading = 'false';
+            container.dataset.hasMore = 'true';
+            container.innerHTML = '';
+            
+            sortSelect.addEventListener('change', async () => {
+                container.dataset.offset = '0';
+                container.dataset.hasMore = 'true';
+                container.dataset.loading = 'false';
+                container.innerHTML = '';
+                await loadMore();
+            });
+        }
+        
+        const loadMore = async () => {
+            if (container.dataset.loading === 'true' || container.dataset.hasMore === 'false') return;
+            container.dataset.loading = 'true';
+            loadingSpinner.style.display = 'block';
+
+            try {
+                const offset = parseInt(container.dataset.offset, 10);
+                const limit = 50;
+                const sort = sortSelect.value;
+                const result = await this.api.getAllArtists({ offset, limit, sort });
+                
+                if (result.items && result.items.length > 0) {
+                    const html = result.items.map((a) => this.createArtistCardHTML(a)).join('');
+                    container.insertAdjacentHTML('beforeend', html);
+                    
+                    for (const artist of result.items) {
+                        const el = container.querySelector(`[data-artist-id="${artist.id}"]`);
+                        if (el) {
+                            trackDataStore.set(el, artist);
+                        }
+                    }
+                    
+                    container.dataset.offset = (offset + limit).toString();
+                    if (!result.hasMore) {
+                        container.dataset.hasMore = 'false';
+                    }
+                } else {
+                    container.dataset.hasMore = 'false';
+                }
+                
+                if (container.children.length === 0) {
+                    container.innerHTML = createPlaceholder('No artists found.');
+                }
+            } catch (e) {
+                console.error(e);
+                if (container.children.length === 0) {
+                    container.innerHTML = createPlaceholder('Failed to load artists.');
+                }
+            } finally {
+                container.dataset.loading = 'false';
+                loadingSpinner.style.display = 'none';
+            }
+        };
+
+        await loadMore();
+
+        view.addEventListener('scroll', () => {
+            if (view.scrollTop + view.clientHeight >= view.scrollHeight - 200) {
+                loadMore();
+            }
+        });
+        
+        // Also listen to window scroll if the view doesn't scroll itself
+        window.addEventListener('scroll', () => {
+            if (view.classList.contains('active')) {
+                const docElement = document.documentElement;
+                if (docElement.scrollTop + window.innerHeight >= docElement.scrollHeight - 200) {
+                    loadMore();
+                }
+            }
+        });
+    }
+
+    async renderHomeAlbumsPage() {
+        const container = document.getElementById('home-albums-grid');
+        const view = document.getElementById('home-view-albums');
+        const loadingSpinner = document.getElementById('home-albums-loading');
+        const sortSelect = document.getElementById('home-albums-sort');
+        if (!container || !view || !sortSelect) return;
+
+        if (!container.dataset.initialized) {
+            container.dataset.initialized = 'true';
+            container.dataset.offset = '0';
+            container.dataset.loading = 'false';
+            container.dataset.hasMore = 'true';
+            container.innerHTML = '';
+            
+            sortSelect.addEventListener('change', async () => {
+                container.dataset.offset = '0';
+                container.dataset.hasMore = 'true';
+                container.dataset.loading = 'false';
+                container.innerHTML = '';
+                await loadMore();
+            });
+        }
+        
+        const loadMore = async () => {
+            if (container.dataset.loading === 'true' || container.dataset.hasMore === 'false') return;
+            container.dataset.loading = 'true';
+            loadingSpinner.style.display = 'block';
+
+            try {
+                const offset = parseInt(container.dataset.offset, 10);
+                const limit = 50;
+                const sort = sortSelect.value;
+                const result = await this.api.getAllAlbums({ offset, limit, sort });
+                
+                if (result.items && result.items.length > 0) {
+                    const html = result.items.map((a) => this.createAlbumCardHTML(a)).join('');
+                    container.insertAdjacentHTML('beforeend', html);
+                    
+                    for (const album of result.items) {
+                        const el = container.querySelector(`[data-album-id="${album.id}"]`);
+                        if (el) {
+                            trackDataStore.set(el, album);
+                            await this.updateLikeState(el, 'album', album.id);
+                        }
+                    }
+                    
+                    container.dataset.offset = (offset + limit).toString();
+                    if (!result.hasMore) {
+                        container.dataset.hasMore = 'false';
+                    }
+                } else {
+                    container.dataset.hasMore = 'false';
+                }
+                
+                if (container.children.length === 0) {
+                    container.innerHTML = createPlaceholder('No albums found.');
+                }
+            } catch (e) {
+                console.error(e);
+                if (container.children.length === 0) {
+                    container.innerHTML = createPlaceholder('Failed to load albums.');
+                }
+            } finally {
+                container.dataset.loading = 'false';
+                loadingSpinner.style.display = 'none';
+            }
+        };
+
+        await loadMore();
+
+        view.addEventListener('scroll', () => {
+            if (view.scrollTop + view.clientHeight >= view.scrollHeight - 200) {
+                loadMore();
+            }
+        });
+        
+        window.addEventListener('scroll', () => {
+            if (view.classList.contains('active')) {
+                const docElement = document.documentElement;
+                if (docElement.scrollTop + window.innerHeight >= docElement.scrollHeight - 200) {
+                    loadMore();
+                }
+            }
+        });
     }
 
     async renderExplorePage() {
@@ -4605,7 +4784,7 @@ export class UIRenderer {
                     // Re-fetch container each time because enableTrackReordering clones it
                     const container = document.getElementById('playlist-detail-tracklist');
                     container.innerHTML = TRACKLIST_HEADER_WITH_LIKE_COL_HTML;
-                    await this.renderListWithTracks(container, currentTracks, true, true, false, true);
+                    await this.renderListWithTracks(container, currentTracks, true, true, false, true, true);
 
                     // Add remove buttons and enable reordering ONLY IF OWNED
                     if (ownedPlaylist) {
@@ -4749,7 +4928,7 @@ export class UIRenderer {
 
                 const renderTracks = async () => {
                     tracklistContainer.innerHTML = TRACKLIST_HEADER_WITH_LIKE_COL_HTML;
-                    await this.renderListWithTracks(tracklistContainer, currentTracks, true, true, false, true);
+                    await this.renderListWithTracks(tracklistContainer, currentTracks, true, true, false, true, true);
                 };
 
                 const applySort = async (sortType) => {

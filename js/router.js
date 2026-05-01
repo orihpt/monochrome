@@ -64,6 +64,9 @@ export function createRouter(ui) {
                 await ui.renderPlaylistPage(id, 'api', provider);
                 break;
             }
+            case 'liked-songs':
+                await ui.renderLikedSongsPage();
+                break;
             case 'userplaylist':
                 await ui.renderPlaylistPage(param, 'user');
                 break;
@@ -114,13 +117,6 @@ export function createRouter(ui) {
                     }
                 } else {
                     await ui.renderUnreleasedPage();
-                }
-                break;
-            case 'podcasts':
-                if (param) {
-                    await ui.renderPodcastPage(param);
-                } else {
-                    await ui.renderPodcastsBrowsePage();
                 }
                 break;
             case 'home':

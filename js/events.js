@@ -136,7 +136,7 @@ async function showTrackLibraryMenu(trigger, track, ui) {
         </div>
         <div class="track-library-menu-list">
             <button type="button" class="track-library-menu-item" data-action="favorite" data-search-name="favorites" aria-pressed="${pendingFavorite}">
-                <span class="track-library-menu-art track-library-menu-favorite-art">${SVG_HEART(16)}</span>
+                <span class="track-library-menu-art track-library-menu-favorite-art"><img src="/assets/liked_cover_512w.png" alt="" loading="lazy" /></span>
                 <span class="track-library-menu-label">Favorites</span>
                 ${renderToggle(pendingFavorite)}
             </button>
@@ -217,6 +217,17 @@ async function showTrackLibraryMenu(trigger, track, ui) {
 
         if (pendingFavorite !== isFavorite || changedPlaylistIds.length > 0) {
             await refreshTrackLibraryButtons(track, ui);
+
+            const currentPlaylistMatch = window.location.pathname.match(/^\/userplaylist\/([^/]+)/);
+            const currentPlaylistId = currentPlaylistMatch?.[1];
+            if (
+                currentPlaylistId &&
+                changedPlaylistIds.includes(currentPlaylistId) &&
+                pendingStates.get(currentPlaylistId) === false &&
+                ui?.renderPlaylistPage
+            ) {
+                await ui.renderPlaylistPage(currentPlaylistId, 'user');
+            }
 
             const selectedNames = playlists
                 .filter((playlist) => changedPlaylistIds.includes(playlist.id) && pendingStates.get(playlist.id))
@@ -1694,6 +1705,7 @@ export async function handleTrackAction(
     if (action === 'toggle-pin') {
         const pinned = await db.togglePinned(item, type);
         showNotification(pinned ? `Pinned to sidebar` : `Unpinned from sidebar`);
+        window.dispatchEvent(new CustomEvent('pinned-items-changed'));
 
         if (ui && typeof ui.renderPinnedItems === 'function') {
             ui.renderPinnedItems();

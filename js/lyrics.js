@@ -1053,6 +1053,22 @@ function parseLocalLyricsForAmLyrics(lyricsData) {
         }));
 }
 
+function lyricsContainHebrew(lyricsData) {
+    const raw = [
+        lyricsData?.raw,
+        lyricsData?.subtitles,
+        lyricsData?.plainLyrics,
+        lyricsData?.text,
+        lyricsData?.value,
+    ]
+        .filter(Boolean)
+        .join('\n');
+    const text = raw.replace(/\[[^\]]*]/g, ' ').replace(/<[^>]*>/g, ' ');
+    const hebrewMatches = text.match(/[\u0590-\u05ff]/g)?.length || 0;
+    const letterMatches = text.match(/[\p{L}]/gu)?.length || 0;
+    return hebrewMatches > 0 && (letterMatches === 0 || hebrewMatches / letterMatches > 0.15);
+}
+
 function parseLyricsTimeToMs(value) {
     if (!value) return 0;
     const parts = String(value).trim().split(':');
@@ -1222,6 +1238,7 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         }
 
         container.innerHTML = '';
+        container.classList.toggle('lyrics-rtl', lyricsContainHebrew(localLyricsData));
         const amLyrics = document.createElement('am-lyrics');
         amLyrics.fetchLyrics = async () => { };
         amLyrics.switchSource = async () => { };

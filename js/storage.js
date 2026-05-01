@@ -3017,7 +3017,6 @@ export const modalSettings = {
             'discography-download-modal',
             'custom-db-modal',
             'tracker-modal',
-            'epilepsy-warning-modal',
         ];
         for (const id of modalIds) {
             const modal = document.getElementById(id);
@@ -3049,7 +3048,6 @@ export const modalSettings = {
             'discography-download-modal',
             'custom-db-modal',
             'tracker-modal',
-            'epilepsy-warning-modal',
         ];
 
         modalIds.forEach((id) => {

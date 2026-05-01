@@ -32,7 +32,7 @@
         <meta name="apple-mobile-web-app-title" content="Waves" />
         <meta
             name="description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Waves."
+            content="Stream and download Hi-Res FLACs and unreleased songs offline with Waves."
         />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -42,7 +42,7 @@
         <meta property="og:title" content="Waves" />
         <meta
             property="og:description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Waves."
+            content="Stream and download Hi-Res FLACs and unreleased songs offline with Waves."
         />
         <meta property="og:url" content="https://spotiman.tf/" />
         <meta property="og:image" content="https://spotiman.tf/assets/banner.jpg" />
@@ -53,7 +53,7 @@
         <meta name="twitter:title" content="Waves" />
         <meta
             name="twitter:description"
-            content="Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Waves."
+            content="Stream and download Hi-Res FLACs and unreleased songs offline with Waves."
         />
         <meta name="twitter:image" content="https://spotiman.tf/assets/banner-twitter.jpg" />
         <meta name="twitter:image:alt" content="Waves banner" />
@@ -63,7 +63,7 @@
                 "@type": "WebSite",
                 "name": "Waves",
                 "url": "https://spotiman.tf/",
-                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Waves.",
+                "description": "Stream and download Hi-Res FLACs and unreleased songs offline with Waves.",
                 "potentialAction": {
                     "@type": "SearchAction",
                     "target": "https://spotiman.tf/search/{search_term_string}",
@@ -80,7 +80,7 @@
                 "applicationCategory": "MusicApplication",
                 "operatingSystem": "Web Browser",
                 "image": "https://spotiman.tf/assets/1024w_waves.png",
-                "description": "Stream and download millions of Hi-Res FLACs, unreleased songs and music videos, all for free on Waves."
+                "description": "Stream and download Hi-Res FLACs and unreleased songs offline with Waves."
             }
         </script>
         <!-- bini's seo thing -->
@@ -1505,29 +1505,6 @@
             </div>
         </div>
 
-        <div id="epilepsy-warning-modal" class="modal">
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <h3 style="color: #ef4444; display: flex; align-items: center; gap: 0.5rem">
-                    <use svg="!lucide/triangle-alert.svg" size="24" />
-                    Photosensitivity Warning
-                </h3>
-                <p style="margin: 1rem 0; line-height: 1.5">
-                    The visualizer contains flashing lights and rapidly moving patterns that may trigger seizures for
-                    people with photosensitive epilepsy.
-                </p>
-                <p style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--muted-foreground)">
-                    Viewer discretion is advised.
-                </p>
-                <div class="modal-actions" style="flex-direction: column; gap: 0.5rem">
-                    <button id="epilepsy-accept-btn" class="btn-primary" style="width: 100%">
-                        Proceed & Don't Show Again
-                    </button>
-                    <button id="epilepsy-cancel-btn" class="btn-secondary" style="width: 100%">Cancel</button>
-                </div>
-            </div>
-        </div>
-
         <div id="desktop-update-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content">
@@ -1695,7 +1672,7 @@
                             <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" type="button" title="Collapse sidebar" aria-label="Collapse sidebar" aria-pressed="false">
                                 <use svg="!lucide/panel-left-close.svg" size="16" />
                             </button>
-                            <span class="sidebar-library-title">Your Library</span>
+                            <a href="/library" class="sidebar-library-title">Your Library</a>
                         </div>
                         <button class="sidebar-create-btn" id="sidebar-create-btn" title="Create playlist">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1993,18 +1970,17 @@
                 <div id="page-search" class="page">
                     <h2 class="section-title" id="search-results-title">Search Results</h2>
                     <div class="search-tabs">
-                        <button class="search-tab active" data-tab="tracks">Tracks</button>
-                        <button class="search-tab" data-tab="videos">Videos</button>
+                        <button class="search-tab active" data-tab="all">All</button>
+                        <button class="search-tab" data-tab="tracks">Tracks</button>
                         <button class="search-tab" data-tab="albums">Albums</button>
                         <button class="search-tab" data-tab="artists">Artists</button>
                         <button class="search-tab" data-tab="playlists">Playlists</button>
-                        <button class="search-tab" data-tab="podcasts">Podcasts</button>
                     </div>
-                    <div class="search-tab-content active" id="search-tab-tracks">
+                    <div class="search-tab-content active" id="search-tab-all">
+                        <div class="card-grid search-all-grid" id="search-all-container"></div>
+                    </div>
+                    <div class="search-tab-content" id="search-tab-tracks">
                         <div class="track-list" id="search-tracks-container"></div>
-                    </div>
-                    <div class="search-tab-content" id="search-tab-videos">
-                        <div class="card-grid" id="search-videos-container"></div>
                     </div>
                     <div class="search-tab-content" id="search-tab-albums">
                         <div class="card-grid" id="search-albums-container"></div>
@@ -2014,9 +1990,6 @@
                     </div>
                     <div class="search-tab-content" id="search-tab-playlists">
                         <div class="card-grid" id="search-playlists-container"></div>
-                    </div>
-                    <div class="search-tab-content" id="search-tab-podcasts">
-                        <div class="card-grid" id="search-podcasts-container"></div>
                     </div>
                 </div>
 
@@ -2039,18 +2012,6 @@
                                     <h4 class="card-title">Create playlist</h4>
                                 </div>
                             </button>
-                            <button
-                                type="button"
-                                class="card library-create-dashed-card"
-                                id="library-create-folder-card"
-                            >
-                                <div class="library-create-dashed-art">
-                                    <use svg="!lucide/folder-plus.svg" size="28" />
-                                </div>
-                                <div class="card-info">
-                                    <h4 class="card-title">Create folder</h4>
-                                </div>
-                            </button>
                         </div>
                     </section>
 
@@ -2058,7 +2019,6 @@
                         <h2 class="section-title">Favorites</h2>
                         <div class="search-tabs">
                             <button class="search-tab active" data-tab="tracks">Liked Tracks</button>
-                            <button class="search-tab" data-tab="videos">Videos</button>
                             <button class="search-tab" data-tab="albums">Albums</button>
                             <button class="search-tab" data-tab="artists">Artists</button>
                             <button class="search-tab" data-tab="playlists">Playlists and Mixes</button>
@@ -2127,9 +2087,6 @@
                             </div>
                             <div class="track-list" id="library-tracks-container"></div>
                         </div>
-                        <div class="search-tab-content" id="library-tab-videos">
-                            <div class="card-grid" id="library-videos-container"></div>
-                        </div>
                         <div class="search-tab-content" id="library-tab-albums">
                             <div class="card-grid" id="library-albums-container"></div>
                         </div>
@@ -2196,46 +2153,6 @@
 
                 <div id="page-unreleased" class="page">
                     <div id="unreleased-content" style="padding: 1rem 0"></div>
-                </div>
-
-                <div id="page-podcasts" class="page">
-                    <header class="detail-header">
-                        <img
-                            id="podcasts-detail-image"
-                            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            alt=""
-                            class="detail-header-image artist"
-                        />
-                        <div class="detail-header-info">
-                            <div class="type">Podcast</div>
-                            <h1 class="title" id="podcasts-detail-name"></h1>
-                            <div class="meta" id="podcasts-detail-meta"></div>
-                            <div class="detail-header-actions">
-                                <button id="play-podcasts-btn" class="btn-primary" title="Play Latest Episode">
-                                    <use svg="./images/play.svg" size="20" />
-                                    <span>Play Latest</span>
-                                </button>
-                            </div>
-                        </div>
-                    </header>
-                    <div class="content-section">
-                        <h2 class="section-title">Episodes</h2>
-                        <div class="track-list" id="podcasts-episodes-container"></div>
-                    </div>
-                </div>
-
-                <div id="page-podcasts-browse" class="page">
-                    <h2 class="section-title">Browse Podcasts</h2>
-                    <div class="search-tabs">
-                        <button class="search-tab active" data-tab="trending">Trending</button>
-                        <button class="search-tab" data-tab="recent">Recent</button>
-                    </div>
-                    <div class="search-tab-content active" id="podcasts-tab-trending">
-                        <div class="card-grid" id="podcasts-trending-container"></div>
-                    </div>
-                    <div class="search-tab-content" id="podcasts-tab-recent">
-                        <div class="card-grid" id="podcasts-recent-container"></div>
-                    </div>
                 </div>
 
                 <div id="page-tracker-artist" class="page">
@@ -2539,10 +2456,6 @@
                             </div>
                         </div>
                     </header>
-                    <section class="content-section">
-                        <h2 class="section-title">Popular Tracks</h2>
-                        <div class="track-list" id="artist-detail-tracks"></div>
-                    </section>
                     <section class="content-section" id="artist-section-in-library" style="display: none">
                         <h2 class="section-title">
                             <button
@@ -2562,7 +2475,7 @@
                                     user-select: none;
                                 "
                             >
-                                In Your Library
+                                <span id="in-library-label">In Your Library</span>
                                 <use
                                     svg="!lucide/chevron-right.svg"
                                     size="22"
@@ -2574,12 +2487,12 @@
                         <div class="track-list" id="artist-detail-in-library" hidden></div>
                     </section>
                     <section class="content-section">
+                        <h2 class="section-title">Popular Tracks</h2>
+                        <div class="track-list" id="artist-detail-tracks"></div>
+                    </section>
+                    <section class="content-section">
                         <h2 class="section-title">Albums</h2>
                         <div class="card-grid" id="artist-detail-albums"></div>
-                    </section>
-                    <section class="content-section" id="artist-section-videos" style="display: none">
-                        <h2 class="section-title">Videos</h2>
-                        <div class="card-grid" id="artist-detail-videos"></div>
                     </section>
                     <section class="content-section" id="artist-section-eps" style="display: none">
                         <h2 class="section-title">EPs and Singles</h2>
@@ -2659,6 +2572,7 @@
 
                 <div id="page-lyrics" class="page">
                     <section class="lyrics-page-shell">
+                        <div id="lyrics-page-track-info" class="track-info lyrics-page-track-info"></div>
                         <div id="lyrics-page-content" class="lyrics-page-content">
                             <div class="fullscreen-lyrics-empty">Play a song to see lyrics.</div>
                         </div>
@@ -3094,12 +3008,7 @@
                                     <div class="info">
                                         <span class="label">Visualizer Sensitivity</span>
                                         <span class="description"
-                                            >Adjust the intensity of the visualizer effects.
-                                            <strong
-                                                >Warning: High sensitivity may cause flashing lights and rapid motion,
-                                                which can trigger seizures in people with photosensitive
-                                                epilepsy.</strong
-                                            ></span
+                                            >Adjust the intensity of the visualizer effects.</span
                                         >
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 10px">
@@ -5818,6 +5727,9 @@
                         </button>
                         <button id="queue-btn" title="Queue">
                             <use svg="!lucide/list.svg" size="18" />
+                        </button>
+                        <button id="now-playing-fullscreen-btn" title="Open fullscreen" aria-label="Open fullscreen">
+                            <use svg="!lucide/maximize.svg" size="18" />
                         </button>
                     </div>
                     <div class="volume-slider-row desktop-only">

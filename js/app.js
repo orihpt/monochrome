@@ -9,7 +9,6 @@ import { MusicAPI } from './music-api.js';
 import {
     apiSettings,
     themeManager,
-    nowPlayingSettings,
     fullscreenCoverClickSettings,
     downloadQualitySettings,
     sidebarSettings,
@@ -24,7 +23,7 @@ import { LyricsManager, openLyricsPanel, clearLyricsPanelSync } from './lyrics.j
 import { createRouter, updateTabTitle, navigate } from './router.js';
 import { initializePlayerEvents, initializeTrackInteractions, handleTrackAction } from './events.js';
 import { initializeUIInteractions } from './ui-interactions.js';
-import { debounce, getShareUrl } from './utils.js';
+import { debounce, getShareUrl, trackDataStore } from './utils.js';
 import { sidePanelManager } from './side-panel.js';
 import { db } from './db.js';
 import { showNotification } from './downloads.js';
@@ -546,45 +545,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const mode = nowPlayingSettings.getMode();
+        if (Player.instance.currentTrack.album?.id) {
+            navigate(`/album/${Player.instance.currentTrack.album.id}`);
+        }
+    });
 
-        if (mode === 'lyrics') {
-            const isActive = sidePanelManager.isActive('lyrics');
-        } else if (mode === 'cover') {
-            const overlay = document.getElementById('fullscreen-cover-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-            } else {
-            }
+    document.getElementById('now-playing-fullscreen-btn')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!Player.instance.currentTrack) {
+            alert('No track is currently playing');
+            return;
         }
 
-        if (mode === 'lyrics') {
-            const isActive = sidePanelManager.isActive('lyrics');
-
-            if (isActive) {
-                sidePanelManager.close();
-                clearLyricsPanelSync(Player.instance.activeElement, sidePanelManager.panel);
-            } else {
-                openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager);
-            }
-        } else if (mode === 'cover') {
-            const overlay = document.getElementById('fullscreen-cover-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-                await closeFullscreenOverlay();
-            } else {
-                const nextTrack = Player.instance.getNextTrack();
-                UIRenderer.instance.showFullscreenCover(
-                    Player.instance.currentTrack,
-                    nextTrack,
-                    lyricsManager,
-                    Player.instance.activeElement
-                );
-            }
-        } else {
-            // Default to 'album' mode - navigate to album
-            if (Player.instance.currentTrack.album?.id) {
-                navigate(`/album/${Player.instance.currentTrack.album.id}`);
-            }
+        const overlay = document.getElementById('fullscreen-cover-overlay');
+        if (overlay && overlay.style.display === 'flex') {
+            await closeFullscreenOverlay();
+            return;
         }
+
+        UIRenderer.instance.showFullscreenCover(
+            Player.instance.currentTrack,
+            Player.instance.getNextTrack(),
+            lyricsManager,
+            Player.instance.activeElement
+        );
     });
 
     // Toggle Share Button visibility on switch change
@@ -2592,6 +2576,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span>Settings</span>
                         </button>
+                        <button class="btn-secondary" id="header-nav-library" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+                            <span>Library</span>
+                        </button>
                         <button class="btn-secondary" id="header-nav-about" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                             <span>About</span>
@@ -2606,6 +2594,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('header-nav-settings')?.addEventListener('click', () => {
                     headerAccountDropdown.classList.remove('active');
                     navigate('/settings');
+                });
+
+                document.getElementById('header-nav-library')?.addEventListener('click', () => {
+                    headerAccountDropdown.classList.remove('active');
+                    navigate('/library');
                 });
 
                 document.getElementById('header-nav-about')?.addEventListener('click', () => {
@@ -2691,16 +2684,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function renderSidebarLibrary(filter = null, searchQuery = '') {
         if (!sidebarLibraryList) return;
 
-        const [playlists, favArtists, favAlbums] = await Promise.all([
-            db.getPlaylists(),
+        const [playlists, favArtists, favAlbums, likedTracks, pinnedItems] = await Promise.all([
+            db.getPlaylists(true),
             db.getFavorites('artist'),
             db.getFavorites('album'),
+            db.getFavorites('track'),
+            db.getPinned(),
         ]);
+        const pinnedIds = new Set(pinnedItems.map((item) => String(item.id)));
 
         let items = [];
 
         // Add user playlists
         if (!filter || filter === 'playlists') {
+            if (likedTracks.length > 0) {
+                items.push({
+                    type: 'playlist',
+                    name: 'Liked Songs',
+                    cover: '/assets/liked_cover_512w.png',
+                    images: [],
+                    id: 'liked-songs',
+                    href: '/liked-songs',
+                    lastActivityAt: Math.max(...likedTracks.map((track) => track.updatedAt || track.addedAt || 0), 0),
+                    trackCount: likedTracks.length,
+                    isPinned: pinnedIds.has('liked-songs'),
+                    item: {
+                        id: 'liked-songs',
+                        uuid: 'liked-songs',
+                        title: 'Liked Songs',
+                        name: 'Liked Songs',
+                        tracks: likedTracks,
+                        cover: '/assets/liked_cover_512w.png',
+                        href: '/liked-songs',
+                    },
+                });
+            }
+
             for (const p of playlists) {
                 items.push({
                     type: 'playlist',
@@ -2710,6 +2729,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     id: p.id,
                     href: `/userplaylist/${p.id}`,
                     addedAt: p.updatedAt || p.createdAt || 0,
+                    lastActivityAt: p.updatedAt || p.lastPlayedAt || p.createdAt || 0,
+                    trackCount: p.tracks?.length || p.numberOfTracks || 0,
+                    isPinned: pinnedIds.has(String(p.id)),
+                    item: { ...p, id: p.id, uuid: p.id, title: p.name || p.title, href: `/userplaylist/${p.id}` },
                 });
             }
         }
@@ -2724,6 +2747,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     id: a.id,
                     href: `/artist/${a.id}`,
                     addedAt: a.addedAt || 0,
+                    lastActivityAt: a.updatedAt || a.lastPlayedAt || a.addedAt || 0,
+                    isPinned: pinnedIds.has(String(a.id)),
+                    item: a,
                 });
             }
         }
@@ -2739,12 +2765,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     id: a.id,
                     href: `/album/${a.id}`,
                     addedAt: a.addedAt || 0,
+                    lastActivityAt: a.updatedAt || a.lastPlayedAt || a.addedAt || 0,
+                    isPinned: pinnedIds.has(String(a.id)),
+                    item: a,
                 });
             }
         }
 
-        // Sort by recently added
-        items.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+        // Sort by last activity time so the newest library change stays at the top.
+        items.sort((a, b) => {
+            return (b.lastActivityAt || b.addedAt || 0) - (a.lastActivityAt || a.addedAt || 0);
+        });
 
         // Apply search filter
         if (searchQuery) {
@@ -2773,7 +2804,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                               item.type === 'artist' ? 'Artist' : 'Album';
             const metaText = item.type === 'album' && item.artist
                 ? `${typeLabel} · ${item.artist}`
-                : typeLabel;
+                : item.type === 'playlist' && item.trackCount != null
+                  ? `${typeLabel} · ${item.trackCount} tracks`
+                  : typeLabel;
 
             let coverHTML = '';
             if (item.type === 'artist') {
@@ -2802,18 +2835,62 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const itemName = escapeHtml(item.name);
             const tooltipName = itemName.replace(/"/g, '&quot;');
+            const pinHTML = item.isPinned
+                ? '<span class="sidebar-library-pin" aria-label="Pinned"><use svg="!lucide/pin.svg" size="13" /></span>'
+                : '';
 
             return `
-                <a class="sidebar-library-item${isActive ? ' active' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}">
+                <a class="sidebar-library-item${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}">
                     ${coverHTML}
                     <div class="sidebar-library-item-info">
                         <span class="sidebar-library-item-name">${itemName}</span>
                         <span class="sidebar-library-item-meta">${metaText}</span>
                     </div>
+                    ${pinHTML}
                 </a>
             `;
         }).join('');
+
+        items.forEach((item) => {
+            const el = sidebarLibraryList.querySelector(`.sidebar-library-item[data-id="${CSS.escape(String(item.id))}"]`);
+            if (el) trackDataStore.set(el, item.item || item);
+        });
     }
+
+    sidebarLibraryList?.addEventListener('contextmenu', async (e) => {
+        const itemEl = e.target.closest('.sidebar-library-item');
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const contextMenu = document.getElementById('context-menu');
+        const item = trackDataStore.get(itemEl);
+        if (!contextMenu || !item) return;
+
+        if (contextMenu._originalHTML) {
+            contextMenu.innerHTML = contextMenu._originalHTML;
+            contextMenu._originalHTML = null;
+        }
+
+        contextMenu._contextTrack = item;
+        contextMenu._contextType = itemEl.dataset.type === 'playlist' ? 'user-playlist' : itemEl.dataset.type;
+        contextMenu._contextHref = itemEl.getAttribute('href');
+        const type = contextMenu._contextType;
+
+        contextMenu.querySelectorAll('li[data-action]').forEach((menuItem) => {
+            const filter = menuItem.dataset.typeFilter;
+            menuItem.style.display = !filter || filter.split(',').includes(type) ? 'flex' : 'none';
+        });
+
+        const pinLabel = contextMenu.querySelector('li[data-action="toggle-pin"] .menu-label');
+        if (pinLabel) pinLabel.textContent = (await db.isPinned(item.id || item.uuid)) ? 'Unpin' : 'Pin';
+
+        contextMenu.style.display = 'block';
+        const width = contextMenu.offsetWidth || 220;
+        const height = contextMenu.offsetHeight || 320;
+        contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - width - 8)}px`;
+        contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - height - 8)}px`;
+    });
 
     // Filter chips
     if (sidebarFilterChips) {
@@ -2970,6 +3047,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('favorites-changed', () => renderSidebarLibrary(currentSidebarFilter));
     window.addEventListener('playlist-tracks-changed', () => renderSidebarLibrary(currentSidebarFilter));
     window.addEventListener('library-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('pinned-items-changed', () => renderSidebarLibrary(currentSidebarFilter));
 
 });
 

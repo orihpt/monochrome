@@ -1,7 +1,6 @@
 // js/music-api.js
 
 import { LosslessAPI } from './api.js';
-import { PodcastsAPI } from './podcasts-api.js';
 import { SubsonicAPI } from './subsonic-api.js';
 import { musicProviderSettings } from './storage.js';
 
@@ -9,7 +8,7 @@ import { musicProviderSettings } from './storage.js';
  * MusicAPI - Singleton class that provides a unified interface for accessing music streaming services.
  *
  * Supports multiple providers (primarily Tidal) and includes functionality for searching,
- * retrieving metadata, streaming, and managing playlists, artists, albums, tracks, and podcasts.
+ * retrieving metadata, streaming, and managing playlists, artists, albums, and tracks.
  *
  * @class MusicAPI
  * @classdesc Manages API interactions with music providers and provides caching mechanisms
@@ -32,7 +31,6 @@ import { musicProviderSettings } from './storage.js';
  * const streamUrl = await api.getStreamUrl('track-id', 'HIGH');
  *
  * @property {LosslessAPI} tidalAPI - The Tidal API instance
- * @property {PodcastsAPI} podcastsAPI - The Podcasts API instance
  * @property {Object} _settings - Configuration settings
  * @property {Map} videoArtworkCache - Cache for video artwork data
  *
@@ -55,7 +53,6 @@ export class MusicAPI {
     constructor(settings) {
         this.tidalAPI = new LosslessAPI(settings);
         this.subsonicAPI = new SubsonicAPI();
-        this.podcastsAPI = new PodcastsAPI();
         this._settings = settings;
         this.videoArtworkCache = new Map();
     }
@@ -113,9 +110,8 @@ export class MusicAPI {
         }
 
         // Fallback for providers that don't implement unified search
-        const [tracksResult, videosResult, artistsResult, albumsResult, playlistsResult] = await Promise.all([
+        const [tracksResult, artistsResult, albumsResult, playlistsResult] = await Promise.all([
             api.searchTracks(query, options),
-            api.searchVideos ? api.searchVideos(query, options) : Promise.resolve({ items: [] }),
             api.searchArtists(query, options),
             api.searchAlbums(query, options),
             api.searchPlaylists ? api.searchPlaylists(query, options) : Promise.resolve({ items: [] }),
@@ -123,7 +119,6 @@ export class MusicAPI {
 
         return {
             tracks: tracksResult,
-            videos: videosResult,
             artists: artistsResult,
             albums: albumsResult,
             playlists: playlistsResult,
@@ -157,30 +152,6 @@ export class MusicAPI {
             return api.searchPlaylists(query, options);
         }
         return { items: [] };
-    }
-
-    async searchVideos(query, options = {}) {
-        const api = this.getAPI();
-        if (typeof api.searchVideos === 'function') {
-            return api.searchVideos(query, options);
-        }
-        return { items: [] };
-    }
-
-    async searchPodcasts(query, options = {}) {
-        return this.podcastsAPI.searchPodcasts(query, options);
-    }
-
-    async getPodcast(id, options = {}) {
-        return this.podcastsAPI.getPodcastById(id, options);
-    }
-
-    async getPodcastEpisodes(id, options = {}) {
-        return this.podcastsAPI.getPodcastEpisodes(id, options);
-    }
-
-    async getTrendingPodcasts(options = {}) {
-        return this.podcastsAPI.getTrendingPodcasts(options);
     }
 
     // Get methods

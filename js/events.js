@@ -3047,6 +3047,18 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         });
     }
 
+    const nowPlayingLyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+    if (nowPlayingLyricsPageBtn) {
+        nowPlayingLyricsPageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!player.currentTrack) {
+                alert('No track is currently playing');
+                return;
+            }
+            navigate('/lyrics');
+        });
+    }
+
     const nowPlayingAddPlaylistBtn = document.getElementById('now-playing-add-playlist-btn');
     if (nowPlayingAddPlaylistBtn) {
         nowPlayingAddPlaylistBtn.addEventListener('click', async (e) => {

@@ -1691,7 +1691,12 @@
                 <div class="sidebar-content">
                     <!-- Your Library header -->
                     <div class="sidebar-library-header">
-                        <span class="sidebar-library-title">Your Library</span>
+                        <div class="sidebar-library-heading">
+                            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" type="button" title="Collapse sidebar" aria-label="Collapse sidebar" aria-pressed="false">
+                                <use svg="!lucide/panel-left-close.svg" size="16" />
+                            </button>
+                            <span class="sidebar-library-title">Your Library</span>
+                        </div>
                         <button class="sidebar-create-btn" id="sidebar-create-btn" title="Create playlist">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             Create
@@ -1740,7 +1745,7 @@
                         </div>
 
                         <div id="home-content" style="display: none">
-                            <section class="content-section">
+                            <section class="content-section home-recommended-songs-section">
                                 <div class="section-header-row">
                                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
                                         <h2 class="section-title">Recommended Songs</h2>
@@ -2268,7 +2273,6 @@
                             <h1 class="title" id="album-detail-title"></h1>
                             <div class="meta" id="album-detail-meta"></div>
                             <div class="meta" id="album-detail-producer"></div>
-                            <br />
                             <div class="ratings" id="album-detail-ratings-critics"></div>
                             <div class="ratings" id="album-detail-ratings-users"></div>
                             <div class="detail-header-actions">
@@ -2650,6 +2654,14 @@
                     <section class="content-section" id="track-similar-section" style="display: none">
                         <h2 class="section-title">Similar Tracks</h2>
                         <div class="track-list" id="track-detail-similar-tracks"></div>
+                    </section>
+                </div>
+
+                <div id="page-lyrics" class="page">
+                    <section class="lyrics-page-shell">
+                        <div id="lyrics-page-content" class="lyrics-page-content">
+                            <div class="fullscreen-lyrics-empty">Play a song to see lyrics.</div>
+                        </div>
                     </section>
                 </div>
 
@@ -5535,94 +5547,7 @@
 	                </div>
 
 	                <div id="page-about" class="page">
-                    <h2 class="section-title" style="text-align: center">About Waves</h2>
-                    <div class="about-content">
-                        <p class="about-description">
-                            Waves is a lightweight, privacy-focused music streaming client designed for
-                            high-fidelity audio playback. Built with modern web technologies, it provides a clean,
-                            distraction-free listening experience.
-                            <br />
-                        </p>
-                        <div class="about-donate">
-                            <h2 class="section-title" style="text-align: center">Support Waves</h2>
-                            <p style="text-align: center" class="donate-description">
-                                If Waves has been useful to you and you're able to, consider making a donation.
-                                <br />
-                                It helps pay for the server and domain, and you get to support us :)
-                            </p>
-                            <p style="text-align: center; color: var(--muted-foreground); margin-top: 1rem">
-                                If you cannot financially support us, please consider starring the project on GitHub and
-                                sharing with friends!
-                            </p>
-                            <div
-                                class="donate-button"
-                                id="donate-button-container"
-                                style="
-                                    display: flex;
-                                    gap: 20px;
-                                    align-items: center;
-                                    justify-content: center;
-                                    margin-top: 30px;
-                                    flex-wrap: wrap;
-                                "
-                            >
-                                <a
-                                    href="/donate"
-                                    class="btn-secondary"
-                                    style="
-                                        text-decoration: none;
-                                        display: inline-flex;
-                                        align-items: center;
-                                        gap: 0.5rem;
-                                    "
-                                >
-                                    Donate to Waves
-                                </a>
-                                <a
-                                    href="https://github.com/spotiman-music/spotiman"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="btn-secondary"
-                                    style="
-                                        text-decoration: none;
-                                        display: inline-flex;
-                                        align-items: center;
-                                        gap: 0.5rem;
-                                    "
-                                >
-                                    Star on GitHub
-                                </a>
-                            </div>
-                        </div>
-                        <p style="text-align: center; color: grey">
-                            made with ‪‪❤︎‬ by
-                            <a href="https://prigoana.com/" style="text-decoration: underline">Edideaur</a> &
-                            <a href="https://samidy.com" style="text-decoration: underline">Samidy</a>
-                        </p>
-                        <br />
-                        <h3 style="text-align: center">Contributors List:</h3>
-                        <br />
-                        <div class="about-contributors"></div>
-                        <div class="about-contributors-failed"></div>
-                        <div class="about-footer">
-                            <p class="version">Version 2.5.0</p>
-                            <p class="version" id="about-commit-info"></p>
-                            <p class="disclaimer">
-                                This is an independent client and is not affiliated with or endorsed by TIDAL or any
-                                music streaming service.
-                            </p>
-                            <p class="disclaimer">
-                                This application does not host, store, or distribute any media files. <br />
-                                All content displayed or accessed through this app is provided by third‑party services
-                                and APIs that are publicly available on the internet. <br />
-                                We do not control, operate, or maintain any external content sources and are not
-                                responsible for the accuracy, availability, or legality of any content provided by third
-                                parties. <br />
-                                Users are solely responsible for how they use this application and for ensuring that
-                                their use complies with applicable laws and regulations in their jurisdiction.
-                            </p>
-	                        </div>
-	                    </div>
+                    <div class="about-content" id="about-markdown-content"></div>
 	                </div>
                 <div id="page-account" class="page">
                     <h2 class="section-title" style="text-align: center">Sign Up / Sign In</h2>
@@ -5831,6 +5756,16 @@
                         <div class="album"></div>
                         <div class="artist"></div>
                     </div>
+                    <button
+                        id="now-playing-add-playlist-btn"
+                        title="Add to favorites"
+                        class="track-library-btn now-playing-library-btn"
+                        data-action="track-library"
+                        data-type="track"
+                        aria-label="Add to favorites"
+                    >
+                        <use svg="!lucide/plus.svg" size="18" />
+                    </button>
                 </div>
                 <div class="player-controls">
                     <div id="radio-loading-indicator">
@@ -5863,14 +5798,13 @@
                 <div class="volume-controls">
                     <div class="player-actions-row">
                         <button
-                            id="now-playing-add-playlist-btn"
-                            title="Add to favorites"
-                            class="track-library-btn now-playing-library-btn"
-                            data-action="track-library"
-                            data-type="track"
-                            aria-label="Add to favorites"
+                            id="now-playing-lyrics-page-btn"
+                            class="lyrics-page-btn"
+                            title="Open lyrics page"
+                            aria-label="Open lyrics page"
+                            style="display: none"
                         >
-                            <use svg="!lucide/plus.svg" size="18" />
+                            <use svg="!lucide/mic-vocal.svg" size="16" />
                         </button>
 
                         <button
@@ -5881,9 +5815,6 @@
                             style="display: none"
                         >
                             <use svg="!lucide/radio.svg" size="16" />
-                        </button>
-                        <button id="toggle-lyrics-btn" title="Lyrics" style="display: none" aria-label="Lyrics">
-                            <use svg="!lucide/mic-vocal.svg" size="16" />
                         </button>
                         <button id="queue-btn" title="Queue">
                             <use svg="!lucide/list.svg" size="18" />

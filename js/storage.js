@@ -1,7 +1,5 @@
 //storage.js
 
-import { SVG_RIGHT_ARROW } from './icons';
-
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
     INSTANCES_URLS:
@@ -2111,10 +2109,6 @@ export const sidebarSettings = {
         const isCollapsed = this.isCollapsed();
         if (isCollapsed) {
             document.body.classList.add('sidebar-collapsed');
-            const toggleBtn = document.getElementById('sidebar-toggle');
-            if (toggleBtn) {
-                toggleBtn.innerHTML = SVG_RIGHT_ARROW(20);
-            }
         }
     },
 };

@@ -83,6 +83,10 @@ export default defineConfig((_options) => {
                     target: navidromeUrl,
                     changeOrigin: true,
                 },
+                '/api/about': {
+                    target: navidromeUrl,
+                    changeOrigin: true,
+                },
                 '/rest': {
                     target: 'http://127.0.0.1:4533',
                     changeOrigin: true,

@@ -1454,6 +1454,12 @@ export async function renderLyricsInFullscreen(track, audioPlayer, lyricsManager
     return renderLyricsComponent(container, track, audioPlayer, lyricsManager, { unavailableHTML: '' });
 }
 
+export async function renderLyricsInPage(track, audioPlayer, lyricsManager, container) {
+    return renderLyricsComponent(container, track, audioPlayer, lyricsManager, {
+        unavailableHTML: '<div class="lyrics-error">No lyrics available for this song</div>',
+    });
+}
+
 export function clearFullscreenLyricsSync(container) {
     if (container && container.lyricsCleanup) {
         container.lyricsCleanup();

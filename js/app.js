@@ -157,7 +157,7 @@ function initializeKeyboardShortcuts(player, _audioPlayer) {
                 return;
             }
 
-            document.getElementById('toggle-lyrics-btn')?.click();
+            navigate('/lyrics');
         },
         search: () => {
             document.getElementById('search-input')?.focus();
@@ -486,6 +486,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore sidebar state
     sidebarSettings.restoreState();
 
+    const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+    const updateSidebarCollapseButton = () => {
+        if (!sidebarCollapseBtn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        sidebarCollapseBtn.setAttribute('aria-pressed', String(isCollapsed));
+        sidebarCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        sidebarCollapseBtn.setAttribute('title', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        if (!isCollapsed) {
+            document.querySelector('.sidebar-library-tooltip')?.classList.remove('visible');
+        }
+    };
+
+    if (sidebarCollapseBtn) {
+        sidebarCollapseBtn.addEventListener('click', () => {
+            const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+            document.body.classList.toggle('sidebar-collapsed', shouldCollapse);
+            sidebarSettings.setCollapsed(shouldCollapse);
+            updateSidebarCollapseButton();
+        });
+        new MutationObserver(updateSidebarCollapseButton).observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+        });
+        updateSidebarCollapseButton();
+    }
+
     // (pinned items removed - sidebar is now a library panel)
 
     // Load settings module and initialize
@@ -804,23 +830,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.history.forward();
     });
 
-    document.getElementById('toggle-lyrics-btn')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!Player.instance.currentTrack) {
-            alert('No track is currently playing');
-            return;
-        }
-
-        const isActive = sidePanelManager.isActive('lyrics');
-
-        if (isActive) {
-            sidePanelManager.close();
-            clearLyricsPanelSync(Player.instance.activeElement, sidePanelManager.panel);
-        } else {
-            openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager);
-        }
-    });
-
     document.getElementById('download-current-btn')?.addEventListener('click', async () => {
         if (Player.instance.currentTrack) {
             await handleTrackAction(
@@ -854,6 +863,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sidePanelManager.isActive('lyrics')) {
             // Re-open forces update/refresh of content and sync
             openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager, true);
+        }
+
+        if (UIRenderer.instance.currentPage === 'lyrics') {
+            await UIRenderer.instance.renderLyricsPage();
         }
 
         // Update Fullscreen if it's open
@@ -2631,6 +2644,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ========== SIDEBAR LIBRARY ==========
     const sidebarLibraryList = document.getElementById('sidebar-library-list');
     const sidebarFilterChips = document.getElementById('sidebar-filter-chips');
+    let sidebarLibraryTooltip = null;
+
+    const hideSidebarLibraryTooltip = () => {
+        if (sidebarLibraryTooltip) {
+            sidebarLibraryTooltip.classList.remove('visible');
+        }
+    };
+
+    const showSidebarLibraryTooltip = (item) => {
+        if (!item || !document.body.classList.contains('sidebar-collapsed')) {
+            hideSidebarLibraryTooltip();
+            return;
+        }
+
+        if (!sidebarLibraryTooltip) {
+            sidebarLibraryTooltip = document.createElement('div');
+            sidebarLibraryTooltip.className = 'sidebar-library-tooltip';
+            document.body.appendChild(sidebarLibraryTooltip);
+        }
+
+        sidebarLibraryTooltip.textContent = item.dataset.sidebarTooltip || item.getAttribute('aria-label') || '';
+        const rect = item.getBoundingClientRect();
+        sidebarLibraryTooltip.style.left = `${rect.right + 10}px`;
+        sidebarLibraryTooltip.style.top = `${rect.top + rect.height / 2}px`;
+        sidebarLibraryTooltip.classList.add('visible');
+    };
+
+    if (sidebarLibraryList) {
+        sidebarLibraryList.addEventListener('mouseover', (e) => {
+            showSidebarLibraryTooltip(e.target.closest('.sidebar-library-item'));
+        });
+        sidebarLibraryList.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.sidebar-library-item');
+            if (item && !item.contains(e.relatedTarget)) hideSidebarLibraryTooltip();
+        });
+        sidebarLibraryList.addEventListener('focusin', (e) => {
+            showSidebarLibraryTooltip(e.target.closest('.sidebar-library-item'));
+        });
+        sidebarLibraryList.addEventListener('focusout', hideSidebarLibraryTooltip);
+    }
 
     // Restore persisted filter from localStorage
     let currentSidebarFilter = localStorage.getItem('sidebar-library-filter') || null;
@@ -2747,11 +2800,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 coverHTML = `<div class="sidebar-library-item-cover" style="display: flex; align-items: center; justify-content: center; color: var(--muted-foreground);">${icon}</div>`;
             }
 
+            const itemName = escapeHtml(item.name);
+            const tooltipName = itemName.replace(/"/g, '&quot;');
+
             return `
-                <a class="sidebar-library-item${isActive ? ' active' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}">
+                <a class="sidebar-library-item${isActive ? ' active' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}">
                     ${coverHTML}
                     <div class="sidebar-library-item-info">
-                        <span class="sidebar-library-item-name">${item.name}</span>
+                        <span class="sidebar-library-item-name">${itemName}</span>
                         <span class="sidebar-library-item-meta">${metaText}</span>
                     </div>
                 </a>

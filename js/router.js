@@ -93,6 +93,9 @@ export function createRouter(ui) {
                 }
                 break;
             }
+            case 'lyrics':
+                await ui.renderLyricsPage();
+                break;
             case 'library':
                 await ui.renderLibraryPage();
                 break;
@@ -128,6 +131,9 @@ export function createRouter(ui) {
                 break;
             case 'donate':
                 ui.showPage('donate');
+                break;
+            case 'about':
+                await ui.renderAboutPage();
                 break;
             case 'user':
                 if (param && param.startsWith('@') && !param.includes('/')) {

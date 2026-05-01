@@ -17,7 +17,8 @@ import {
     getShareUrl,
     createModal,
 } from './utils.js';
-import { openLyricsPanel, renderLyricsInFullscreen, clearFullscreenLyricsSync } from './lyrics.js';
+import { openLyricsPanel, renderLyricsInFullscreen, renderLyricsInPage, clearFullscreenLyricsSync } from './lyrics.js';
+import { renderAboutPage as renderAboutMarkdownPage } from './about.js';
 import {
     recentActivityManager,
     backgroundSettings,
@@ -62,6 +63,49 @@ const _isInvalidDate = (releaseDate) => {
         date.getUTCFullYear() === 1970 && date.getUTCMonth() === 0 && date.getUTCDate() === 1;
     return isEpoch || is1970;
 };
+
+const getAlbumReleaseYear = (album) => {
+    const candidates = [
+        album?.releaseDate,
+        album?.originalReleaseDate?.value,
+        album?.originalReleaseDate,
+        album?.year,
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined || candidate === '') continue;
+        const value = typeof candidate === 'object' && 'value' in candidate ? candidate.value : candidate;
+        const text = String(value).trim();
+
+        if (/^\d{4}$/.test(text)) return text;
+
+        const date = new Date(value);
+        if (!isNaN(date.getTime()) && !_isInvalidDate(value)) {
+            return String(date.getFullYear());
+        }
+    }
+
+    return '';
+};
+
+const getAlbumReleaseDateDisplay = (album) => {
+    const raw = album?.releaseDate || album?.originalReleaseDate?.value || album?.originalReleaseDate || album?.year;
+    const year = getAlbumReleaseYear(album);
+    if (!year) return '';
+
+    const rawText = String(typeof raw === 'object' && raw && 'value' in raw ? raw.value : raw || '').trim();
+    if (/^\d{4}$/.test(rawText) || window.innerWidth <= 768) return year;
+
+    const date = new Date(raw);
+    if (isNaN(date.getTime()) || _isInvalidDate(raw)) return year;
+
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
 import('./content-filter.ts')
     .then((m) => {
         _isBlockedCopyright = m.isBlockedCopyright;
@@ -103,7 +147,6 @@ import {
     SVG_SHUFFLE,
     SVG_VIDEO,
     SVG_LEFT_ARROW,
-    SVG_RIGHT_ARROW,
     SVG_CLOCK,
     SVG_CHECKBOX,
     SVG_CHECK,
@@ -396,7 +439,7 @@ export class UIRenderer {
         const likeBtn = document.getElementById('now-playing-like-btn');
         const addPlaylistBtn = document.getElementById('now-playing-add-playlist-btn');
         const mobileAddPlaylistBtn = document.getElementById('mobile-add-playlist-btn');
-        const lyricsBtn = document.getElementById('toggle-lyrics-btn');
+        const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
         const fsLikeBtn = document.getElementById('fs-like-btn');
         const fsAddPlaylistBtn = document.getElementById('fs-add-playlist-btn');
 
@@ -433,9 +476,9 @@ export class UIRenderer {
                     await this.updateTrackLibraryState(mobileAddPlaylistBtn, track);
                 }
             }
-            if (lyricsBtn) {
-                if (isLocal) lyricsBtn.style.display = 'none';
-                else lyricsBtn.style.removeProperty('display');
+            if (lyricsPageBtn) {
+                if (track.type === 'video') lyricsPageBtn.style.display = 'none';
+                else lyricsPageBtn.style.display = 'flex';
             }
 
             if (fsLikeBtn) {
@@ -457,7 +500,7 @@ export class UIRenderer {
             if (likeBtn) likeBtn.style.display = 'none';
             if (addPlaylistBtn) addPlaylistBtn.style.setProperty('display', 'none', 'important');
             if (mobileAddPlaylistBtn) mobileAddPlaylistBtn.style.setProperty('display', 'none', 'important');
-            if (lyricsBtn) lyricsBtn.style.display = 'none';
+            if (lyricsPageBtn) lyricsPageBtn.style.display = 'none';
             if (fsLikeBtn) fsLikeBtn.style.display = 'none';
             if (fsAddPlaylistBtn) fsAddPlaylistBtn.style.display = 'none';
         }
@@ -837,15 +880,11 @@ export class UIRenderer {
         const explicitBadge = hasExplicitContent(album) ? this.createExplicitBadge() : '';
         const qualityBadge = createQualityBadgeHTML(album);
         const isBlocked = contentBlockingSettings?.shouldHideAlbum(album);
-        let yearDisplay = '';
-        if (album.releaseDate && !_isInvalidDate(album.releaseDate)) {
-            const date = new Date(album.releaseDate);
-            if (!isNaN(date.getTime())) yearDisplay = `${date.getFullYear()}`;
-        }
+        const yearDisplay = getAlbumReleaseYear(album);
 
         let typeLabel = '';
-        if (album.type === 'EP') typeLabel = ' • EP';
-        else if (album.type === 'SINGLE') typeLabel = ' • Single';
+        if (album.type === 'EP') typeLabel = 'EP';
+        else if (album.type === 'SINGLE') typeLabel = 'Single';
 
         const isCompact = cardSettings.isCompactAlbum();
         let artistName = '';
@@ -860,7 +899,7 @@ export class UIRenderer {
             id: album.id,
             href: album._href || `/album/${album.id}`,
             title: `${escapeHtml(album.title)} ${explicitBadge} ${qualityBadge}`,
-            subtitle: `${escapeHtml(artistName)} • ${yearDisplay}${typeLabel}`,
+            subtitle: [escapeHtml(artistName), yearDisplay, typeLabel].filter(Boolean).join(' • '),
             imageHTML: this.getCoverHTML(
                 album.cover,
                 escapeHtml(album.title),
@@ -2398,6 +2437,9 @@ export class UIRenderer {
     async showPage(pageId) {
         const previousPage = this.currentPage;
         this.currentPage = pageId;
+        if (previousPage === 'lyrics' && pageId !== 'lyrics') {
+            clearFullscreenLyricsSync(document.getElementById('lyrics-page-content'));
+        }
         document.querySelectorAll('.page').forEach((page) => {
             page.classList.toggle('active', page.id === `page-${pageId}`);
         });
@@ -2406,6 +2448,12 @@ export class UIRenderer {
         const homeBtn = document.getElementById('topbar-home-btn');
         if (homeBtn) {
             homeBtn.classList.toggle('active', pageId === 'home');
+        }
+
+        const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+        if (lyricsPageBtn) {
+            lyricsPageBtn.classList.toggle('active', pageId === 'lyrics');
+            lyricsPageBtn.setAttribute('aria-pressed', pageId === 'lyrics' ? 'true' : 'false');
         }
 
         // Update sidebar library active states
@@ -4282,21 +4330,7 @@ export class UIRenderer {
             this.adjustTitleFontSize(titleEl, album.title);
 
             const totalDuration = calculateTotalDuration(tracks);
-            let dateDisplay = '';
-            if (album.releaseDate && !_isInvalidDate(album.releaseDate)) {
-                const releaseDate = new Date(album.releaseDate);
-                if (!isNaN(releaseDate.getTime())) {
-                    const year = releaseDate.getFullYear();
-                    dateDisplay =
-                        window.innerWidth > 768
-                            ? releaseDate.toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                              })
-                            : year;
-                }
-            }
+            const dateDisplay = getAlbumReleaseDateDisplay(album);
 
             const firstCopyright = tracks.find((track) => track.copyright)?.copyright;
 
@@ -6152,6 +6186,11 @@ export class UIRenderer {
         }
     }
 
+    async renderAboutPage() {
+        await this.showPage('about');
+        await renderAboutMarkdownPage(document.getElementById('about-markdown-content'));
+    }
+
     async renderUnreleasedPage() {
         await this.showPage('unreleased');
         const container = document.getElementById('unreleased-content');
@@ -6548,10 +6587,6 @@ export class UIRenderer {
         await this.showPage('track');
 
         document.body.classList.add('sidebar-collapsed');
-        const toggleBtn = document.getElementById('sidebar-toggle');
-        if (toggleBtn) {
-            toggleBtn.innerHTML = SVG_RIGHT_ARROW(20);
-        }
 
         const imageEl = document.getElementById('track-detail-image');
         const titleEl = document.getElementById('track-detail-title');
@@ -6736,6 +6771,41 @@ export class UIRenderer {
             titleEl.textContent = 'Track not found';
             artistEl.innerHTML = '';
         }
+    }
+
+    async renderLyricsPage() {
+        await this.showPage('lyrics');
+
+        const contentEl = document.getElementById('lyrics-page-content');
+        const track = this.player?.currentTrack;
+        const activeElement = this.player?.activeElement;
+
+        if (!contentEl) return;
+        clearFullscreenLyricsSync(contentEl);
+
+        if (!track) {
+            contentEl.innerHTML = '<div class="fullscreen-lyrics-empty">Play a song to see lyrics.</div>';
+            document.title = 'Lyrics - Waves Music';
+            return;
+        }
+
+        if (track.type === 'video') {
+            contentEl.innerHTML = '<div class="lyrics-error">Lyrics are unavailable for videos</div>';
+            document.title = `${getTrackTitle(track)} Lyrics - Waves Music`;
+            return;
+        }
+
+        const lyricsManager = this.lyricsManager;
+
+        if (!lyricsManager || !activeElement) {
+            contentEl.innerHTML = '<div class="lyrics-error">Lyrics are unavailable until playback starts</div>';
+            document.title = `${getTrackTitle(track)} Lyrics - Waves Music`;
+            return;
+        }
+
+        lyricsManager.timingOffset = lyricsManager.getTimingOffset(track.id);
+        await renderLyricsInPage(track, activeElement, lyricsManager, contentEl);
+        document.title = `${getTrackTitle(track)} Lyrics - Waves Music`;
     }
 
     async renderPodcastsBrowsePage() {

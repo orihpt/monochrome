@@ -422,6 +422,10 @@ export class Player {
                 if (mixBtn) {
                     mixBtn.style.display = track.id ? 'flex' : 'none';
                 }
+                const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+                if (lyricsPageBtn) {
+                    lyricsPageBtn.style.display = track.id && track.type !== 'video' ? 'flex' : 'none';
+                }
                 const totalDurationEl = document.getElementById('total-duration');
                 if (totalDurationEl) totalDurationEl.textContent = formatTime(track.duration);
                 document.title = `${trackTitle} • ${getTrackArtists(track)}`;
@@ -1039,6 +1043,10 @@ export class Player {
         const mixBtn = document.getElementById('now-playing-mix-btn');
         if (mixBtn) {
             mixBtn.style.display = track.id ? 'flex' : 'none';
+        }
+        const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+        if (lyricsPageBtn) {
+            lyricsPageBtn.style.display = track.id && track.type !== 'video' ? 'flex' : 'none';
         }
         document.title = `${trackTitle} • ${getTrackArtists(track)}`;
 

@@ -2413,7 +2413,7 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
     if (playItem) {
         const labelByType = {
             album: 'Play album',
-            artist: 'Play artist',
+            artist: 'נגן אמן',
             playlist: 'Play playlist',
             mix: 'Play mix',
             'user-playlist': 'Play playlist',
@@ -2426,7 +2426,7 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
         const labelByType = {
             track: 'Start song radio',
             album: 'Start album radio',
-            artist: 'Start artist radio',
+            artist: 'התחל רדיו מהאמן',
             playlist: 'Start playlist radio',
             'user-playlist': 'Start playlist radio',
         };

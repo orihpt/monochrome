@@ -219,6 +219,7 @@ export class UIRenderer {
         this.searchAbortController = null;
         this.vibrantColorCache = new Map();
         this.visualizer = null;
+        this.lyricsVisualizer = null;
         this.renderLock = false;
         this.lastRecommendedTracks = [];
         this.currentArtistId = null;
@@ -240,6 +241,9 @@ export class UIRenderer {
         window.addEventListener('visualizer-dim-change', () => {
             if (this.visualizer) {
                 this.visualizer.updateDimming();
+            }
+            if (this.lyricsVisualizer) {
+                this.lyricsVisualizer.updateDimming();
             }
         });
 
@@ -504,6 +508,10 @@ export class UIRenderer {
             if (lyricsPageBtn) lyricsPageBtn.style.display = 'none';
             if (fsLikeBtn) fsLikeBtn.style.display = 'none';
             if (fsAddPlaylistBtn) fsAddPlaylistBtn.style.display = 'none';
+        }
+        
+        if (this.currentPage === 'lyrics') {
+            await this.updateLyricsPageVisualizer();
         }
     }
 
@@ -1933,16 +1941,7 @@ export class UIRenderer {
             this.fullscreenSidePanelSyncCleanup();
         }
 
-        const syncState = () => {
-            overlay.classList.toggle('queue-panel-active', sidePanelManager.isActive('queue'));
-        };
-
-        const handleChange = () => syncState();
-        window.addEventListener('side-panel-changed', handleChange);
-        syncState();
-
         this.fullscreenSidePanelSyncCleanup = () => {
-            window.removeEventListener('side-panel-changed', handleChange);
             overlay.classList.remove('queue-panel-active');
         };
     }
@@ -2415,6 +2414,9 @@ export class UIRenderer {
         const previousPage = this.currentPage;
         this.currentPage = pageId;
         if (previousPage === 'lyrics' && pageId !== 'lyrics') {
+            if (this.lyricsVisualizer) {
+                this.lyricsVisualizer.stop();
+            }
             clearFullscreenLyricsSync(document.getElementById('lyrics-page-content'));
         }
         document.querySelectorAll('.page').forEach((page) => {
@@ -4298,7 +4300,7 @@ export class UIRenderer {
         const rateUsersEl = document.getElementById('album-detail-ratings-users');
         const tracklistContainer = document.getElementById('album-detail-tracklist');
         const playBtn = document.getElementById('play-album-btn');
-        if (playBtn) playBtn.innerHTML = `${SVG_PLAY(20)}<span>Play Album</span>`;
+        if (playBtn) playBtn.innerHTML = `${SVG_PLAY(20)}<span>ניגון אלבום</span>`;
         const radioBtn = document.getElementById('album-radio-btn');
         const dlBtn = document.getElementById('download-album-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download Album</span>`;
@@ -6850,6 +6852,7 @@ export class UIRenderer {
 
     async renderLyricsPage() {
         await this.showPage('lyrics');
+        await this.updateLyricsPageVisualizer();
 
         const contentEl = document.getElementById('lyrics-page-content');
         const infoEl = document.getElementById('lyrics-page-track-info');
@@ -6910,6 +6913,35 @@ export class UIRenderer {
         container.querySelector('.album')?.addEventListener('click', () => {
             if (albumId) navigate(`/album/${albumId}`);
         });
+    }
+
+    async updateLyricsPageVisualizer() {
+        const track = this.player?.currentTrack;
+        const activeElement = this.player?.activeElement;
+        const isVideoTrack = track?.type === 'video';
+        const enabled = !isVideoTrack && visualizerSettings.isEnabled();
+        const container = document.getElementById('lyrics-visualizer-container');
+        const canvas = document.getElementById('lyrics-visualizer-canvas');
+
+        if (!container || !canvas) return;
+
+        if (!enabled) {
+            if (this.lyricsVisualizer) {
+                this.lyricsVisualizer.stop();
+            }
+            container.classList.remove('visualizer-active');
+            return;
+        }
+
+        if (!this.lyricsVisualizer) {
+            this.lyricsVisualizer = new Visualizer(canvas, activeElement);
+            await this.lyricsVisualizer.initPresets();
+        } else {
+            this.lyricsVisualizer.audio = activeElement;
+        }
+
+        const started = await this.lyricsVisualizer.start();
+        container.classList.toggle('visualizer-active', started);
     }
 
 }

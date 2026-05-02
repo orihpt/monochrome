@@ -13,6 +13,7 @@ const SKIP_SELECTOR = [
     '.search-results-dropdown',
     '.lyrics-page-content',
     '.fullscreen-lyrics-content',
+    '.fullscreen-lyrics-pane',
     'am-lyrics',
     '[data-user-content]',
     '[data-no-translate]',

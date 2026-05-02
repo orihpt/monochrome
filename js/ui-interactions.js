@@ -1,19 +1,19 @@
 //js/ui-interactions.js
-import {
-    formatTime,
-    getTrackTitle,
-    getTrackArtists,
-    escapeHtml,
-    createQualityBadgeHTML,
-    positionMenu,
-} from './utils.js';
+import { syncManager } from './accounts/pocketbase.js';
+import { db } from './db.js';
+import { showNotification } from './downloads.js';
+import { hapticSuccess } from './haptics.js';
+import { SVG_BIN, SVG_CHECK, SVG_CLOSE, SVG_EQUAL, SVG_MENU, SVG_PLUS, SVG_TRASH } from './icons.js';
 import { sidePanelManager } from './side-panel.js';
 import { contentBlockingSettings } from './storage.js';
-import { db } from './db.js';
-import { syncManager } from './accounts/pocketbase.js';
-import { showNotification } from './downloads.js';
-import { SVG_CLOSE, SVG_BIN, SVG_CHECK, SVG_PLUS, SVG_TRASH, SVG_EQUAL, SVG_MENU } from './icons.js';
-import { hapticSuccess } from './haptics.js';
+import {
+    createQualityBadgeHTML,
+    escapeHtml,
+    formatTime,
+    getTrackArtists,
+    getTrackTitle,
+    positionMenu,
+} from './utils.js';
 
 export function initializeUIInteractions(player, api, ui) {
     const sidebar = document.querySelector('.sidebar');
@@ -137,12 +137,12 @@ export function initializeUIInteractions(player, api, ui) {
                     <h3>Add Queue to Playlist</h3>
                     <div class="modal-list">
                         ${playlists
-                            .map(
-                                (p) => `
+                    .map(
+                        (p) => `
                             <div class="modal-option" data-id="${p.id}">${escapeHtml(p.name)}</div>
                         `
-                            )
-                            .join('')}
+                    )
+                    .join('')}
                     </div>
                     <div class="modal-actions">
                         <button class="btn-secondary cancel-btn">Cancel</button>
@@ -197,9 +197,9 @@ export function initializeUIInteractions(player, api, ui) {
             }
 
             if (addedCount > 0) {
-                showNotification(`Added ${addedCount} track${addedCount > 1 ? 's' : ''} to favorites`);
+                showNotification(`נוספו ${addedCount} שירים ל״שירים שאהבתם״`);
             } else {
-                showNotification('All tracks in queue are already favorites');
+                showNotification('כל השירים בתור כבר נמצאים ב״שירים שאהבתם״');
             }
 
             await refreshQueuePanel();
@@ -213,8 +213,8 @@ export function initializeUIInteractions(player, api, ui) {
                 const menu = document.createElement('div');
                 menu.className = 'queue-actions-menu';
                 menu.innerHTML = `
-                    <button type="button" data-action="mark-favorites">Mark all as favorites</button>
-                    <button type="button" data-action="add-playlist">Add all to a playlist</button>
+                    <button type="button" data-action="mark-favorites">הוספת כל השירים ל״שירים שאהבתם״</button>
+                    <button type="button" data-action="add-playlist">הוספת כל השירים לפלייליסט</button>
                 `;
                 document.body.appendChild(menu);
                 const rect = queueActionsBtn.getBoundingClientRect();
@@ -279,10 +279,10 @@ export function initializeUIInteractions(player, api, ui) {
                 </div>
             </div>
             <div class="track-item-duration">${isBlocked ? '--:--' : formatTime(track.duration)}</div>
-            <button class="queue-like-btn track-library-btn" data-action="track-library" data-track-id="${track.id}" title="Add to favorites">
+            <button class="queue-like-btn track-library-btn" data-action="track-library" data-track-id="${track.id}" title="הוספה ל״שירים שאהבתם״">
                 ${SVG_PLUS(18)}
             </button>
-            <button class="queue-remove-btn" data-track-index="${index}" title="Remove from queue">
+            <button class="queue-remove-btn" data-track-index="${index}" title="מחיקה מהתור">
                 ${SVG_BIN(20)}
             </button>
         </div>
@@ -391,7 +391,7 @@ export function initializeUIInteractions(player, api, ui) {
         const currentQueue = player.getCurrentQueue();
 
         if (currentQueue.length === 0) {
-            container.innerHTML = '<div class="placeholder-text">Queue is empty.</div>';
+            container.innerHTML = '<div class="placeholder-text">התור ריק.</div>';
             queueStartIndex = 0;
             queueEndIndex = QUEUE_MAX_RENDERED;
             return;

@@ -894,12 +894,17 @@ export class UIRenderer {
             artistName = album.artists.map((a) => a.name).join(', ');
         }
 
+        const isArtistPage = window.location.pathname.startsWith('/artist/');
+        const subtitle = isArtistPage
+            ? ['אלבום', yearDisplay].filter(Boolean).join(' • ')
+            : escapeHtml(artistName);
+
         return this.createBaseCardHTML({
             type: 'album',
             id: album.id,
             href: album._href || `/album/${album.id}`,
             title: `${escapeHtml(album.title)} ${explicitBadge} ${qualityBadge}`,
-            subtitle: [escapeHtml(artistName), yearDisplay, typeLabel].filter(Boolean).join(' • '),
+            subtitle: subtitle,
             imageHTML: this.getCoverHTML(
                 album.cover,
                 escapeHtml(album.title),

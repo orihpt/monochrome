@@ -378,6 +378,7 @@ body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-family, 'Inter', sans-serif) !important;
+    direction: rtl;
     overflow: hidden;
     transition:
         background-color 0.3s ease,
@@ -385,6 +386,29 @@ body {
     height: 100%;
     position: fixed;
     width: 100%;
+}
+
+html[dir='rtl'] input,
+html[dir='rtl'] textarea,
+html[dir='rtl'] select {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir='rtl'] input[type='url'],
+html[dir='rtl'] input[type='email'],
+html[dir='rtl'] input[type='password'],
+html[dir='rtl'] input[id*='url' i],
+html[dir='rtl'] input[id*='api' i],
+html[dir='rtl'] input[id*='token' i],
+html[dir='rtl'] input[id*='secret' i],
+html[dir='rtl'] input[id*='endpoint' i] {
+    direction: ltr;
+    text-align: left;
+}
+
+html[dir='rtl'] svg {
+    flex-shrink: 0;
 }
 
 .text-link {
@@ -988,6 +1012,7 @@ ul {
     grid-area: sidebar;
     min-height: 0;
     background-color: var(--background);
+    border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
     padding: 0.75rem;
     display: flex;
@@ -1014,6 +1039,7 @@ ul {
     flex-shrink: 0;
     margin-bottom: 0.5rem;
     gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
     transition:
         padding 0.22s cubic-bezier(0.4, 0, 0.2, 1),
         margin 0.22s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1713,8 +1739,11 @@ body.sidebar-collapsed .sidebar-collapse-btn svg {
 }
 
 #header-account-dropdown {
-    left: auto;
-    right: 0;
+    left: 0;
+    right: auto;
+    direction: rtl;
+    text-align: right;
+    max-width: calc(100vw - 1rem);
 }
 
 #header-account-btn {
@@ -4506,6 +4535,9 @@ input:checked + .slider::before {
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-sm);
+    direction: ltr;
+    text-align: left;
+    unicode-bidi: isolate;
 }
 
 .player-controls.waveform-loaded {
@@ -6630,6 +6662,19 @@ input:checked + .slider::before {
     container-name: sidepanel;
 }
 
+.side-panel[data-view='queue'] {
+    left: 0;
+    right: auto;
+    border-left: 0;
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+}
+
+.side-panel[data-view='queue'] .side-panel-resizer {
+    left: auto;
+    right: -3px;
+}
+
 @container sidepanel (min-width: 500px) {
     .panel-content am-lyrics {
         --lyplus-font-size-base: 36px;
@@ -6683,6 +6728,11 @@ input:checked + .slider::before {
     background: color-mix(in srgb, var(--card) 60%, transparent);
     backdrop-filter: blur(20px);
     border-left: 1px solid rgb(255, 255, 255, 0.1);
+}
+
+.side-panel[data-view='queue'] {
+    border-left: 0;
+    border-right: 1px solid rgb(255, 255, 255, 0.1);
 }
 
 .panel-header {
@@ -6951,6 +7001,9 @@ input:checked + .slider::before {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    direction: ltr;
+    text-align: left;
+    unicode-bidi: isolate;
 }
 
 /* Ensure buttons in rows behave correctly */
@@ -12610,7 +12663,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 }
 
 /* Auth Modal Styles */
-#spotiman-auth-modal.modal-overlay {
+#waves-music-auth-modal.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;

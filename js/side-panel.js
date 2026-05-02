@@ -49,10 +49,10 @@ export class SidePanelManager {
 
     resize(e) {
         if (!this.isResizing) return;
-        // The panel is on the right side. Screen width - mouse X = desired width.
         const minWidth = 300;
         const maxWidth = window.innerWidth * 0.9;
-        let newWidth = window.innerWidth - e.clientX;
+        const opensFromLeft = this.panel.dataset.view === 'queue';
+        let newWidth = opensFromLeft ? e.clientX : window.innerWidth - e.clientX;
 
         if (newWidth < minWidth) newWidth = minWidth;
         if (newWidth > maxWidth) newWidth = maxWidth;

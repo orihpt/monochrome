@@ -2,9 +2,9 @@
 import { MusicAPI } from './music-api.js';
 
 export const initAuthModal = () => {
-    const modal = document.getElementById('spotiman-auth-modal');
-    const form = document.getElementById('spotiman-auth-form');
-    const errorEl = document.getElementById('spotiman-auth-error');
+    const modal = document.getElementById('waves-music-auth-modal');
+    const form = document.getElementById('waves-music-auth-form');
+    const errorEl = document.getElementById('waves-music-auth-error');
     const submitBtn = form.querySelector('button');
     const spinner = submitBtn.querySelector('.spinner');
     const btnText = submitBtn.querySelector('span');
@@ -21,9 +21,9 @@ export const initAuthModal = () => {
 
     form.onsubmit = async (e) => {
         e.preventDefault();
-        console.log('Spotiman Auth: Submit started');
-        const username = document.getElementById('spotiman-auth-username').value;
-        const password = document.getElementById('spotiman-auth-password').value;
+        console.log('Waves Music Auth: Submit started');
+        const username = document.getElementById('waves-music-auth-username').value;
+        const password = document.getElementById('waves-music-auth-password').value;
 
         errorEl.style.display = 'none';
         submitBtn.disabled = true;
@@ -31,13 +31,13 @@ export const initAuthModal = () => {
         btnText.style.opacity = '0.5';
 
         try {
-            console.log('Spotiman Auth: Testing connection...');
+            console.log('Waves Music Auth: Testing connection...');
             const api = MusicAPI.instance.subsonicAPI;
             api.user = username;
             api.password = password;
 
             const response = await api.fetchAPI('ping');
-            console.log('Spotiman Auth: Response received', response);
+            console.log('Waves Music Auth: Response received', response);
             if (response && response.status === 'ok') {
                 // Success! Save credentials
                 localStorage.setItem('subsonic_user', username);

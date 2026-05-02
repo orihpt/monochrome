@@ -8,17 +8,17 @@ import { chromium } from 'playwright';
   page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
 
   try {
-    console.log("Navigating to Spotiman UI...");
+    console.log("Navigating to Waves Music UI...");
     await page.goto('http://127.0.0.1:5173/');
     
     await page.waitForTimeout(5000);
     
     // Check if auth modal is present
-    const authModal = await page.$('#spotiman-auth-modal');
+    const authModal = await page.$('#waves-music-auth-modal');
     if (await authModal?.isVisible()) {
         console.log("Auth modal is visible, logging in...");
-        await page.fill('#spotiman-auth-username', 'admin');
-        await page.fill('#spotiman-auth-password', 'admin');
+        await page.fill('#waves-music-auth-username', 'admin');
+        await page.fill('#waves-music-auth-password', 'admin');
         await page.click('.auth-submit-btn');
         await page.waitForTimeout(5000);
     }
@@ -32,7 +32,7 @@ import { chromium } from 'playwright';
     const cards = await page.$$('.card');
     console.log(`Found ${cards.length} cards.`);
     
-    await page.screenshot({ path: 'spotiman_debug.png' });
+    await page.screenshot({ path: 'waves_music_debug.png' });
     
   } catch (error) {
     console.error("Error during UI test:", error);

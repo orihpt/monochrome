@@ -15,10 +15,10 @@ import { chromium } from 'playwright';
     await page.waitForTimeout(5000);
     
     // Attempt login if modal is visible
-    const authModal = await page.$('#spotiman-auth-modal');
+    const authModal = await page.$('#waves-music-auth-modal');
     if (await authModal?.isVisible()) {
-        await page.fill('#spotiman-auth-username', 'admin');
-        await page.fill('#spotiman-auth-password', 'admin');
+        await page.fill('#waves-music-auth-username', 'admin');
+        await page.fill('#waves-music-auth-password', 'admin');
         await page.click('.auth-submit-btn');
         await page.waitForTimeout(5000);
     }

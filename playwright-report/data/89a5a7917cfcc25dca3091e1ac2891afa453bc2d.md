@@ -27,10 +27,10 @@ Call log:
     - complementary [ref=e8]:
       - generic [ref=e9]:
         - generic [ref=e10]:
-          - link "Spotiman Logo Spotiman" [ref=e11] [cursor=pointer]:
-            - /url: https://spotiman.tf/
-            - img "Spotiman Logo" [ref=e12]
-            - generic [ref=e13]: Spotiman
+          - link "Waves Music Logo Waves Music" [ref=e11] [cursor=pointer]:
+            - /url: https://Waves Music.tf/
+            - img "Waves Music Logo" [ref=e12]
+            - generic [ref=e13]: Waves Music
           - button "Collapse Sidebar" [ref=e14] [cursor=pointer]:
             - img [ref=e15]
         - navigation [ref=e17]:
@@ -69,7 +69,7 @@ Call log:
                 - generic [ref=e57]: About
             - listitem [ref=e58]:
               - link "GitHub GitHub" [ref=e59] [cursor=pointer]:
-                - /url: https://github.com/spotiman-music/spotiman
+                - /url: https://github.com/Waves Music-music/Waves Music
                 - img "GitHub" [ref=e60]
                 - generic [ref=e62]: GitHub
     - main [ref=e63]:
@@ -154,7 +154,7 @@ Call log:
   9  |     await page.addStyleTag({
   10 |       content: `
   11 |         .modal-overlay,
-  12 |         #spotiman-auth-modal,
+  12 |         #Waves Music-auth-modal,
   13 |         div:has(> text("Unhandled Promise Rejection")) {
   14 |           display: none !important;
   15 |           pointer-events: none !important;
@@ -165,10 +165,10 @@ Call log:
   20 | 
   21 |   test('should show login modal when not logged in', async ({ page }) => {
   22 |     // Check if the login modal is in the DOM
-  23 |     const modal = page.locator('#spotiman-auth-modal');
+  23 |     const modal = page.locator('#Waves Music-auth-modal');
   24 |     await expect(modal).toBeAttached();
-  25 |     await expect(page.locator('#spotiman-auth-username')).toBeAttached();
-  26 |     await expect(page.locator('#spotiman-auth-password')).toBeAttached();
+  25 |     await expect(page.locator('#Waves Music-auth-username')).toBeAttached();
+  26 |     await expect(page.locator('#Waves Music-auth-password')).toBeAttached();
   27 |   });
   28 | 
   29 |   test('should play a song', async ({ page }) => {

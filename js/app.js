@@ -2568,25 +2568,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const username = localStorage.getItem('subsonic_user') || 'Admin';
                 headerAccountDropdown.innerHTML = `
                     <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border)">
-                        <div style="font-size: 0.85rem; color: var(--muted-foreground)">Signed in as</div>
+                        <div style="font-size: 0.85rem; color: var(--muted-foreground)">מחובר בתור</div>
                         <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)">${username}</div>
                     </div>
                     <div style="padding: 0.5rem">
-                        <button class="btn-secondary" id="header-nav-settings" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                        <button class="btn-secondary" id="header-nav-settings" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <span>Settings</span>
+                            <span>הגדרות</span>
                         </button>
-                        <button class="btn-secondary" id="header-nav-library" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                        <button class="btn-secondary" id="header-nav-library" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-                            <span>Library</span>
+                            <span>ספרייה</span>
                         </button>
-                        <button class="btn-secondary" id="header-nav-about" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                        <button class="btn-secondary" id="header-nav-about" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                            <span>About</span>
+                            <span>אודות</span>
                         </button>
                         <div style="border-top: 1px solid var(--border); margin: 0.25rem 0;"></div>
-                        <button class="btn-secondary" id="header-sign-out" style="width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
-                            <span>Sign Out</span>
+                        <button class="btn-secondary" id="header-sign-out" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <span>התנתקות</span>
                         </button>
                     </div>
                 `;
@@ -2790,7 +2790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (items.length === 0) {
             sidebarLibraryList.innerHTML = `
                 <div style="padding: 2rem 1rem; text-align: center; color: var(--muted-foreground); font-size: 0.8rem;">
-                    ${searchQuery ? 'No results found' : 'Your library is empty'}
+                    ${searchQuery ? 'לא נמצאו תוצאות' : 'הספרייה שלך ריקה'}
                 </div>
             `;
             return;
@@ -2800,12 +2800,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         sidebarLibraryList.innerHTML = items.map(item => {
             const isActive = currentPath === item.href;
-            const typeLabel = item.type === 'playlist' ? 'Playlist' :
-                              item.type === 'artist' ? 'Artist' : 'Album';
+            const typeLabel =
+                item.type === 'playlist' ? 'פלייליסט' : item.type === 'artist' ? 'אמן' : 'אלבום';
             const metaText = item.type === 'album' && item.artist
                 ? `${typeLabel} · ${item.artist}`
                 : item.type === 'playlist' && item.trackCount != null
-                  ? `${typeLabel} · ${item.trackCount} tracks`
+                  ? `${typeLabel} · ${item.trackCount} שירים`
                   : typeLabel;
 
             let coverHTML = '';
@@ -2930,16 +2930,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (currentSidebarFilter) {
             // Show only the selected chip with X button
-            const labels = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums' };
+            const labels = { playlists: 'פלייליסטים', artists: 'אמנים', albums: 'אלבומים' };
             sidebarFilterChips.innerHTML = `
                 <button class="sidebar-filter-clear-btn" title="Clear filter"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                 <button class="sidebar-filter-chip active" data-filter="${currentSidebarFilter}">${labels[currentSidebarFilter]}</button>
             `;
         } else {
             sidebarFilterChips.innerHTML = `
-                <button class="sidebar-filter-chip" data-filter="playlists">Playlists</button>
-                <button class="sidebar-filter-chip" data-filter="artists">Artists</button>
-                <button class="sidebar-filter-chip" data-filter="albums">Albums</button>
+                <button class="sidebar-filter-chip" data-filter="playlists">פלייליסטים</button>
+                <button class="sidebar-filter-chip" data-filter="artists">אמנים</button>
+                <button class="sidebar-filter-chip" data-filter="albums">אלבומים</button>
             `;
         }
     }
@@ -3006,7 +3006,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (topbarLogo) {
         topbarLogo.addEventListener('click', (e) => {
             e.preventDefault();
-            navigate('/');
+            const path = window.location.pathname;
+            if (path === '/' || path === '/home' || path === '/index.html') {
+                const firstTab = document.querySelector('.home-tab');
+                if (firstTab) firstTab.click();
+            } else {
+                navigate('/');
+            }
         });
     }
 
@@ -3014,7 +3020,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const topbarHomeBtn = document.getElementById('topbar-home-btn');
     if (topbarHomeBtn) {
         topbarHomeBtn.addEventListener('click', () => {
-            navigate('/');
+            const path = window.location.pathname;
+            if (path === '/' || path === '/home' || path === '/index.html') {
+                const firstTab = document.querySelector('.home-tab');
+                if (firstTab) firstTab.click();
+            } else {
+                navigate('/');
+            }
         });
     }
 

@@ -481,7 +481,7 @@ export function initializeUIInteractions(player, api, ui) {
     };
 
     const openQueuePanel = () => {
-        sidePanelManager.open('queue', 'Queue', renderQueueControls, renderQueueContent);
+        sidePanelManager.open('queue', 'תור', renderQueueControls, renderQueueContent);
 
         setTimeout(() => {
             const container = document.getElementById('side-panel-content');

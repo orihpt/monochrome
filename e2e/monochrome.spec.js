@@ -9,7 +9,7 @@ test.describe('Monochrome E2E Tests', () => {
     await page.addStyleTag({
       content: `
         .modal-overlay,
-        #spotiman-auth-modal,
+        #waves-music-auth-modal,
         div:has(> text("Unhandled Promise Rejection")) {
           display: none !important;
           pointer-events: none !important;
@@ -20,10 +20,10 @@ test.describe('Monochrome E2E Tests', () => {
 
   test('should show login modal when not logged in', async ({ page }) => {
     // Check if the login modal is in the DOM
-    const modal = page.locator('#spotiman-auth-modal');
+    const modal = page.locator('#waves-music-auth-modal');
     await expect(modal).toBeAttached();
-    await expect(page.locator('#spotiman-auth-username')).toBeAttached();
-    await expect(page.locator('#spotiman-auth-password')).toBeAttached();
+    await expect(page.locator('#waves-music-auth-username')).toBeAttached();
+    await expect(page.locator('#waves-music-auth-password')).toBeAttached();
   });
 
   test('should play a song', async ({ page }) => {

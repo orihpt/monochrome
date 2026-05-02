@@ -17,6 +17,9 @@ export const initAuthModal = () => {
         modal.style.display = 'none';
     } else {
         modal.style.display = 'flex';
+        // Pre-fill for dev convenience
+        document.getElementById('waves-music-auth-username').value = 'admin';
+        document.getElementById('waves-music-auth-password').value = 'N3verGuESSTHIS';
     }
 
     form.onsubmit = async (e) => {

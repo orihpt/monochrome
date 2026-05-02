@@ -2862,6 +2862,7 @@ export class UIRenderer {
                     }
                 };
 
+            await this.renderHomeCuratorMixes();
             await this.renderHomeRecent();
 
             // Load dynamic sections in parallel with pre-fetched seeds
@@ -2879,6 +2880,24 @@ export class UIRenderer {
     async setupHomeTabs() {
         const tabs = document.querySelectorAll('.home-tab');
         if (tabs.length === 0) return;
+
+        const showAllMixesBtn = document.getElementById('home-curator-mixes-show-all');
+        if (showAllMixesBtn && !showAllMixesBtn.dataset.initialized) {
+            showAllMixesBtn.dataset.initialized = 'true';
+            showAllMixesBtn.addEventListener('click', async () => {
+                document.querySelectorAll('.home-tab').forEach((t) => t.classList.remove('active'));
+                document.querySelectorAll('.home-view').forEach((v) => {
+                    v.style.display = 'none';
+                    v.classList.remove('active');
+                });
+                const view = document.getElementById('home-view-curator-mixes');
+                if (view) {
+                    view.style.display = 'block';
+                    view.classList.add('active');
+                    await this.renderCuratorMixesPage();
+                }
+            });
+        }
 
         if (tabs[0].dataset.initialized) return;
 
@@ -2909,6 +2928,53 @@ export class UIRenderer {
                     await this.renderArtistRequestsPage();
                 }
             });
+        }
+    }
+
+    async renderHomeCuratorMixes() {
+        const section = document.getElementById('home-curator-mixes-section');
+        const container = document.getElementById('home-curator-mixes');
+        if (!section || !container) return;
+        try {
+            const mixes = await this.api.getCuratorPlaylists();
+            if (!mixes.length) {
+                section.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+            section.style.display = '';
+            container.innerHTML = mixes
+                .slice(0, 12)
+                .map((playlist) => this.createPlaylistCardHTML(playlist))
+                .join('');
+            for (const playlist of mixes.slice(0, 12)) {
+                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.id))}"]`);
+                if (el) trackDataStore.set(el, playlist);
+            }
+        } catch (error) {
+            console.warn('Failed to load curator mixes:', error);
+            section.style.display = 'none';
+        }
+    }
+
+    async renderCuratorMixesPage() {
+        const container = document.getElementById('home-curator-mixes-grid');
+        if (!container) return;
+        container.innerHTML = this.createSkeletonCards(12);
+        try {
+            const mixes = await this.api.getCuratorPlaylists();
+            if (!mixes.length) {
+                container.innerHTML = createPlaceholder('אין מיקסים זמינים.');
+                return;
+            }
+            container.innerHTML = mixes.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+            for (const playlist of mixes) {
+                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.id))}"]`);
+                if (el) trackDataStore.set(el, playlist);
+            }
+        } catch (error) {
+            console.warn('Failed to load curator mixes page:', error);
+            container.innerHTML = createPlaceholder('לא ניתן לטעון מיקסים.');
         }
     }
 
@@ -4812,6 +4878,8 @@ export class UIRenderer {
         const dlBtn = document.getElementById('download-playlist-btn');
         if (dlBtn) dlBtn.innerHTML = `${SVG_DOWNLOAD(20)}<span>Download</span>`;
         const addPlaylistBtn = document.getElementById('add-playlist-to-playlist-btn');
+        const curatorControls = document.getElementById('curator-playlist-controls');
+        if (curatorControls) curatorControls.style.display = 'none';
 
         imageEl.src = '';
         imageEl.style.backgroundColor = 'var(--muted)';
@@ -5026,7 +5094,7 @@ export class UIRenderer {
 
                 const { playlist, tracks } = apiResult;
 
-                const imageId = playlist.squareImage || playlist.image;
+                const imageId = playlist.squareImage || playlist.image || playlist.cover;
                 if (imageId) {
                     imageEl.src = this.api.getCoverUrl(imageId, '1080');
                     this.setPageBackground(imageEl.src);
@@ -5038,13 +5106,38 @@ export class UIRenderer {
                     this.resetVibrantColor();
                 }
 
-                titleEl.textContent = playlist.title;
-                this.adjustTitleFontSize(titleEl, playlist.title);
+                titleEl.textContent = playlist.title || playlist.name;
+                this.adjustTitleFontSize(titleEl, playlist.title || playlist.name);
 
                 const totalDuration = calculateTotalDuration(tracks);
 
-                metaEl.textContent = `${playlist.numberOfTracks} tracks • ${formatDuration(totalDuration)}`;
+                metaEl.textContent = `${playlist.numberOfTracks || tracks.length} שירים • ${formatDuration(totalDuration)}`;
                 descEl.textContent = playlist.description || '';
+
+                const curatorControls = document.getElementById('curator-playlist-controls');
+                const curatorPublishedToggle = document.getElementById('curator-playlist-published-toggle');
+                const isCuratorUser = (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator';
+                const canPublishCuratorPlaylist = isCuratorUser && playlist.owner === 'wavesmusic_curator';
+                if (curatorControls && curatorPublishedToggle) {
+                    curatorControls.style.display = canPublishCuratorPlaylist ? 'flex' : 'none';
+                    curatorPublishedToggle.checked = !!playlist.public;
+                    curatorPublishedToggle.onchange = async () => {
+                        curatorPublishedToggle.disabled = true;
+                        try {
+                            await this.api.setCuratorPlaylistPublished(
+                                playlist.id || playlist.uuid,
+                                curatorPublishedToggle.checked
+                            );
+                            playlist.public = curatorPublishedToggle.checked;
+                            await this.renderHomeCuratorMixes();
+                        } catch (error) {
+                            curatorPublishedToggle.checked = !curatorPublishedToggle.checked;
+                            alert(error.message || 'Failed to update playlist publication.');
+                        } finally {
+                            curatorPublishedToggle.disabled = false;
+                        }
+                    };
+                }
 
                 const originalTracks = [...tracks];
                 const savedSort = localStorage.getItem(`playlist-sort-${playlistId}`);
@@ -5102,7 +5195,7 @@ export class UIRenderer {
                 );
 
                 recentActivityManager.addPlaylist(playlist);
-                document.title = playlist.title || 'Artist Mix';
+                document.title = playlist.title || playlist.name || 'Playlist';
             }
 
             // Setup playlist search

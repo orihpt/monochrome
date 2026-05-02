@@ -29,6 +29,16 @@ export class SubsonicAPI {
         }
     }
 
+    async postFormAPI(endpoint, formData, params = '') {
+        const url = `${this.baseUrl}/${endpoint}.view${this.credentials}&f=json${params ? '&' + params : ''}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+        return data['subsonic-response'];
+    }
+
     async getCurrentUser() {
         const username = localStorage.getItem('subsonic_user') || this.user;
         const res = await this.fetchAPI('getUser', `username=${encodeURIComponent(username)}`);
@@ -121,6 +131,28 @@ export class SubsonicAPI {
         if (res?.status === 'failed' || res?.error) {
             throw new Error(res?.error?.message || 'Request failed');
         }
+    }
+
+    preparePlaylist(playlist) {
+        if (!playlist) return null;
+        return {
+            id: playlist.id,
+            uuid: playlist.id,
+            title: playlist.name,
+            name: playlist.name,
+            description: playlist.comment || '',
+            cover: playlist.coverArt,
+            image: playlist.coverArt,
+            squareImage: playlist.coverArt,
+            numberOfTracks: playlist.songCount || 0,
+            songCount: playlist.songCount || 0,
+            duration: playlist.duration || 0,
+            owner: playlist.owner,
+            public: playlist.public === true || playlist.public === 'true',
+            curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true',
+            readonly: playlist.readonly === true || playlist.readonly === 'true',
+            isCuratorPlaylist: playlist.owner === 'wavesmusic_curator',
+        };
     }
 
     // --- URL helpers ---
@@ -378,6 +410,13 @@ export class SubsonicAPI {
         return albums.map(a => this.prepareAlbum(a)).filter(Boolean);
     }
 
+    async getCuratorPlaylists() {
+        const res = await this.fetchAPI('getCuratorPlaylists');
+        this.throwIfSubsonicError(res);
+        const playlists = res?.playlists?.playlist || [];
+        return playlists.map((playlist) => this.preparePlaylist(playlist)).filter(Boolean);
+    }
+
     async getAllArtists(options = {}) {
         const res = await this.fetchAPI('getArtists');
         const indices = res?.artists?.index || [];
@@ -589,6 +628,65 @@ export class SubsonicAPI {
         } catch {
             return { items: [] };
         }
+    }
+
+    async getPlaylist(id) {
+        const res = await this.fetchAPI('getPlaylist', `id=${encodeURIComponent(id)}`);
+        this.throwIfSubsonicError(res);
+        const playlist = this.preparePlaylist(res?.playlist);
+        const tracks = (res?.playlist?.entry || []).map((song) => this.prepareTrack(song)).filter(Boolean);
+        if (playlist) {
+            playlist.tracks = tracks;
+            playlist.numberOfTracks = playlist.numberOfTracks || tracks.length;
+        }
+        return { playlist, tracks };
+    }
+
+    async createPlaylist(name, trackIds = [], description = '') {
+        const params = new URLSearchParams();
+        params.set('name', name);
+        for (const id of trackIds) params.append('songId', id);
+        const res = await this.fetchAPI('createPlaylist', params.toString());
+        this.throwIfSubsonicError(res);
+        const playlist = this.preparePlaylist(res?.playlist);
+        if (description && playlist?.id) {
+            await this.updatePlaylist(playlist.id, { comment: description });
+            playlist.description = description;
+        }
+        return playlist;
+    }
+
+    async updatePlaylist(id, updates = {}) {
+        const params = new URLSearchParams();
+        params.set('playlistId', id);
+        if (updates.name != null) params.set('name', updates.name);
+        if (updates.comment != null) params.set('comment', updates.comment);
+        if (updates.public != null) params.set('public', updates.public ? 'true' : 'false');
+        const res = await this.fetchAPI('updatePlaylist', params.toString());
+        this.throwIfSubsonicError(res);
+        return true;
+    }
+
+    async importCuratorPlaylist({ name, description, file }) {
+        const formData = new FormData();
+        formData.set('name', name);
+        formData.set('description', description || '');
+        formData.set('file', file);
+        const res = await this.postFormAPI('importCuratorPlaylist', formData);
+        this.throwIfSubsonicError(res);
+        return res?.curatorPlaylistImport;
+    }
+
+    async setCuratorPlaylistPublished(playlistId, published) {
+        const params = new URLSearchParams({ playlistId, published: published ? 'true' : 'false' });
+        const res = await this.fetchAPI('setCuratorPlaylistPublished', params.toString());
+        this.throwIfSubsonicError(res);
+    }
+
+    async setCuratorPlaylistPinned(playlistId, pinned) {
+        const params = new URLSearchParams({ playlistId, pinned: pinned ? 'true' : 'false' });
+        const res = await this.fetchAPI('setCuratorPlaylistPinned', params.toString());
+        this.throwIfSubsonicError(res);
     }
 
     // --- Library Management ---

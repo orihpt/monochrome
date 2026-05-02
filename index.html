@@ -350,7 +350,30 @@
             </div>
             <textarea id="playlist-description-input" class="template-input" placeholder="Description (optional)"
                 style="margin: 0.5rem 0; min-height: 80px; resize: vertical"></textarea>
+            <div class="setting-item" id="playlist-public-setting"
+                style="margin: 0.75rem 0; background: transparent; display: none">
+                <div class="info">
+                    <span class="label">פירסום</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="playlist-public-toggle" />
+                    <span class="slider"></span>
+                </label>
+            </div>
             <br />
+            <div id="curator-import-section" style="
+                        display: none;
+                        margin: 1rem 0;
+                        padding: 1rem;
+                        border: 1px solid var(--border);
+                        border-radius: var(--radius);
+                        background: var(--background-secondary);
+                    ">
+                <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem">ייבוא מיקס</p>
+                <input type="file" id="curator-import-file-input" class="btn-secondary" accept=".csv,.xlsx"
+                    style="width: 100%; margin-bottom: 0.5rem" />
+                <p style="font-size: 0.8rem; margin: 0; opacity: 0.7">artist, album, name, isrc</p>
+            </div>
             <div id="import-section" style="
                         display: none;
                         margin: 1rem 0;
@@ -535,6 +558,17 @@
                 <button id="playlist-share-btn" class="btn-secondary" style="display: none">Share</button>
                 <button id="playlist-modal-cancel" class="btn-secondary">Cancel</button>
                 <button id="playlist-modal-save" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="curator-import-results-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content wide" dir="rtl">
+            <h3>תוצאות ייבוא</h3>
+            <div id="curator-import-results-content"></div>
+            <div class="modal-actions">
+                <button id="curator-import-results-close" class="btn-primary">סגירה</button>
             </div>
         </div>
     </div>
@@ -1363,6 +1397,21 @@
                     </div>
 
                     <div id="home-content" style="display: none">
+                        <section class="content-section" id="home-curator-mixes-section" style="display: none">
+                            <div style="
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: space-between;
+                                        margin-bottom: 1rem;
+                                    ">
+                                <h2 class="section-title" style="margin-bottom: 0">מיקסים</h2>
+                                <button class="btn-secondary" id="home-curator-mixes-show-all"
+                                    style="padding: 4px 12px">
+                                    הצג הכל
+                                </button>
+                            </div>
+                            <div class="card-grid" id="home-curator-mixes"></div>
+                        </section>
                         <section class="content-section home-recommended-songs-section">
                             <div class="section-header-row">
                                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
@@ -1465,6 +1514,13 @@
                     </div>
                     <div class="card-grid" id="home-albums-grid"></div>
                     <div id="home-albums-loading" class="loading-spinner" style="display: none;"></div>
+                </div>
+                <div id="home-view-curator-mixes" class="home-view" style="display: none; padding: 2rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 class="section-title" style="margin: 0;">מיקסים</h2>
+                    </div>
+                    <div class="card-grid" id="home-curator-mixes-grid"></div>
                 </div>
                 <div id="home-view-artist-requests" class="home-view" style="display: none;">
                     <section class="artist-requests-page" dir="rtl">
@@ -1835,6 +1891,16 @@
                         <h1 class="title" id="playlist-detail-title"></h1>
                         <div class="meta" id="playlist-detail-meta"></div>
                         <div class="meta" id="playlist-detail-description" class="detail-description"></div>
+                        <div id="curator-playlist-controls" class="setting-item"
+                            style="display: none; max-width: 260px; margin: 0.75rem 0; background: transparent">
+                            <div class="info">
+                                <span class="label">פירסום</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="curator-playlist-published-toggle" />
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                         <div class="detail-header-actions">
                             <button id="play-playlist-btn" class="btn-primary" title="Play">
                                 <use svg="./images/play.svg" size="20" />
@@ -4334,7 +4400,7 @@
             <div class="auth-header">
                 <img src="/assets/1024w_waves.png" alt="Waves Logo" class="auth-logo" />
                 <h2>ברוכים הבאים ל-Waves Music</h2>
-                <p>התחברו לספריית המוזיקה שלכם</p>
+                <p>כל המוזיקה הטובה ביותר, במקום אחד ונוח</p>
             </div>
             <form id="waves-music-auth-form">
                 <div class="input-group">
@@ -4352,7 +4418,7 @@
                 </button>
             </form>
             <div class="auth-footer">
-                <p>מופעל על ידי Waves Music</p>
+                <p>מופעל על ידי אורי האופטמן</p>
             </div>
         </div>
     </div>

@@ -1703,6 +1703,17 @@ export async function handleTrackAction(
 
     if (action === 'toggle-pin') {
         const pinned = await db.togglePinned(item, type);
+        if (
+            (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator' &&
+            type === 'playlist' &&
+            item?.owner === 'wavesmusic_curator'
+        ) {
+            try {
+                await MusicAPI.instance.setCuratorPlaylistPinned(item.id || item.uuid, pinned);
+            } catch (error) {
+                console.warn('Failed to update curator playlist pin state:', error);
+            }
+        }
         showNotification(pinned ? `Pinned to sidebar` : `Unpinned from sidebar`);
         window.dispatchEvent(new CustomEvent('pinned-items-changed'));
 

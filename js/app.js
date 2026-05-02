@@ -76,6 +76,45 @@ let settingsModule = null;
 let downloadsModule = null;
 let metadataModule = null;
 
+function normalizeImportRows(group) {
+    const rows = group?.row || group?.Rows || group?.rows || [];
+    return Array.isArray(rows) ? rows : [rows].filter(Boolean);
+}
+
+function showCuratorImportResults(result) {
+    const modal = document.getElementById('curator-import-results-modal');
+    const content = document.getElementById('curator-import-results-content');
+    if (!modal || !content || !result) return;
+
+    const sections = [
+        ['התאמה מושלמת', normalizeImportRows(result.exactMatches)],
+        ['התאמה לפי שם', normalizeImportRows(result.nameMatches)],
+        ['לא נמצאה התאמה', normalizeImportRows(result.missingTracks)],
+    ];
+
+    content.innerHTML = sections
+        .map(([title, rows]) => {
+            const body = rows.length
+                ? rows
+                      .map(
+                          (row) => `
+                            <div class="modal-list-item" style="display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center">
+                                <span>${escapeHtml(row.artist || '')} - ${escapeHtml(row.name || '')}${row.album ? ` (${escapeHtml(row.album)})` : ''}</span>
+                                <span style="opacity: 0.65">${escapeHtml(row.isrc || '')}</span>
+                            </div>`
+                      )
+                      .join('')
+                : '<div class="modal-list-item" style="opacity: 0.65">אין שירים</div>';
+            return `
+                <section style="margin: 1rem 0">
+                    <h4 style="margin: 0 0 0.5rem 0">${title} (${rows.length})</h4>
+                    <div class="modal-list">${body}</div>
+                </section>`;
+        })
+        .join('');
+    modal.classList.add('active');
+}
+
 async function loadSettingsModule() {
     if (!settingsModule) {
         settingsModule = await import('./settings.js');
@@ -566,6 +605,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('playlist-public-toggle')?.addEventListener('change', (e) => {
         const shareBtn = document.getElementById('playlist-share-btn');
         if (shareBtn) shareBtn.style.display = e.target.checked ? 'flex' : 'none';
+    });
+
+    document.getElementById('curator-import-results-close')?.addEventListener('click', () => {
+        document.getElementById('curator-import-results-modal')?.classList.remove('active');
     });
 
     document.getElementById('close-fullscreen-cover-btn')?.addEventListener('click', async () => {
@@ -1101,13 +1144,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (e.target.closest('#create-playlist-btn') || e.target.closest('#library-create-playlist-card')) {
             const modal = document.getElementById('playlist-modal');
+            const isCuratorUser = (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator';
             document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
             document.getElementById('playlist-name-input').value = '';
             document.getElementById('playlist-cover-input').value = '';
             document.getElementById('playlist-cover-file-input').value = '';
             document.getElementById('playlist-description-input').value = '';
             modal.dataset.editingId = '';
-            document.getElementById('import-section').style.display = 'block';
+            document.getElementById('import-section').style.display = isCuratorUser ? 'none' : 'block';
+            document.getElementById('curator-import-section').style.display = isCuratorUser ? 'block' : 'none';
+            document.getElementById('playlist-public-setting').style.display = isCuratorUser ? 'flex' : 'none';
+            document.getElementById('curator-import-file-input').value = '';
             document.getElementById('csv-file-input').value = '';
             document.getElementById('ytm-url-input').value = '';
             document.getElementById('ytm-status').textContent = '';
@@ -1210,6 +1257,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (name) {
                 const modal = document.getElementById('playlist-modal');
                 const editingId = modal.dataset.editingId;
+                const isCuratorUser = (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator';
+
+                if (!editingId && isCuratorUser) {
+                    const fileInput = document.getElementById('curator-import-file-input');
+                    const saveBtn = document.getElementById('playlist-modal-save');
+                    saveBtn.disabled = true;
+                    try {
+                        let playlist = null;
+                        if (fileInput.files.length > 0) {
+                            const result = await MusicAPI.instance.importCuratorPlaylist({
+                                name,
+                                description,
+                                file: fileInput.files[0],
+                            });
+                            playlist = { id: result.playlistId };
+                            showCuratorImportResults(result);
+                        } else {
+                            playlist = await MusicAPI.instance.createSubsonicPlaylist(name, [], description);
+                        }
+                        if (isPublic && playlist?.id) {
+                            await MusicAPI.instance.setCuratorPlaylistPublished(playlist.id, true);
+                        }
+                        modal.classList.remove('active');
+                        UIRenderer.instance.renderLibraryPage();
+                        await UIRenderer.instance.renderHomeCuratorMixes?.();
+                    } catch (error) {
+                        console.error('Curator playlist import failed:', error);
+                        alert(error.message || 'Failed to create curator playlist.');
+                    } finally {
+                        saveBtn.disabled = false;
+                    }
+                    return;
+                }
 
                 const handlePublicStatus = async (playlist) => {
                     playlist.isPublic = isPublic;
@@ -1780,6 +1860,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('playlist-name-input').value = playlist.name;
                     document.getElementById('playlist-cover-input').value = playlist.cover || '';
                     document.getElementById('playlist-description-input').value = playlist.description || '';
+                    document.getElementById('curator-import-section').style.display = 'none';
+                    document.getElementById('import-section').style.display = 'none';
+                    document.getElementById('playlist-public-setting').style.display = 'none';
 
                     // Set Public Toggle
                     const publicToggle = document.getElementById('playlist-public-toggle');
@@ -1852,6 +1935,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('playlist-name-input').value = playlist.name;
                         document.getElementById('playlist-cover-input').value = playlist.cover || '';
                         document.getElementById('playlist-description-input').value = playlist.description || '';
+                        document.getElementById('curator-import-section').style.display = 'none';
+                        document.getElementById('import-section').style.display = 'none';
+                        document.getElementById('playlist-public-setting').style.display = 'none';
 
                         const publicToggle = document.getElementById('playlist-public-toggle');
                         const shareBtn = document.getElementById('playlist-share-btn');

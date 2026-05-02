@@ -211,7 +211,9 @@ export class MusicAPI {
     }
 
     async getPlaylist(id, _provider = null) {
-        // Local playlists only
+        const api = this.getAPI();
+        const cleanId = this.stripProviderPrefix(id);
+        if (typeof api.getPlaylist === 'function') return api.getPlaylist(cleanId);
         return null;
     }
 
@@ -250,6 +252,33 @@ export class MusicAPI {
             return api.getAllAlbums(options);
         }
         return { items: [], hasMore: false };
+    }
+
+    async getCuratorPlaylists() {
+        if (typeof this.subsonicAPI.getCuratorPlaylists === 'function') {
+            return this.subsonicAPI.getCuratorPlaylists();
+        }
+        return [];
+    }
+
+    async createSubsonicPlaylist(name, trackIds = [], description = '') {
+        return this.subsonicAPI.createPlaylist(name, trackIds, description);
+    }
+
+    async updateSubsonicPlaylist(id, updates = {}) {
+        return this.subsonicAPI.updatePlaylist(id, updates);
+    }
+
+    async importCuratorPlaylist(payload) {
+        return this.subsonicAPI.importCuratorPlaylist(payload);
+    }
+
+    async setCuratorPlaylistPublished(playlistId, published) {
+        return this.subsonicAPI.setCuratorPlaylistPublished(playlistId, published);
+    }
+
+    async setCuratorPlaylistPinned(playlistId, pinned) {
+        return this.subsonicAPI.setCuratorPlaylistPinned(playlistId, pinned);
     }
 
     // Stream methods

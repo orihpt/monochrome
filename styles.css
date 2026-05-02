@@ -13090,6 +13090,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     height: 80px;
     margin: 0 auto var(--space-4);
     object-fit: contain;
+    background-color: transparent !important;
 }
 
 .auth-header h2 {

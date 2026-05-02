@@ -4,8 +4,8 @@ import { PreparedTrack, PreparedAlbum } from './container-classes.js';
 export class SubsonicAPI {
     constructor() {
         this.baseUrl = '/rest';
-        this.user = localStorage.getItem('subsonic_user') || 'admin';
-        this.password = localStorage.getItem('subsonic_pass') || 'admin';
+        this.user = localStorage.getItem('subsonic_user') || '';
+        this.password = localStorage.getItem('subsonic_pass') || '';
         this.version = '1.16.1';
         this.client = 'waves-music';
     }

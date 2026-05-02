@@ -1,56 +1,55 @@
 //js/ui.js
+import { renderAboutPage as renderAboutMarkdownPage } from './about.js';
+import { authManager } from './accounts/auth.js';
+import { syncManager } from './accounts/pocketbase.js';
+import { audioContextManager } from './audio-context.js';
+import { db } from './db.js';
 import { showNotification } from './downloads.js';
+import { partyManager } from './listening-party.js';
+import { clearFullscreenLyricsSync, renderLyricsInFullscreen, renderLyricsInPage } from './lyrics.js';
+import { navigate } from './router.js';
+import { sidePanelManager } from './side-panel.js';
 import {
-    formatTime,
+    backgroundSettings,
+    cardSettings,
+    contentBlockingSettings,
+    dynamicColorSettings,
+    fontSettings,
+    fullscreenCoverNoRoundSettings,
+    homePageSettings,
+    recentActivityManager,
+    settingsUiState,
+    visualizerSettings
+} from './storage.js';
+import {
+    createProjectCardHTML,
+    createTrackFromSong,
+    findTrackerArtistByName,
+    getArtistUnreleasedProjects,
+    renderTrackerArtistPage as renderTrackerArtistContent,
+    renderTrackerProjectPage as renderTrackerProjectContent,
+    renderTrackerTrackPage as renderTrackerTrackContent,
+    renderUnreleasedPage as renderUnreleasedTrackerPage,
+} from './tracker.js';
+import {
+    calculateTotalDuration,
+    createModal,
     createPlaceholder,
-    trackDataStore,
-    hasExplicitContent,
+    createQualityBadgeHTML,
+    decodeHtml,
+    escapeHtml,
+    formatDuration,
+    formatTime,
+    getShareUrl,
     getTrackArtists,
     getTrackArtistsHTML,
     getTrackTitle,
     getTrackYearDisplay,
-    createQualityBadgeHTML,
-    calculateTotalDuration,
-    formatDuration,
-    escapeHtml,
-    decodeHtml,
-    getShareUrl,
-    createModal,
+    hasExplicitContent,
+    trackDataStore,
 } from './utils.js';
-import { openLyricsPanel, renderLyricsInFullscreen, renderLyricsInPage, clearFullscreenLyricsSync } from './lyrics.js';
-import { renderAboutPage as renderAboutMarkdownPage } from './about.js';
-import {
-    recentActivityManager,
-    backgroundSettings,
-    dynamicColorSettings,
-    cardSettings,
-    visualizerSettings,
-    homePageSettings,
-    fontSettings,
-    contentBlockingSettings,
-    settingsUiState,
-    fullscreenCoverNoRoundSettings,
-    artistBannerSettings,
-} from './storage.js';
-import { db } from './db.js';
 import { getVibrantColorFromImage } from './vibrant-color.js';
-import { syncManager } from './accounts/pocketbase.js';
-import { authManager } from './accounts/auth.js';
-import { partyManager } from './listening-party.js';
 import { Visualizer } from './visualizer.js';
-import { audioContextManager } from './audio-context.js';
-import { navigate } from './router.js';
-import { sidePanelManager } from './side-panel.js';
-import {
-    renderUnreleasedPage as renderUnreleasedTrackerPage,
-    renderTrackerArtistPage as renderTrackerArtistContent,
-    renderTrackerProjectPage as renderTrackerProjectContent,
-    renderTrackerTrackPage as renderTrackerTrackContent,
-    findTrackerArtistByName,
-    getArtistUnreleasedProjects,
-    createProjectCardHTML,
-    createTrackFromSong,
-} from './tracker.js';
 
 let _isBlockedCopyright = (_c) => false;
 const _isInvalidDate = (releaseDate) => {
@@ -110,47 +109,47 @@ import('./content-filter.ts')
     .then((m) => {
         _isBlockedCopyright = m.isBlockedCopyright;
     })
-    .catch(() => {});
+    .catch(() => { });
 
 fontSettings.applyFont().catch(console.error);
 fontSettings.applyFontSize();
 
 import {
-    SVG_PLAY,
+    SVG_APPLE,
+    SVG_BIN,
+    SVG_CHECK,
+    SVG_CHECKBOX,
+    SVG_CLOCK,
+    SVG_CLOSE,
     SVG_DOWNLOAD,
-    SVG_MENU,
-    SVG_HEART,
-    SVG_VOLUME,
-    SVG_MUTE,
     SVG_EYE,
     SVG_EYE_OFF,
-    SVG_HEART_FILLED,
-    SVG_CLOSE,
-    SVG_SORT,
-    SVG_BIN,
-    SVG_TRASH,
-    SVG_GLOBE,
-    SVG_INSTAGRAM,
     SVG_FACEBOOK,
-    SVG_YOUTUBE,
-    SVG_TWITTER,
+    SVG_GLOBE,
+    SVG_HEART,
+    SVG_HEART_FILLED,
+    SVG_INSTAGRAM,
+    SVG_LEFT_ARROW,
     SVG_LINK,
-    SVG_SOUNDCLOUD,
-    SVG_APPLE,
+    SVG_MENU,
+    SVG_MINUS,
+    SVG_MUTE,
+    SVG_PAUSE_LARGE,
+    SVG_PLAY,
+    SVG_PLAY_LARGE,
+    SVG_PLUS,
     SVG_REPEAT,
     SVG_REPEAT_ONE,
-    SVG_PLAY_LARGE,
-    SVG_PAUSE_LARGE,
-    SVG_MINUS,
-    SVG_SQUARE_PEN,
     SVG_SHARE,
     SVG_SHUFFLE,
+    SVG_SORT,
+    SVG_SOUNDCLOUD,
+    SVG_SQUARE_PEN,
+    SVG_TRASH,
+    SVG_TWITTER,
     SVG_VIDEO,
-    SVG_LEFT_ARROW,
-    SVG_CLOCK,
-    SVG_CHECKBOX,
-    SVG_CHECK,
-    SVG_PLUS,
+    SVG_VOLUME,
+    SVG_YOUTUBE,
 } from './icons.js';
 
 const setFullscreenUIToggleIcon = (button, visualizerOnlyMode) => {
@@ -617,13 +616,12 @@ export class UIRenderer {
         const showRowLike = inlineLike && !isUnavailable && !isBlocked;
         const inlineLikeHTML = showRowLike
             ? `<div class="track-item-inline-like">
-                ${
-                    isVideo
-                        ? `<button type="button" class="like-btn track-row-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
+                ${isVideo
+                ? `<button type="button" class="like-btn track-row-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
                             ${this.createHeartIcon(false)}
                         </button>`
-                        : this.createTrackLibraryButtonHTML(track, false, 'track-row-library-btn')
-                }
+                : this.createTrackLibraryButtonHTML(track, false, 'track-row-library-btn')
+            }
             </div>`
             : '';
 
@@ -1417,18 +1415,18 @@ export class UIRenderer {
                     video.style.objectFit = 'cover';
                     currentImage.replaceWith(video);
                     if (!isPaused) {
-                        video.play().catch(() => {});
+                        video.play().catch(() => { });
                     }
                 } else if (currentImage.src !== videoCoverUrl) {
                     currentImage.src = videoCoverUrl;
                     if (!isPaused) {
-                        currentImage.play().catch(() => {});
+                        currentImage.play().catch(() => { });
                     } else {
                         currentImage.pause();
                     }
                 } else {
                     if (!isPaused) {
-                        currentImage.play().catch(() => {});
+                        currentImage.play().catch(() => { });
                     } else {
                         currentImage.pause();
                     }
@@ -2247,16 +2245,16 @@ export class UIRenderer {
             fsAddPlaylistBtn.onclick = async () => {
                 if (!this.player.currentTrack) return;
                 const { handleTrackAction } = await import('./events.js');
-                    await handleTrackAction(
-                        'track-library',
-                        this.player.currentTrack,
-                        this.player,
-                        this.api,
-                        null,
+                await handleTrackAction(
+                    'track-library',
+                    this.player.currentTrack,
+                    this.player,
+                    this.api,
+                    null,
                     'track',
-                        this,
-                        null,
-                        { triggerElement: fsAddPlaylistBtn }
+                    this,
+                    null,
+                    { triggerElement: fsAddPlaylistBtn }
                 );
             };
         }
@@ -2726,8 +2724,8 @@ export class UIRenderer {
                     trackDataStore.set(likedCard, {
                         id: 'liked-songs',
                         uuid: 'liked-songs',
-                        title: 'Liked Songs',
-                        name: 'Liked Songs',
+                        title: 'שירים שאהבתם',
+                        name: 'שירים שאהבתם',
                         tracks: likedTracks,
                         href: '/liked-songs',
                     });
@@ -2921,7 +2919,7 @@ export class UIRenderer {
             container.dataset.loading = 'false';
             container.dataset.hasMore = 'true';
             container.innerHTML = '';
-            
+
             sortSelect.addEventListener('change', async () => {
                 container.dataset.offset = '0';
                 container.dataset.hasMore = 'true';
@@ -2930,7 +2928,7 @@ export class UIRenderer {
                 await loadMore();
             });
         }
-        
+
         const loadMore = async () => {
             if (container.dataset.loading === 'true' || container.dataset.hasMore === 'false') return;
             container.dataset.loading = 'true';
@@ -2941,18 +2939,18 @@ export class UIRenderer {
                 const limit = 50;
                 const sort = sortSelect.value;
                 const result = await this.api.getAllArtists({ offset, limit, sort });
-                
+
                 if (result.items && result.items.length > 0) {
                     const html = result.items.map((a) => this.createArtistCardHTML(a)).join('');
                     container.insertAdjacentHTML('beforeend', html);
-                    
+
                     for (const artist of result.items) {
                         const el = container.querySelector(`[data-artist-id="${artist.id}"]`);
                         if (el) {
                             trackDataStore.set(el, artist);
                         }
                     }
-                    
+
                     container.dataset.offset = (offset + limit).toString();
                     if (!result.hasMore) {
                         container.dataset.hasMore = 'false';
@@ -2960,7 +2958,7 @@ export class UIRenderer {
                 } else {
                     container.dataset.hasMore = 'false';
                 }
-                
+
                 if (container.children.length === 0) {
                     container.innerHTML = createPlaceholder('No artists found.');
                 }
@@ -2982,7 +2980,7 @@ export class UIRenderer {
                 loadMore();
             }
         });
-        
+
         // Also listen to window scroll if the view doesn't scroll itself
         window.addEventListener('scroll', () => {
             if (view.classList.contains('active')) {
@@ -3007,7 +3005,7 @@ export class UIRenderer {
             container.dataset.loading = 'false';
             container.dataset.hasMore = 'true';
             container.innerHTML = '';
-            
+
             sortSelect.addEventListener('change', async () => {
                 container.dataset.offset = '0';
                 container.dataset.hasMore = 'true';
@@ -3016,7 +3014,7 @@ export class UIRenderer {
                 await loadMore();
             });
         }
-        
+
         const loadMore = async () => {
             if (container.dataset.loading === 'true' || container.dataset.hasMore === 'false') return;
             container.dataset.loading = 'true';
@@ -3027,11 +3025,11 @@ export class UIRenderer {
                 const limit = 50;
                 const sort = sortSelect.value;
                 const result = await this.api.getAllAlbums({ offset, limit, sort });
-                
+
                 if (result.items && result.items.length > 0) {
                     const html = result.items.map((a) => this.createAlbumCardHTML(a)).join('');
                     container.insertAdjacentHTML('beforeend', html);
-                    
+
                     for (const album of result.items) {
                         const el = container.querySelector(`[data-album-id="${album.id}"]`);
                         if (el) {
@@ -3039,7 +3037,7 @@ export class UIRenderer {
                             await this.updateLikeState(el, 'album', album.id);
                         }
                     }
-                    
+
                     container.dataset.offset = (offset + limit).toString();
                     if (!result.hasMore) {
                         container.dataset.hasMore = 'false';
@@ -3047,7 +3045,7 @@ export class UIRenderer {
                 } else {
                     container.dataset.hasMore = 'false';
                 }
-                
+
                 if (container.children.length === 0) {
                     container.innerHTML = createPlaceholder('No albums found.');
                 }
@@ -3069,7 +3067,7 @@ export class UIRenderer {
                 loadMore();
             }
         });
-        
+
         window.addEventListener('scroll', () => {
             if (view.classList.contains('active')) {
                 const docElement = document.documentElement;
@@ -3471,10 +3469,9 @@ export class UIRenderer {
                 track.videoUrl || track.album?.videoCoverUrl
             ),
             actionButtonsHTML: `
-                ${
-                    likeType === 'track'
-                        ? this.createTrackLibraryButtonHTML(track, false, 'card-like-btn')
-                        : `<button class="like-btn card-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
+                ${likeType === 'track'
+                    ? this.createTrackLibraryButtonHTML(track, false, 'card-like-btn')
+                    : `<button class="like-btn card-like-btn" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
                             ${this.createHeartIcon(false)}
                         </button>`
                 }
@@ -3488,9 +3485,9 @@ export class UIRenderer {
             type: 'user-playlist',
             id: 'liked-songs',
             href: '/liked-songs',
-            title: 'Liked Songs',
+            title: 'שירים שאהבתם',
             subtitle: `${trackCount} tracks`,
-            imageHTML: '<img src="/assets/liked_cover_512w.png" alt="Liked Songs" class="card-image" loading="lazy">',
+            imageHTML: '<img src="/assets/liked_cover_512w.png" alt="שירים שאהבתם" class="card-image" loading="lazy">',
             actionButtonsHTML: '',
             isCompact: cardSettings.isCompactAlbum(),
             extraClasses: 'liked-songs-card',
@@ -3524,8 +3521,8 @@ export class UIRenderer {
         imageEl.src = '/assets/liked_cover_512w.png';
         imageEl.style.display = 'block';
         imageEl.style.backgroundColor = 'var(--muted)';
-        titleEl.textContent = 'Liked Songs';
-        this.adjustTitleFontSize(titleEl, 'Liked Songs');
+        titleEl.textContent = 'שירים שאהבתם';
+        this.adjustTitleFontSize(titleEl, 'שירים שאהבתם');
         metaEl.textContent = `${tracks.length} tracks • ${formatDuration(calculateTotalDuration(tracks))}`;
         descEl.textContent = '';
         if (playlistLikeBtn) playlistLikeBtn.style.display = 'none';
@@ -3563,7 +3560,7 @@ export class UIRenderer {
         }
 
         await this.updatePlaylistHeaderActions(
-            { id: 'liked-songs', uuid: 'liked-songs', title: 'Liked Songs', name: 'Liked Songs' },
+            { id: 'liked-songs', uuid: 'liked-songs', title: 'שירים שאהבתם', name: 'Liked Songs' },
             false,
             currentTracks,
             false,
@@ -3571,205 +3568,13 @@ export class UIRenderer {
             () => currentSort
         );
 
-        document.title = 'Liked Songs - Waves';
+        document.title = 'שירים שאהבתם - Waves';
         this.setupTracklistSearch();
     }
 
     async renderHomeEditorsPicks(forceRefresh = false, containerId = 'home-editors-picks') {
         return; // Disabled for offline-first local media ecosystem
 
-        if (picksContainer) {
-            if (forceRefresh) picksContainer.innerHTML = this.createSkeletonCards(6);
-            else if (picksContainer.children.length > 0 && !picksContainer.querySelector('.skeleton')) return;
-
-            try {
-                const source = homePageSettings.getEditorsPicksSource();
-                const picksPath = source === 'current' ? '/editors-picks.json' : `/editors-picks-old/${source}`;
-                const response = await fetch(picksPath);
-                if (!response.ok) throw new Error("Failed to load editor's picks");
-
-                let items = await response.json();
-
-                if (!Array.isArray(items) || items.length === 0) {
-                    picksContainer.innerHTML = createPlaceholder("No editor's picks available.");
-                    return;
-                }
-
-                // Filter out blocked content
-                const { contentBlockingSettings } = await import('./storage.js');
-                items = items.filter((item) => {
-                    if (item.type === 'track') {
-                        return !contentBlockingSettings.shouldHideTrack(item);
-                    } else if (item.type === 'album') {
-                        return !contentBlockingSettings.shouldHideAlbum(item);
-                    } else if (item.type === 'artist') {
-                        return !contentBlockingSettings.shouldHideArtist(item);
-                    }
-                    return true;
-                });
-
-                // Shuffle items if enabled
-                if (homePageSettings.shouldShuffleEditorsPicks()) {
-                    items = [...items].sort(() => Math.random() - 0.5);
-                }
-
-                // Use cached metadata or fetch details for each item
-                const cardsHTML = [];
-                const itemsToStore = [];
-
-                for (const item of items) {
-                    try {
-                        if (item.type === 'album') {
-                            // Check if we have cached metadata
-                            if (item.title && item.artist) {
-                                // Use cached data directly
-                                const album = {
-                                    id: item.id,
-                                    title: item.title,
-                                    artist: item.artist,
-                                    releaseDate: item.releaseDate,
-                                    cover: item.cover,
-                                    explicit: item.explicit,
-                                    audioQuality: item.audioQuality,
-                                    mediaMetadata: item.mediaMetadata,
-                                    type: 'ALBUM',
-                                    _lazy: cardsHTML.length >= 6,
-                                    _isEditorsPick: true,
-                                };
-                                cardsHTML.push(this.createAlbumCardHTML(album));
-                                itemsToStore.push({ el: null, data: album, type: 'album' });
-                            } else {
-                                // Fall back to API call for legacy format
-                                const result = await this.api.getAlbum(item.id);
-                                if (result && result.album) {
-                                    result.album._lazy = cardsHTML.length >= 6;
-                                    result.album._isEditorsPick = true;
-                                    cardsHTML.push(this.createAlbumCardHTML(result.album));
-                                    itemsToStore.push({ el: null, data: result.album, type: 'album' });
-                                }
-                            }
-                        } else if (item.type === 'userplaylist') {
-                            if (item.id && item.title) {
-                                const playlist = {
-                                    id: item.id,
-                                    name: item.title,
-                                    cover: item.cover,
-                                    numberOfTracks: item.numberOfTracks || 0,
-                                };
-                                cardsHTML.push(
-                                    this.createAlbumCardHTML({
-                                        ...playlist,
-                                        title: item.title,
-                                        artist: item.artist,
-                                        cover: item.cover,
-                                        explicit: item.explicit,
-                                        releaseDate: item.releaseDate,
-                                        type: 'ALBUM',
-                                        _href: `/userplaylist/${item.id}`,
-                                        _lazy: cardsHTML.length >= 6,
-                                        _isEditorsPick: true,
-                                    })
-                                );
-                                itemsToStore.push({ el: null, data: playlist, type: 'user-playlist' });
-                            }
-                        } else if (item.type === 'artist') {
-                            if (item.name && item.picture) {
-                                // Use cached data directly
-                                const artist = {
-                                    id: item.id,
-                                    name: item.name,
-                                    picture: item.picture,
-                                    _lazy: cardsHTML.length >= 6,
-                                    _isEditorsPick: true,
-                                };
-                                cardsHTML.push(this.createArtistCardHTML(artist));
-                                itemsToStore.push({ el: null, data: artist, type: 'artist' });
-                            } else {
-                                // Fall back to API call
-                                const artist = await this.api.getArtist(item.id);
-                                if (artist) {
-                                    artist._lazy = cardsHTML.length >= 6;
-                                    artist._isEditorsPick = true;
-                                    cardsHTML.push(this.createArtistCardHTML(artist));
-                                    itemsToStore.push({ el: null, data: artist, type: 'artist' });
-                                }
-                            }
-                        } else if (item.type === 'track') {
-                            if (item.title && item.album) {
-                                // Use cached data directly
-                                const track = {
-                                    id: item.id,
-                                    title: item.title,
-                                    artist: item.artist,
-                                    album: item.album,
-                                    explicit: item.explicit,
-                                    audioQuality: item.audioQuality,
-                                    mediaMetadata: item.mediaMetadata,
-                                    duration: item.duration,
-                                    _lazy: cardsHTML.length >= 6,
-                                    _isEditorsPick: true,
-                                };
-                                cardsHTML.push(this.createTrackCardHTML(track));
-                                itemsToStore.push({ el: null, data: track, type: 'track' });
-                            } else {
-                                // Fall back to API call
-                                const track = await this.api.getTrackMetadata(item.id);
-                                if (track) {
-                                    track._lazy = cardsHTML.length >= 6;
-                                    track._isEditorsPick = true;
-                                    cardsHTML.push(this.createTrackCardHTML(track));
-                                    itemsToStore.push({ el: null, data: track, type: 'track' });
-                                }
-                            }
-                        } else if (item.type === 'user-playlist') {
-                            if (item.id && item.name) {
-                                const playlist = {
-                                    id: item.id,
-                                    name: item.name,
-                                    cover: item.cover,
-                                    tracks: item.tracks || [],
-                                    numberOfTracks: item.numberOfTracks || (item.tracks ? item.tracks.length : 0),
-                                    _lazy: cardsHTML.length >= 6,
-                                    _isEditorsPick: true,
-                                };
-                                const subtitle = item.username ? `by ${item.username}` : null;
-                                cardsHTML.push(this.createUserPlaylistCardHTML(playlist, subtitle));
-                                itemsToStore.push({ el: null, data: playlist, type: 'user-playlist' });
-                            } else {
-                                const playlist = await syncManager.getPublicPlaylist(item.id);
-                                if (playlist) {
-                                    playlist._lazy = cardsHTML.length >= 6;
-                                    playlist._isEditorsPick = true;
-                                    const subtitle = item.username ? `by ${item.username}` : null;
-                                    cardsHTML.push(this.createUserPlaylistCardHTML(playlist, subtitle));
-                                    itemsToStore.push({ el: null, data: playlist, type: 'user-playlist' });
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.warn(`Failed to load ${item.type} ${item.id}:`, e);
-                    }
-                }
-
-                if (cardsHTML.length > 0) {
-                    picksContainer.innerHTML = cardsHTML.join('');
-                    for (const item of itemsToStore) {
-                        const type = item.type;
-                        const id = item.data.id;
-                        const el = picksContainer.querySelector(`[data-${type}-id="${id}"]`);
-                        if (el) {
-                            trackDataStore.set(el, item.data);
-                            await this.updateLikeState(el, type, id);
-                        }
-                    }
-                } else {
-                    picksContainer.innerHTML = createPlaceholder("No editor's picks available.");
-                }
-            } catch (e) {
-                console.error("Failed to load editor's picks:", e);
-                picksContainer.innerHTML = createPlaceholder("Failed to load editor's picks.");
-            }
-        }
     }
 
     async renderHomeArtists(forceRefresh = false, providedSeeds = null) {
@@ -3959,7 +3764,7 @@ export class UIRenderer {
                     video.play().catch((e) => {
                         console.warn('Autoplay failed, muted play might be required:', e);
                         video.muted = true;
-                        video.play().catch(() => {});
+                        video.play().catch(() => { });
                     });
                 });
                 hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -3981,7 +3786,7 @@ export class UIRenderer {
             video.play().catch((e) => {
                 console.warn('MP4 autoplay failed:', e);
                 video.muted = true;
-                video.play().catch(() => {});
+                video.play().catch(() => { });
             });
         }
         video.onerror = async () => {
@@ -4135,10 +3940,10 @@ export class UIRenderer {
                         kind === 'track'
                             ? `[data-track-id="${CSS.escape(String(item.id))}"]`
                             : kind === 'album'
-                              ? `[data-album-id="${CSS.escape(String(item.id))}"]`
-                              : kind === 'artist'
-                                ? `[data-artist-id="${CSS.escape(String(item.id))}"]`
-                                : `[data-playlist-id="${CSS.escape(String(item.uuid))}"]`;
+                                ? `[data-album-id="${CSS.escape(String(item.id))}"]`
+                                : kind === 'artist'
+                                    ? `[data-artist-id="${CSS.escape(String(item.id))}"]`
+                                    : `[data-playlist-id="${CSS.escape(String(item.uuid))}"]`;
                     allContainer.querySelectorAll(selector).forEach((el) => {
                         trackDataStore.set(el, item);
                     });
@@ -4324,7 +4129,7 @@ export class UIRenderer {
                 tracklistContainer.innerHTML = '';
                 if (playBtn) playBtn.style.display = 'none';
                 if (dlBtn) dlBtn.style.display = 'none';
-                    
+
                 document.getElementById('page-album').innerHTML =
                     '<p style="padding: 2rem; color: var(--muted-foreground);">This content is unavailable due to a DMCA notice.</p>';
                 return;
@@ -5464,7 +5269,7 @@ export class UIRenderer {
                                 if (this.currentArtistId === currentId) {
                                     bannerContainer.appendChild(video);
                                     bannerContainer.style.opacity = '1';
-                                    video.play().catch(() => {});
+                                    video.play().catch(() => { });
                                 }
                             } catch (e) {
                                 console.warn('Failed to setup artist banner video:', e);
@@ -5788,7 +5593,7 @@ export class UIRenderer {
                                     seenIds.add(track.id);
                                     libraryTracks.push(track);
                                 }
-                                addSource(track.id, { label: 'Liked Songs', href: '/liked-songs' });
+                                addSource(track.id, { label: 'שירים שאהבתם', href: '/liked-songs' });
                             }
                         }
 
@@ -5819,13 +5624,11 @@ export class UIRenderer {
                             inLibrarySection.style.display = 'block';
                             if (inLibraryLabel) {
                                 const likedCount = libraryTracks.length;
-                                const likedText =
-                                    likedCount === 1
-                                        ? 'One liked song'
-                                        : likedCount === 2
-                                          ? 'Two liked songs'
-                                          : `${likedCount} liked songs`;
-                                inLibraryLabel.textContent = `In Your Library · ${likedText}`;
+                                inLibraryLabel.textContent = likedCount === 1
+                                    ? 'שיר אחד בספרייה'
+                                    : likedCount === 2
+                                        ? 'שני שירים בספרייה'
+                                        : `${likedCount} שירים בספרייה`;
                             }
                             await this.renderListWithTracks(inLibraryContainer, libraryTracks, true, false, false, true);
 
@@ -6612,13 +6415,12 @@ export class UIRenderer {
                                 ${safeVersion ? `<div style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.1rem;">v${safeVersion}</div>` : ''}
                             </div>
                             <div class="controls">
-                                ${
-                                    isUser
-                                        ? `
+                                ${isUser
+                                    ? `
                                 <button class="delete-instance" title="Delete Instance">
                                     ${SVG_TRASH(16)}
                                 </button>`
-                                        : ''
+                                    : ''
                                 }
                             </div>
                         </li>

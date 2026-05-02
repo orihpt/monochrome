@@ -1,60 +1,51 @@
 //js/app.js
-import discordSvg from '../images/discord.svg?svg&size=22';
-import googleSvg from '../images/google.svg?svg&size=22';
-import githubSvg from '../images/github.svg?svg&size=22';
-import spotifySvg from '../images/spotify.svg?svg&size=22';
-import { isIos, isSafari } from './platform-detection.js';
-import { hapticLight } from './haptics.js';
-import { MusicAPI } from './music-api.js';
-import {
-    apiSettings,
-    themeManager,
-    fullscreenCoverClickSettings,
-    downloadQualitySettings,
-    sidebarSettings,
-    pwaUpdateSettings,
-    modalSettings,
-    keyboardShortcuts,
-} from './storage.js';
-import { UIRenderer } from './ui.js';
-import { Player } from './player.js';
-import { MultiScrobbler } from './multi-scrobbler.js';
-import { LyricsManager, openLyricsPanel, clearLyricsPanelSync } from './lyrics.js';
-import { createRouter, updateTabTitle, navigate } from './router.js';
-import { initializePlayerEvents, initializeTrackInteractions, handleTrackAction } from './events.js';
-import { initializeUIInteractions } from './ui-interactions.js';
-import { debounce, getShareUrl, trackDataStore } from './utils.js';
-import { sidePanelManager } from './side-panel.js';
+import { registerSW } from 'virtual:pwa-register';
+import { HiFiClient } from './HiFi.js';
+import { modernSettings } from './ModernSettings.js';
+import { syncManager } from './accounts/pocketbase.js';
+import { initAnalytics } from './analytics.js';
+import './commandPalette.js';
 import { db } from './db.js';
 import { showNotification } from './downloads.js';
-import { syncManager } from './accounts/pocketbase.js';
-import { authManager } from './accounts/auth.js';
-import { registerSW } from 'virtual:pwa-register';
-import { openEditProfile } from './profile.js';
-import { ThemeStore } from './themeStore.js';
-import './commandPalette.js';
-import { initTracker } from './tracker.js';
-import { initAnalytics } from './analytics.js';
+import { handleTrackAction, initializePlayerEvents, initializeTrackInteractions } from './events.js';
+import { hapticLight } from './haptics.js';
 import {
-    parseCSV,
-    parseJSPF,
-    parseXSPF,
-    parseXML,
-    parseM3U,
-    parseDynamicCSV,
-    importToLibrary,
-} from './playlist-importer.js';
-import { modernSettings } from './ModernSettings.js';
-import {
-    SVG_OFFLINE,
-    SVG_RIGHT_ARROW,
-    SVG_LEFT_ARROW,
     SVG_ANIMATE_SPIN,
-    SVG_PLAY,
     SVG_CLOSE,
-    SVG_RESET,
+    SVG_OFFLINE,
+    SVG_PLAY,
+    SVG_RESET
 } from './icons.js';
-import { HiFiClient } from './HiFi.js';
+import { clearLyricsPanelSync, LyricsManager, openLyricsPanel } from './lyrics.js';
+import { MultiScrobbler } from './multi-scrobbler.js';
+import { MusicAPI } from './music-api.js';
+import { Player } from './player.js';
+import {
+    importToLibrary,
+    parseCSV,
+    parseDynamicCSV,
+    parseJSPF,
+    parseM3U,
+    parseXML,
+    parseXSPF,
+} from './playlist-importer.js';
+import { createRouter, navigate, updateTabTitle } from './router.js';
+import { sidePanelManager } from './side-panel.js';
+import {
+    apiSettings,
+    downloadQualitySettings,
+    fullscreenCoverClickSettings,
+    keyboardShortcuts,
+    modalSettings,
+    pwaUpdateSettings,
+    sidebarSettings,
+    themeManager,
+} from './storage.js';
+import { ThemeStore } from './themeStore.js';
+import { initTracker } from './tracker.js';
+import { initializeUIInteractions } from './ui-interactions.js';
+import { UIRenderer } from './ui.js';
+import { debounce, getShareUrl, trackDataStore } from './utils.js';
 
 // Capture real iOS state before spoofing (needed for background audio)
 if (typeof window !== 'undefined') {
@@ -318,11 +309,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage,
             ...(import.meta.env.DEV
                 ? [
-                      {
-                          setItem: (key, value) => console.debug(`HiFiClient storage set: ${key} = ${value}`),
-                          removeItem: (key) => console.debug(`HiFiClient storage remove: ${key}`),
-                      },
-                  ]
+                    {
+                        setItem: (key, value) => console.debug(`HiFiClient storage set: ${key} = ${value}`),
+                        removeItem: (key) => console.debug(`HiFiClient storage remove: ${key}`),
+                    },
+                ]
                 : []),
         ],
         token: localStorage.getItem('hifi_token') || undefined,
@@ -1546,10 +1537,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     summary.push(`${importResults.playlists.created} playlists`);
 
                                 alert(
-                                    `Imported to library:\n${summary.join(', ')}\n\n${
-                                        result.missingItems.length > 0
-                                            ? `${result.missingItems.length} items could not be found.`
-                                            : ''
+                                    `Imported to library:\n${summary.join(', ')}\n\n${result.missingItems.length > 0
+                                        ? `${result.missingItems.length} items could not be found.`
+                                        : ''
                                     }`
                                 );
                                 progressElement.style.display = 'none';
@@ -2700,7 +2690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (likedTracks.length > 0) {
                 items.push({
                     type: 'playlist',
-                    name: 'Liked Songs',
+                    name: 'שירים שאהבתם',
                     cover: '/assets/liked_cover_512w.png',
                     images: [],
                     id: 'liked-songs',
@@ -2711,8 +2701,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     item: {
                         id: 'liked-songs',
                         uuid: 'liked-songs',
-                        title: 'Liked Songs',
-                        name: 'Liked Songs',
+                        title: 'שירים שאהבתם',
+                        name: 'שירים שאהבתם',
                         tracks: likedTracks,
                         cover: '/assets/liked_cover_512w.png',
                         href: '/liked-songs',
@@ -2805,8 +2795,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const metaText = item.type === 'album' && item.artist
                 ? `${typeLabel} · ${item.artist}`
                 : item.type === 'playlist' && item.trackCount != null
-                  ? `${typeLabel} · ${item.trackCount} שירים`
-                  : typeLabel;
+                    ? `${typeLabel} · ${item.trackCount} שירים`
+                    : typeLabel;
 
             let coverHTML = '';
             if (item.type === 'artist') {

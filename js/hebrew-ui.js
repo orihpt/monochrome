@@ -1,4 +1,27 @@
-const SKIP_SELECTOR = '.player-controls, script, style, code, pre, textarea';
+const SKIP_SELECTOR = [
+    '.player-controls',
+    '.now-playing-bar .track-info',
+    '.track-list',
+    '.track-item',
+    '.queue-track-item',
+    '.card-title',
+    '.card-subtitle',
+    '.card-artist',
+    '.card-info',
+    '.sidebar-library-list',
+    '.sidebar-library-item',
+    '.search-results-dropdown',
+    '.lyrics-page-content',
+    '.fullscreen-lyrics-content',
+    'am-lyrics',
+    '[data-user-content]',
+    '[data-no-translate]',
+    'script',
+    'style',
+    'code',
+    'pre',
+    'textarea',
+].join(', ');
 
 const exactTranslations = new Map(
     Object.entries({
@@ -472,38 +495,6 @@ const exactTranslations = new Map(
     })
 );
 
-const phraseTranslations = [
-    ['songs', 'שירים'],
-    ['song', 'שיר'],
-    ['tracks', 'שירים'],
-    ['track', 'שיר'],
-    ['artists', 'אמנים'],
-    ['artist', 'אמן'],
-    ['albums', 'אלבומים'],
-    ['album', 'אלבום'],
-    ['playlists', 'פלייליסטים'],
-    ['playlist', 'פלייליסט'],
-    ['favorites', 'מועדפים'],
-    ['recommendations', 'המלצות'],
-    ['recommendation', 'המלצה'],
-    ['library', 'ספרייה'],
-    ['settings', 'הגדרות'],
-    ['search', 'חיפוש'],
-    ['loading', 'טוען'],
-    ['failed', 'נכשל'],
-    ['error', 'שגיאה'],
-    ['unknown', 'לא ידוע'],
-    ['never', 'אף פעם'],
-    ['none yet', 'עדיין אין'],
-    ['Online', 'מחובר'],
-    ['Unavailable', 'לא זמין'],
-    ['Checking', 'בודק'],
-    ['created', 'נוצר'],
-    ['updated', 'עודכן'],
-    ['Last catalog update', 'עדכון קטלוג אחרון'],
-    ['No active model registered yet.', 'עדיין אין מודל פעיל רשום.'],
-];
-
 const translatableAttributes = [
     'title',
     'aria-label',
@@ -530,10 +521,7 @@ function translateText(value) {
     const exact = exactTranslations.get(trimmed);
     if (exact) return value.replace(trimmed, exact);
 
-    let translated = value.replace(new RegExp('spoti' + 'man', 'gi'), 'Waves Music');
-    for (const [source, target] of phraseTranslations) {
-        translated = translated.replace(new RegExp(source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), target);
-    }
+    const translated = value.replace(new RegExp('spoti' + 'man', 'gi'), 'Waves Music');
     return translated;
 }
 

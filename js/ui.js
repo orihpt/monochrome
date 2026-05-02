@@ -3585,11 +3585,11 @@ export class UIRenderer {
                 if (filteredTracks.length > 0) {
                     await this.renderListWithTracks(songsContainer, filteredTracks, true, false, false, true);
                 } else {
-                    songsContainer.innerHTML = createPlaceholder('No song recommendations found.');
+                    songsContainer.innerHTML = createPlaceholder('לא נמצאו המלצות לשירים');
                 }
             } catch (e) {
                 console.error(e);
-                songsContainer.innerHTML = createPlaceholder('Failed to load song recommendations.');
+                songsContainer.innerHTML = createPlaceholder('לא ניתן לטעון הצעות לשירים');
             }
         }
     }
@@ -3731,7 +3731,7 @@ export class UIRenderer {
         imageEl.style.backgroundColor = 'var(--muted)';
         titleEl.textContent = 'שירים שאהבתם';
         this.adjustTitleFontSize(titleEl, 'שירים שאהבתם');
-        metaEl.textContent = `${tracks.length} tracks • ${formatDuration(calculateTotalDuration(tracks))}`;
+        metaEl.textContent = `${tracks.length} שירים • ${formatDuration(calculateTotalDuration(tracks))}`;
         descEl.textContent = '';
         if (playlistLikeBtn) playlistLikeBtn.style.display = 'none';
         if (addPlaylistBtn) addPlaylistBtn.style.display = 'none';
@@ -4895,7 +4895,7 @@ export class UIRenderer {
                 const tracks = playlistData.tracks || [];
                 const totalDuration = calculateTotalDuration(tracks);
 
-                metaEl.textContent = `${tracks.length} tracks • ${formatDuration(totalDuration)}`;
+                metaEl.textContent = `${tracks.length} שירים • ${formatDuration(totalDuration)}`;
                 descEl.textContent = playlistData.description || '';
 
                 const originalTracks = [...tracks];

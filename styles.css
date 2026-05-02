@@ -5406,6 +5406,7 @@ input:checked+.slider::before {
     margin-bottom: 0.5rem;
     color: var(--foreground);
     overflow-wrap: break-word;
+    text-align: right;
 }
 
 #fullscreen-track-artist {
@@ -5415,6 +5416,7 @@ input:checked+.slider::before {
     transition:
         color 0.2s,
         text-decoration 0.2s;
+    text-align: right;
 }
 
 #fullscreen-track-artist:hover {
@@ -11153,7 +11155,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 
 .home-tabs {
     position: sticky;
-    top: 0;
+    top: calc(var(--spacing-lg) * -1);
     z-index: 40;
     background: var(--background);
     padding-top: var(--spacing-lg);

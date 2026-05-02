@@ -1,7 +1,7 @@
 //js/utils.js
 import { modernSettings } from './ModernSettings.js';
 import { SVG_ATMOS } from './icons.js';
-import { qualityBadgeSettings, coverArtSizeSettings, trackDateSettings } from './storage.js';
+import { coverArtSizeSettings, qualityBadgeSettings, trackDateSettings } from './storage.js';
 
 export const QUALITY = 'LOSSLESS';
 
@@ -451,15 +451,15 @@ export const calculateTotalDuration = (tracks) => {
 };
 
 export const formatDuration = (seconds) => {
-    if (!seconds || isNaN(seconds)) return '0 min';
+    if (!seconds || isNaN(seconds)) return '0 דק׳';
 
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
 
     if (hours > 0) {
-        return `${hours} hr ${minutes} min`;
+        return `${hours} שעות ו-${minutes} דק׳`;
     }
-    return `${minutes} min`;
+    return `${minutes} דק׳`;
 };
 
 const coverCache = new Map();
@@ -643,8 +643,8 @@ export function getFullArtistArray(track) {
         Array.isArray(track.artists) && track.artists.length > 0
             ? track.artists.map((a) => (typeof a === 'string' ? a : a.name) || '').filter(Boolean)
             : track.artist?.name
-              ? [track.artist.name]
-              : [];
+                ? [track.artist.name]
+                : [];
 
     // Parse featured artists from title, e.g. "Song (feat. A, B & C)" or "(with X & Y)"
     // Note: splitting on '&' may incorrectly fragment compound artist names like "Simon & Garfunkel".

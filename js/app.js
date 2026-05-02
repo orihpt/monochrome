@@ -2830,7 +2830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : '';
 
             return `
-                <a class="sidebar-library-item${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}">
+                <a class="sidebar-library-item${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}" data-no-translate>
                     ${coverHTML}
                     <div class="sidebar-library-item-info">
                         <span class="sidebar-library-item-name">${itemName}</span>

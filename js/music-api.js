@@ -388,6 +388,34 @@ export class MusicAPI {
         return null;
     }
 
+    async getArtistRequests() {
+        return this.subsonicAPI.getArtistRequests();
+    }
+
+    async createArtistRequest(name) {
+        return this.subsonicAPI.createArtistRequest(name);
+    }
+
+    async toggleArtistRequestVote(id) {
+        return this.subsonicAPI.toggleArtistRequestVote(id);
+    }
+
+    async deleteArtistRequest(id) {
+        return this.subsonicAPI.deleteArtistRequest(id);
+    }
+
+    async moveArtistRequest(id, status) {
+        return this.subsonicAPI.moveArtistRequest(id, status);
+    }
+
+    async updateArtistRequestName(id, name) {
+        return this.subsonicAPI.updateArtistRequestName(id, name);
+    }
+
+    async getArtistRequestSuggestions(query) {
+        return this.subsonicAPI.getArtistRequestSuggestions(query);
+    }
+
     // Cache methods
     async clearCache() {
         // No-op for local mode

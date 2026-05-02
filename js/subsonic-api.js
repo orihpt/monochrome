@@ -45,6 +45,84 @@ export class SubsonicAPI {
         }
     }
 
+    async getArtistRequests() {
+        const res = await this.fetchAPI('getArtistRequests');
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async createArtistRequest(name) {
+        const res = await this.fetchAPI('createArtistRequest', `name=${encodeURIComponent(name)}`);
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async toggleArtistRequestVote(id) {
+        const res = await this.fetchAPI('toggleArtistRequestVote', `id=${encodeURIComponent(id)}`);
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async deleteArtistRequest(id) {
+        const res = await this.fetchAPI('deleteArtistRequest', `id=${encodeURIComponent(id)}`);
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async moveArtistRequest(id, status) {
+        const res = await this.fetchAPI(
+            'moveArtistRequest',
+            `id=${encodeURIComponent(id)}&status=${encodeURIComponent(status)}`
+        );
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async updateArtistRequestName(id, name) {
+        const res = await this.fetchAPI(
+            'updateArtistRequestName',
+            `id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`
+        );
+        this.throwIfSubsonicError(res);
+        const data = res?.artistRequests || {};
+        return {
+            items: data.artistRequest || [],
+            isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        };
+    }
+
+    async getArtistRequestSuggestions(query) {
+        const res = await this.fetchAPI('getArtistRequestSuggestions', `query=${encodeURIComponent(query || '')}`);
+        this.throwIfSubsonicError(res);
+        return res?.artistRequestSuggestions?.name || [];
+    }
+
+    throwIfSubsonicError(res) {
+        if (res?.status === 'failed' || res?.error) {
+            throw new Error(res?.error?.message || 'Request failed');
+        }
+    }
+
     // --- URL helpers ---
 
     getStreamUrl(id) {

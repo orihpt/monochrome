@@ -36,6 +36,7 @@ import {
     createModal,
     createPlaceholder,
     createQualityBadgeHTML,
+    debounce,
     decodeHtml,
     escapeHtml,
     formatDuration,
@@ -116,6 +117,7 @@ fontSettings.applyFontSize();
 
 import {
     SVG_APPLE,
+    SVG_ARROW_UP,
     SVG_BIN,
     SVG_CHECK,
     SVG_CHECKBOX,
@@ -2901,9 +2903,215 @@ export class UIRenderer {
                     await this.renderHomeArtistsPage();
                 } else if (tab.dataset.tab === 'albums') {
                     await this.renderHomeAlbumsPage();
+                } else if (tab.dataset.tab === 'artist-requests') {
+                    await this.renderArtistRequestsPage();
                 }
             });
         }
+    }
+
+    async renderArtistRequestsPage() {
+        const wishlistEl = document.getElementById('artist-requests-wishlist');
+        const soonEl = document.getElementById('artist-requests-soon-list');
+        const newBtn = document.getElementById('artist-request-new-btn');
+        if (!wishlistEl || !soonEl) return;
+
+        if (newBtn && !newBtn.dataset.initialized) {
+            newBtn.dataset.initialized = 'true';
+            newBtn.addEventListener('click', () => this.openArtistRequestModal());
+        }
+
+        wishlistEl.innerHTML = createPlaceholder('Loading artist requests...');
+        soonEl.innerHTML = '';
+
+        try {
+            const data = await this.api.getArtistRequests();
+            this.artistRequestsState = data;
+            this.renderArtistRequestsLists(data.items || [], data.isAdmin);
+        } catch (error) {
+            console.error('Failed to load artist requests:', error);
+            wishlistEl.innerHTML = createPlaceholder('Failed to load artist requests.');
+        }
+    }
+
+    renderArtistRequestsLists(items, isAdmin) {
+        const wishlistEl = document.getElementById('artist-requests-wishlist');
+        const soonEl = document.getElementById('artist-requests-soon-list');
+        const soonPanel = document.querySelector('.artist-requests-soon-panel');
+        const layout = document.querySelector('.artist-requests-layout');
+        if (!wishlistEl || !soonEl) return;
+
+        const wishlist = [...items]
+            .filter((item) => item.status === 'wishlist')
+            .sort((a, b) => (Number(b.voteCount) || 0) - (Number(a.voteCount) || 0) || a.name.localeCompare(b.name));
+        const soon = [...items].filter((item) => item.status === 'available_soon' || item.status === 'availableSoon');
+
+        if (soonPanel) soonPanel.style.display = soon.length ? '' : 'none';
+        if (layout) layout.classList.toggle('no-soon', soon.length === 0);
+
+        wishlistEl.innerHTML = wishlist.length
+            ? wishlist.map((item, index) => this.createArtistRequestRowHTML(item, index + 1, isAdmin)).join('')
+            : '<div class="artist-requests-empty">אין בקשות עדיין</div>';
+        soonEl.innerHTML = soon.length
+            ? soon.map((item) => this.createArtistRequestSoonRowHTML(item, isAdmin)).join('')
+            : '<div class="artist-requests-soon-empty">אין אמנים בתהליך כרגע</div>';
+
+        wishlistEl.querySelectorAll('.artist-request-vote').forEach((button) => {
+            button.addEventListener('click', async () => {
+                await this.handleArtistRequestAction(() => this.api.toggleArtistRequestVote(button.dataset.id));
+            });
+        });
+
+        document.querySelectorAll('.artist-request-menu-btn').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const menu = button.nextElementSibling;
+                document.querySelectorAll('.artist-request-menu.open').forEach((openMenu) => {
+                    if (openMenu !== menu) openMenu.classList.remove('open');
+                });
+                menu?.classList.toggle('open');
+                setTimeout(() => {
+                    document.addEventListener(
+                        'click',
+                        () => document.querySelectorAll('.artist-request-menu.open').forEach((openMenu) => openMenu.classList.remove('open')),
+                        { once: true }
+                    );
+                }, 0);
+            });
+        });
+
+        document.querySelectorAll('.artist-request-menu-action').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const { id, action, name } = button.dataset;
+                document.querySelectorAll('.artist-request-menu.open').forEach((menu) => menu.classList.remove('open'));
+                if (action === 'delete') {
+                    await this.handleArtistRequestAction(() => this.api.deleteArtistRequest(id));
+                } else if (action === 'soon') {
+                    await this.handleArtistRequestAction(() => this.api.moveArtistRequest(id, 'available_soon'));
+                } else if (action === 'wishlist') {
+                    await this.handleArtistRequestAction(() => this.api.moveArtistRequest(id, 'wishlist'));
+                } else if (action === 'edit') {
+                    const nextName = window.prompt('שם האמן', name || '');
+                    if (nextName && nextName.trim()) {
+                        await this.handleArtistRequestAction(() => this.api.updateArtistRequestName(id, nextName.trim()));
+                    }
+                }
+            });
+        });
+
+    }
+
+    createArtistRequestRowHTML(item, rank, isAdmin) {
+        const active = item.userVoted === true || item.userVoted === 'true';
+        return `
+            <div class="artist-request-row">
+                <div class="artist-request-rank">${rank}</div>
+                <div class="artist-request-name">${escapeHtml(item.name || '')}</div>
+                ${isAdmin ? this.createArtistRequestMenuHTML(item, 'wishlist') : ''}
+                <button class="artist-request-vote ${active ? 'active' : ''}" data-id="${escapeHtml(item.id)}" type="button" aria-label="הצבעה">
+                    ${SVG_ARROW_UP(24)}
+                    <span>${Number(item.voteCount) || 0}</span>
+                </button>
+            </div>
+        `;
+    }
+
+    createArtistRequestSoonRowHTML(item, isAdmin) {
+        return `
+            <div class="artist-request-soon-row">
+                <span>${escapeHtml(item.name || '')}</span>
+                ${isAdmin ? this.createArtistRequestMenuHTML(item, 'soon') : ''}
+                <span>${Number(item.voteCount) || 0} הצבעות</span>
+            </div>
+        `;
+    }
+
+    createArtistRequestMenuHTML(item, list) {
+        const safeId = escapeHtml(item.id || '');
+        const safeName = escapeHtml(item.name || '');
+        const moveAction = list === 'wishlist'
+            ? `<button class="artist-request-menu-action" data-action="soon" data-id="${safeId}">סמן כ'זמין בקרוב'</button>`
+            : `<button class="artist-request-menu-action" data-action="wishlist" data-id="${safeId}">החזרה לרשימת הבקשות</button>`;
+        return `
+            <div class="artist-request-admin-menu">
+                <button class="artist-request-menu-btn" type="button" aria-label="פעולות">
+                    ${SVG_MENU(18)}
+                </button>
+                <div class="artist-request-menu">
+                    <button class="artist-request-menu-action" data-action="delete" data-id="${safeId}">הסרה מהרשימה</button>
+                    ${moveAction}
+                    <button class="artist-request-menu-action" data-action="edit" data-id="${safeId}" data-name="${safeName}">עריכת שם</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async handleArtistRequestAction(action) {
+        try {
+            const data = await action();
+            this.artistRequestsState = data;
+            this.renderArtistRequestsLists(data.items || [], data.isAdmin);
+        } catch (error) {
+            console.error('Artist request action failed:', error);
+            showNotification(error.message || 'הפעולה נכשלה');
+        }
+    }
+
+    openArtistRequestModal() {
+        const modal = document.getElementById('artist-request-modal');
+        const input = document.getElementById('artist-request-name-input');
+        const errorEl = document.getElementById('artist-request-error');
+        const suggestionsEl = document.getElementById('artist-request-suggestions');
+        const cancelBtn = document.getElementById('artist-request-modal-cancel');
+        const saveBtn = document.getElementById('artist-request-modal-save');
+        if (!modal || !input || !saveBtn || !cancelBtn || !suggestionsEl) return;
+
+        const close = () => {
+            modal.classList.remove('active');
+            suggestionsEl.classList.remove('open');
+        };
+        const loadSuggestions = debounce(async () => {
+            const suggestions = await this.api.getArtistRequestSuggestions(input.value).catch(() => []);
+            suggestionsEl.innerHTML = suggestions
+                .map((name) => `<button type="button" class="artist-request-suggestion">${escapeHtml(name)}</button>`)
+                .join('');
+            suggestionsEl.classList.toggle('open', suggestions.length > 0);
+            suggestionsEl.querySelectorAll('button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    input.value = button.textContent || '';
+                    suggestionsEl.classList.remove('open');
+                    input.focus();
+                });
+            });
+        }, 180);
+
+        input.value = '';
+        if (errorEl) errorEl.textContent = '';
+        modal.classList.add('active');
+        setTimeout(() => input.focus(), 0);
+        loadSuggestions();
+
+        input.oninput = () => {
+            if (errorEl) errorEl.textContent = '';
+            loadSuggestions();
+        };
+        cancelBtn.onclick = close;
+        modal.querySelector('.modal-overlay').onclick = close;
+        saveBtn.onclick = async () => {
+            const name = input.value.trim();
+            if (!name) return;
+            saveBtn.disabled = true;
+            try {
+                const data = await this.api.createArtistRequest(name);
+                this.artistRequestsState = data;
+                this.renderArtistRequestsLists(data.items || [], data.isAdmin);
+                close();
+            } catch (error) {
+                if (errorEl) errorEl.textContent = error.message || 'האמן כבר נמצא ברשימה';
+            } finally {
+                saveBtn.disabled = false;
+            }
+        };
     }
 
     async renderHomeArtistsPage() {

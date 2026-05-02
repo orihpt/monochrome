@@ -685,6 +685,29 @@
             </div>
         </div>
 
+        <div id="artist-request-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content artist-request-modal-content" dir="rtl">
+                <h3>בקשה חדשה</h3>
+                <label class="artist-request-field-label" for="artist-request-name-input">שם האמן</label>
+                <div class="artist-request-autocomplete">
+                    <input
+                        type="text"
+                        id="artist-request-name-input"
+                        class="template-input"
+                        autocomplete="off"
+                    />
+                    <div id="artist-request-suggestions" class="artist-request-suggestions"></div>
+                </div>
+                <div id="artist-request-error" class="artist-request-error"></div>
+                <p class="artist-request-footnote">האמן יבודל ממחשב אפור, נא לא להוסיף אמנים שמזוהים עם היחידה</p>
+                <div class="modal-actions">
+                    <button id="artist-request-modal-cancel" class="btn-secondary">ביטול</button>
+                    <button id="artist-request-modal-save" class="btn-primary">יצירה</button>
+                </div>
+            </div>
+        </div>
+
         <div id="edit-profile-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content">
@@ -1707,6 +1730,7 @@
                         <button class="home-tab" data-tab="explore" style="display: none">Hot & New</button>
                         <button class="home-tab" data-tab="artists">Artists</button>
                         <button class="home-tab" data-tab="albums">Albums</button>
+                        <button class="home-tab" data-tab="artist-requests">בידול אמנים</button>
                     </div>
 
                     <div id="home-view-for-you" class="home-view active">
@@ -1844,6 +1868,27 @@
                         </div>
                         <div class="card-grid" id="home-albums-grid"></div>
                         <div id="home-albums-loading" class="loading-spinner" style="display: none;"></div>
+                    </div>
+                    <div id="home-view-artist-requests" class="home-view" style="display: none;">
+                        <section class="artist-requests-page" dir="rtl">
+                            <header class="artist-requests-header">
+                                <div>
+                                    <h2>בידול אמנים</h2>
+                                    <p>הצביעו לאמנים שתרצו שיתווספו לאתר, ואנחנו נבדל את השירים של האמנים המבוקשים ביותר.</p>
+                                </div>
+                                <button id="artist-request-new-btn" class="artist-request-new-btn" type="button">+ בקשה חדשה</button>
+                            </header>
+                            <div class="artist-requests-layout">
+                                <aside class="artist-requests-soon-panel">
+                                    <h3>
+                                        יהיו זמינים בקרוב
+                                        <span class="artist-requests-help" tabindex="0" aria-label="עזרה">?</span>
+                                    </h3>
+                                    <div id="artist-requests-soon-list" class="artist-requests-soon-list"></div>
+                                </aside>
+                                <div id="artist-requests-wishlist" class="artist-requests-wishlist"></div>
+                            </div>
+                        </section>
                     </div>
                 </div>
 

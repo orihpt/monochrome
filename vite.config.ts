@@ -8,6 +8,7 @@ import uploadPlugin from './vite-plugin-upload.js';
 // import purgecss from 'vite-plugin-purgecss';
 import { playwright } from '@vitest/browser-playwright';
 import { execSync } from 'child_process';
+import fs from 'fs';
 import purgecss from 'vite-plugin-purgecss';
 
 const navidromeUrl = process.env.NAVIDROME_URL || 'http://127.0.0.1:4533';
@@ -56,6 +57,24 @@ export default defineConfig((_options) => {
             __ENABLE_EXTERNAL_API_INSTANCES__: JSON.stringify(enableExternalApiInstances),
             __ENABLE_EXTERNAL_AUTH__: JSON.stringify(enableExternalAuth),
             __ENABLE_EXTERNAL_UPLOADS__: JSON.stringify(enableExternalUploads),
+            __ABOUT_MD_CONTENT__: JSON.stringify((() => {
+                const envPath = process.env.WAVES_MUSIC_ABOUT_MD_PATH;
+                if (envPath && fs.existsSync(envPath)) {
+                    return fs.readFileSync(envPath, 'utf-8');
+                }
+                const defaultPaths = [
+                    path.resolve(__dirname, 'about.md'),
+                    path.resolve(__dirname, 'about.MD'),
+                    path.resolve(process.cwd(), 'about.md'),
+                    path.resolve(process.cwd(), 'about.MD')
+                ];
+                for (const p of defaultPaths) {
+                    if (fs.existsSync(p)) {
+                        return fs.readFileSync(p, 'utf-8');
+                    }
+                }
+                return '# About Waves Music\n\nAbout page content not configured.';
+            })()),
         },
         worker: {
             format: 'es',
@@ -80,10 +99,6 @@ export default defineConfig((_options) => {
             },
             proxy: {
                 '/api/v1/recommend': {
-                    target: navidromeUrl,
-                    changeOrigin: true,
-                },
-                '/api/about': {
                     target: navidromeUrl,
                     changeOrigin: true,
                 },

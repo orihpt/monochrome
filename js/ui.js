@@ -509,7 +509,7 @@ export class UIRenderer {
             if (fsLikeBtn) fsLikeBtn.style.display = 'none';
             if (fsAddPlaylistBtn) fsAddPlaylistBtn.style.display = 'none';
         }
-        
+
         if (this.currentPage === 'lyrics') {
             await this.updateLyricsPageVisualizer();
         }
@@ -3756,6 +3756,165 @@ export class UIRenderer {
         });
     }
 
+    createSearchAllResultHTML(kind, item, index) {
+        const isFeatured = index === 0;
+        const isTrack = kind === 'track';
+        const isAlbum = kind === 'album';
+        const isArtist = kind === 'artist';
+        const typeLabel = isTrack ? 'שיר' : isAlbum ? 'אלבום' : 'אמן';
+        const id = item.id;
+        const href = isTrack ? `/track/${id}` : isAlbum ? (item._href || `/album/${id}`) : `/artist/${id}`;
+        const explicitBadge = hasExplicitContent(item) ? this.createExplicitBadge() : '';
+        const qualityBadge = createQualityBadgeHTML(item);
+
+        let title = '';
+        let subtitle = '';
+        let imageHTML = '';
+        let actionHTML = '';
+        let extraClasses = '';
+        let extraAttributes = '';
+
+        if (isTrack) {
+            const likeType = item.type === 'video' ? 'video' : 'track';
+            title = `${escapeHtml(getTrackTitle(item))} ${explicitBadge} ${qualityBadge}`;
+            subtitle = escapeHtml([typeLabel, getTrackArtists(item)].filter(Boolean).join(' • '));
+            imageHTML = this.getCoverHTML(
+                item.album?.cover || item.image || item.cover,
+                escapeHtml(getTrackTitle(item)),
+                'search-all-image',
+                isFeatured ? 'eager' : 'lazy',
+                item.videoUrl || item.album?.videoCoverUrl
+            );
+            actionHTML = `
+                <button class="play-btn card-play-btn search-all-action" data-action="play-card" data-type="${likeType}" data-id="${id}" title="Play">
+                    ${SVG_PLAY(18)}
+                </button>
+                ${likeType === 'track'
+                    ? this.createTrackLibraryButtonHTML(item, false, 'card-like-btn search-all-action')
+                    : `<button class="like-btn card-like-btn search-all-action" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
+                        ${this.createHeartIcon(false)}
+                    </button>`
+                }
+                <button class="card-menu-btn search-all-action" data-action="card-menu" data-type="${likeType}" data-id="${id}" title="Menu">
+                    ${SVG_MENU(18)}
+                </button>
+            `;
+        } else if (isAlbum) {
+            const artistName =
+                typeof item.artist === 'string'
+                    ? item.artist
+                    : item.artist?.name || item.artists?.map((artist) => artist.name).join(', ') || '';
+            const yearDisplay = getAlbumReleaseYear(item);
+            title = `${escapeHtml(item.title)} ${explicitBadge} ${qualityBadge}`;
+            subtitle = escapeHtml([typeLabel, artistName, yearDisplay].filter(Boolean).join(' • '));
+            imageHTML = this.getCoverHTML(
+                item.cover,
+                escapeHtml(item.title),
+                'search-all-image',
+                isFeatured ? 'eager' : 'lazy',
+                item.videoCoverUrl,
+                item._isEditorsPick || false,
+                'album'
+            );
+            actionHTML = `
+                <button class="play-btn card-play-btn search-all-action" data-action="play-card" data-type="album" data-id="${id}" title="Play">
+                    ${SVG_PLAY(18)}
+                </button>
+                <button class="like-btn card-like-btn search-all-action" data-action="toggle-like" data-type="album" title="Add to Liked">
+                    ${this.createHeartIcon(false)}
+                </button>
+                <button class="card-menu-btn search-all-action" data-action="card-menu" data-type="album" data-id="${id}" title="Menu">
+                    ${SVG_MENU(18)}
+                </button>
+            `;
+            if (contentBlockingSettings?.shouldHideAlbum(item)) {
+                extraClasses = 'blocked';
+                extraAttributes = `title="Blocked: ${contentBlockingSettings.isAlbumBlocked(item.id) ? 'Album blocked' : 'Artist blocked'}"`;
+            }
+        } else if (isArtist) {
+            title = escapeHtml(item.name);
+            subtitle = typeLabel;
+            imageHTML = this.getCoverHTML(
+                item.picture,
+                escapeHtml(item.name),
+                'search-all-image',
+                isFeatured ? 'eager' : 'lazy',
+                null,
+                item._isEditorsPick || false,
+                'artist'
+            );
+            actionHTML = `
+                <button class="like-btn card-like-btn search-all-action" data-action="toggle-like" data-type="artist" title="Add to Liked">
+                    ${this.createHeartIcon(false)}
+                </button>
+                <button class="card-menu-btn search-all-action" data-action="card-menu" data-type="artist" data-id="${id}" title="Menu">
+                    ${SVG_MENU(18)}
+                </button>
+            `;
+            extraClasses = `artist${contentBlockingSettings?.shouldHideArtist(item) ? ' blocked' : ''}`;
+            extraAttributes = contentBlockingSettings?.shouldHideArtist(item) ? 'title="Blocked: Artist blocked"' : '';
+        }
+
+        return `
+            <div class="card search-all-row ${isFeatured ? 'search-all-featured' : ''} ${extraClasses}"
+                 data-${kind}-id="${id}"
+                 data-href="${href}"
+                 style="cursor: pointer;"
+                 ${extraAttributes}>
+                <div class="search-all-artwork">${imageHTML}</div>
+                <div class="search-all-info">
+                    <div class="search-all-title">${title}</div>
+                    <div class="search-all-subtitle">${subtitle}</div>
+                </div>
+                <div class="search-all-actions">${actionHTML}</div>
+            </div>
+        `;
+    }
+
+    rankSearchAllResult(kind, item, query, sourceIndex) {
+        const normalize = (value) =>
+            String(value || '')
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        const normalizedQuery = normalize(query);
+        const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+        const title =
+            kind === 'track'
+                ? getTrackTitle(item)
+                : kind === 'album'
+                    ? item.title
+                    : item.name;
+        const artistText =
+            kind === 'track'
+                ? getTrackArtists(item)
+                : kind === 'album'
+                    ? typeof item.artist === 'string'
+                        ? item.artist
+                        : item.artist?.name || item.artists?.map((artist) => artist.name).join(' ')
+                    : '';
+        const primary = normalize(title);
+        const secondary = normalize(artistText);
+        const corpus = `${primary} ${secondary}`.trim();
+
+        const scoreText = (text, exact, starts, wordStarts, includes, tokenMatch) => {
+            if (!text || !normalizedQuery) return 0;
+            if (text === normalizedQuery) return exact;
+            if (text.startsWith(normalizedQuery)) return starts;
+            if (text.split(/\s+/).some((word) => word.startsWith(normalizedQuery))) return wordStarts;
+            if (text.includes(normalizedQuery)) return includes;
+            if (tokens.length && tokens.every((token) => text.includes(token))) return tokenMatch;
+            return 0;
+        };
+
+        return Math.max(
+            scoreText(primary, 1000, 900, 850, 760, 620),
+            scoreText(secondary, 720, 660, 620, 560, 460),
+            scoreText(corpus, 600, 540, 500, 430, 360)
+        ) - sourceIndex * 0.001;
+    }
+
     createLikedSongsCardHTML(trackCount = 0) {
         return this.createBaseCardHTML({
             type: 'user-playlist',
@@ -4124,7 +4283,7 @@ export class UIRenderer {
 
     async renderSearchPage(query) {
         await this.showPage('search');
-        document.getElementById('search-results-title').textContent = `Search Results for "${query}"`;
+        document.getElementById('search-results-title').textContent = `תוצאות חיפוש עבור "${query}"`;
         const searchPage = document.getElementById('page-search');
         searchPage?.querySelectorAll('.search-tab').forEach((tab) => {
             tab.classList.toggle('active', tab.dataset.tab === 'all');
@@ -4139,7 +4298,7 @@ export class UIRenderer {
         const albumsContainer = document.getElementById('search-albums-container');
         const playlistsContainer = document.getElementById('search-playlists-container');
 
-        allContainer.innerHTML = this.createSkeletonCards(8, false);
+        allContainer.innerHTML = this.createSkeletonTracks(8, true);
         tracksContainer.innerHTML = this.createSkeletonTracks(8, true);
         artistsContainer.innerHTML = this.createSkeletonCards(6, true);
         albumsContainer.innerHTML = this.createSkeletonCards(6, false);
@@ -4191,24 +4350,20 @@ export class UIRenderer {
             finalAlbums = finalAlbums.filter((t) => !_isBlockedCopyright(t.copyright));
 
             // Track search with results
-            const totalResults = finalTracks.length + finalArtists.length + finalAlbums.length + finalPlaylists.length;
             const allItems = [
-                ...finalTracks.slice(0, 8).map((item) => ({ kind: 'track', item })),
-                ...finalAlbums.slice(0, 8).map((item) => ({ kind: 'album', item })),
-                ...finalArtists.slice(0, 8).map((item) => ({ kind: 'artist', item })),
-                ...finalPlaylists.slice(0, 8).map((item) => ({ kind: 'playlist', item })),
-            ];
+                ...finalTracks.slice(0, 8).map((item, sourceIndex) => ({ kind: 'track', item, sourceIndex })),
+                ...finalAlbums.slice(0, 8).map((item, sourceIndex) => ({ kind: 'album', item, sourceIndex })),
+                ...finalArtists.slice(0, 8).map((item, sourceIndex) => ({ kind: 'artist', item, sourceIndex })),
+            ]
+                .map((result) => ({
+                    ...result,
+                    rank: this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex),
+                }))
+                .sort((a, b) => b.rank - a.rank);
 
             if (allItems.length) {
                 allContainer.innerHTML = allItems
-                    .map(({ kind, item }, index) => {
-                        let html = '';
-                        if (kind === 'track') html = this.createTrackCardHTML(item);
-                        if (kind === 'album') html = this.createAlbumCardHTML(item);
-                        if (kind === 'artist') html = this.createArtistCardHTML(item);
-                        if (kind === 'playlist') html = this.createPlaylistCardHTML(item);
-                        return index === 0 ? html.replace('class="card ', 'class="card search-all-featured ') : html;
-                    })
+                    .map(({ kind, item }, index) => this.createSearchAllResultHTML(kind, item, index))
                     .join('');
 
                 for (const { kind, item } of allItems) {
@@ -4217,11 +4372,10 @@ export class UIRenderer {
                             ? `[data-track-id="${CSS.escape(String(item.id))}"]`
                             : kind === 'album'
                                 ? `[data-album-id="${CSS.escape(String(item.id))}"]`
-                                : kind === 'artist'
-                                    ? `[data-artist-id="${CSS.escape(String(item.id))}"]`
-                                    : `[data-playlist-id="${CSS.escape(String(item.uuid))}"]`;
+                                : `[data-artist-id="${CSS.escape(String(item.id))}"]`;
                     allContainer.querySelectorAll(selector).forEach((el) => {
                         trackDataStore.set(el, item);
+                        this.updateLikeState(el, kind, item.id).catch(console.error);
                     });
                 }
             } else {

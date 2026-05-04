@@ -17,9 +17,6 @@ export const initAuthModal = () => {
         modal.style.display = 'none';
     } else {
         modal.style.display = 'flex';
-        // Pre-fill for dev convenience
-        document.getElementById('waves-music-auth-username').value = 'admin';
-        document.getElementById('waves-music-auth-password').value = 'N3verGuESSTHIS';
     }
 
     form.onsubmit = async (e) => {
@@ -45,12 +42,12 @@ export const initAuthModal = () => {
                 // Success! Save credentials
                 localStorage.setItem('subsonic_user', username);
                 localStorage.setItem('subsonic_pass', password);
-                
+
                 modal.style.animation = 'fadeIn 0.3s ease-out reverse';
                 setTimeout(() => {
                     modal.style.display = 'none';
                 }, 300);
-                
+
                 // Refresh data
                 window.location.reload();
             } else {

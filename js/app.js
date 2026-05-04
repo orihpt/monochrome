@@ -2,7 +2,7 @@
 import { registerSW } from 'virtual:pwa-register';
 import { HiFiClient } from './HiFi.js';
 import { modernSettings } from './ModernSettings.js';
-import { syncManager } from './accounts/pocketbase.js';
+import { syncManager } from './navidrome-sync.js';
 import { initAnalytics } from './analytics.js';
 import './commandPalette.js';
 import { db } from './db.js';
@@ -360,6 +360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await MusicAPI.initialize(apiSettings);
+    syncManager.initialize();
     initAuthModal();
 
     const audioPlayer = document.getElementById('audio-player');

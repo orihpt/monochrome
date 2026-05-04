@@ -1308,22 +1308,22 @@
                     </button>
                 </div>
             </div>
-            <div class="header-account-control">
-                <button id="header-account-btn" class="btn-icon" title="Account" style="
-                            width: 36px;
-                            height: 36px;
-                            border-radius: 50%;
-                            overflow: hidden;
-                            padding: 0;
-                            border: 1px solid var(--border);
-                        ">
-                    <span id="header-account-icon" class="header-account-icon-wrap">
-                        <use svg="!lucide/user.svg" size="20" />
+            <div class="header-right-group">
+                <a href="%VITE_MATTERMOST_URL%" target="_blank" class="header-btn" title="Mattermost">
+                    <span class="header-icon-wrap">
+                        <use svg="./images/mattermost.svg" size="20" />
                     </span>
-                    <img id="header-account-img" alt="Account avatar"
-                        style="width: 100%; height: 100%; object-fit: cover; display: none" />
-                </button>
-                <div id="header-account-dropdown" class="dropdown-menu"></div>
+                </a>
+                <div class="header-account-control">
+                    <button id="header-account-btn" class="header-btn" title="Account">
+                        <span id="header-account-icon" class="header-icon-wrap">
+                            <use svg="!lucide/user.svg" size="20" />
+                        </span>
+                        <img id="header-account-img" alt="Account avatar"
+                            style="width: 100%; height: 100%; object-fit: cover; display: none" />
+                    </button>
+                    <div id="header-account-dropdown" class="dropdown-menu"></div>
+                </div>
             </div>
         </header>
 

@@ -2885,17 +2885,38 @@ export class UIRenderer {
         if (showAllMixesBtn && !showAllMixesBtn.dataset.initialized) {
             showAllMixesBtn.dataset.initialized = 'true';
             showAllMixesBtn.addEventListener('click', async () => {
-                document.querySelectorAll('.home-tab').forEach((t) => t.classList.remove('active'));
-                document.querySelectorAll('.home-view').forEach((v) => {
-                    v.style.display = 'none';
-                    v.classList.remove('active');
-                });
-                const view = document.getElementById('home-view-curator-mixes');
-                if (view) {
-                    view.style.display = 'block';
-                    view.classList.add('active');
-                    await this.renderCuratorMixesPage();
-                }
+                const tab = document.querySelector('.home-tab[data-tab="curator-mixes"]') || { click: () => {
+                    document.querySelectorAll('.home-tab').forEach((t) => t.classList.remove('active'));
+                    document.querySelectorAll('.home-view').forEach((v) => {
+                        v.style.display = 'none';
+                        v.classList.remove('active');
+                    });
+                    const view = document.getElementById('home-view-curator-mixes');
+                    if (view) {
+                        view.style.display = 'block';
+                        view.classList.add('active');
+                        this.renderCuratorMixesPage();
+                    }
+                }};
+                if (tab.click) tab.click();
+            });
+        }
+
+        const showAllArtistsBtn = document.getElementById('home-recommended-artists-show-all');
+        if (showAllArtistsBtn && !showAllArtistsBtn.dataset.initialized) {
+            showAllArtistsBtn.dataset.initialized = 'true';
+            showAllArtistsBtn.addEventListener('click', () => {
+                const tab = document.querySelector('.home-tab[data-tab="artists"]');
+                if (tab) tab.click();
+            });
+        }
+
+        const showAllAlbumsBtn = document.getElementById('home-recommended-albums-show-all');
+        if (showAllAlbumsBtn && !showAllAlbumsBtn.dataset.initialized) {
+            showAllAlbumsBtn.dataset.initialized = 'true';
+            showAllAlbumsBtn.addEventListener('click', () => {
+                const tab = document.querySelector('.home-tab[data-tab="albums"]');
+                if (tab) tab.click();
             });
         }
 
@@ -3203,6 +3224,18 @@ export class UIRenderer {
                 container.innerHTML = '';
                 await loadMore();
             });
+
+            // Listen to scroll on the main content container for pagination
+            const scrollContainer = document.querySelector('.main-content');
+            if (scrollContainer) {
+                scrollContainer.addEventListener('scroll', () => {
+                    if (view.classList.contains('active')) {
+                        if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 400) {
+                            loadMore();
+                        }
+                    }
+                });
+            }
         }
 
         const loadMore = async () => {
@@ -3250,22 +3283,6 @@ export class UIRenderer {
         };
 
         await loadMore();
-
-        view.addEventListener('scroll', () => {
-            if (view.scrollTop + view.clientHeight >= view.scrollHeight - 200) {
-                loadMore();
-            }
-        });
-
-        // Also listen to window scroll if the view doesn't scroll itself
-        window.addEventListener('scroll', () => {
-            if (view.classList.contains('active')) {
-                const docElement = document.documentElement;
-                if (docElement.scrollTop + window.innerHeight >= docElement.scrollHeight - 200) {
-                    loadMore();
-                }
-            }
-        });
     }
 
     async renderHomeAlbumsPage() {
@@ -3289,6 +3306,18 @@ export class UIRenderer {
                 container.innerHTML = '';
                 await loadMore();
             });
+
+            // Listen to scroll on the main content container for pagination
+            const scrollContainer = document.querySelector('.main-content');
+            if (scrollContainer) {
+                scrollContainer.addEventListener('scroll', () => {
+                    if (view.classList.contains('active')) {
+                        if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 400) {
+                            loadMore();
+                        }
+                    }
+                });
+            }
         }
 
         const loadMore = async () => {
@@ -3337,21 +3366,6 @@ export class UIRenderer {
         };
 
         await loadMore();
-
-        view.addEventListener('scroll', () => {
-            if (view.scrollTop + view.clientHeight >= view.scrollHeight - 200) {
-                loadMore();
-            }
-        });
-
-        window.addEventListener('scroll', () => {
-            if (view.classList.contains('active')) {
-                const docElement = document.documentElement;
-                if (docElement.scrollTop + window.innerHeight >= docElement.scrollHeight - 200) {
-                    loadMore();
-                }
-            }
-        });
     }
 
     async renderExplorePage() {

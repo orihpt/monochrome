@@ -22,33 +22,27 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
                   ref: ${{ github.head_ref || github.ref }}
 
-            - name: Setup Bun
-              uses: oven-sh/setup-bun@v1
+            - name: Setup Node
+              uses: actions/setup-node@v4
               with:
-                  bun-version: latest
-
-            - name: Cache dependencies
-              uses: actions/cache@v3
-              with:
-                  path: |
-                      ./bun_modules
-                      ./node_modules
-                      ./bun.lock
-                  key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+                  node-version: '22'
+                  cache: 'yarn'
 
             - name: Install dependencies
-              run: bun install --frozen-lockfile
+              run: |
+                  corepack enable
+                  yarn install --immutable
 
             - name: Run JS Lint
-              run: bun run lint:js -- --fix
+              run: yarn lint:js --fix
               continue-on-error: true
 
             - name: Run CSS Lint
-              run: bun run lint:css -- --fix
+              run: yarn lint:css --fix
               continue-on-error: true
 
             - name: Format with Prettier
-              run: bun run format
+              run: yarn format
               continue-on-error: true
 
             - name: Commit and Push lint fixes
@@ -59,4 +53,4 @@ jobs:
                   commit_user_email: 'github-actions[bot]@users.noreply.github.com'
 
             - name: Run HTML Lint
-              run: bun run lint:html
+              run: yarn lint:html

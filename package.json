@@ -2,6 +2,7 @@
     "name": "monochrome",
     "type": "module",
     "version": "2.5.1",
+    "packageManager": "yarn@4.10.3",
     "description": "[<img src=\"https://github.com/monochrome-music/monochrome/blob/main/assets/512.png?raw=true\" alt=\"Monochrome Logo\">](https://monochrome.tf)",
     "scripts": {
         "dev": "vite",
@@ -16,10 +17,10 @@
         "lint:js": "eslint .",
         "lint:css": "stylelint \"**/*.css\"",
         "lint:html": "htmlhint \"**/*.html\" --ignore=\"dist/**,legacy/**,node_modules/**\"",
-        "lint": "bun run lint:js && bun run lint:css && bun run lint:html",
+        "lint": "yarn lint:js && yarn lint:css && yarn lint:html",
         "format": "prettier --write .",
         "lhci": "lhci",
-        "lhci:autorun": "npm run build && lhci autorun"
+        "lhci:autorun": "yarn build && lhci autorun"
     },
     "repository": {
         "type": "git",
@@ -60,7 +61,7 @@
         "vite-plugin-purgecss": "^0.2.13",
         "vite-plugin-pwa": "^1.2.0"
     },
-    "overrides": {
+    "resolutions": {
         "source-map": "^0.7.4",
         "serialize-javascript": "^7.0.3"
     },
@@ -93,7 +94,6 @@
         "jose": "^6.2.0",
         "lucide-static": "^0.577.0",
         "mime": "^4.1.0",
-        "npm": "^11.11.1",
         "pocketbase": "^0.26.8",
         "shaka-player": "^5.0.7",
         "simple-icons": "^16.12.0",

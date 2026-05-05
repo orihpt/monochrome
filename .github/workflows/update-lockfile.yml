@@ -19,22 +19,16 @@ jobs:
             - name: Configure Git
               uses: DanTheMan827/config-git-user-action@v1
 
-            - name: Setup Bun
-              uses: oven-sh/setup-bun@v1
+            - name: Setup Node
+              uses: actions/setup-node@v4
               with:
-                  bun-version: latest
-
-            - name: Cache dependencies
-              uses: actions/cache@v3
-              with:
-                  path: |
-                      ./bun_modules
-                      ./node_modules
-                      ./bun.lock
-                  key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+                  node-version: '22'
+                  cache: 'yarn'
 
             - name: Install dependencies
-              run: bun install
+              run: |
+                  corepack enable
+                  yarn install
 
             - name: Commit changes
               run: |

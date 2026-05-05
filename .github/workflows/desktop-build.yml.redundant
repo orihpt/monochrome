@@ -36,16 +36,21 @@ jobs:
               with:
                   fetch-depth: 1
 
-            - name: Setup Bun
-              uses: oven-sh/setup-bun@v2
+            - name: Setup Node
+              uses: actions/setup-node@v4
               with:
-                  bun-version: latest
+                  node-version: '22'
+                  cache: 'yarn'
 
             - name: Install dependencies
-              run: bun install
+              run: |
+                  corepack enable
+                  yarn install --immutable
 
             - name: Download Neutralino binaries
-              run: bun x neu update
+              run: |
+                  yarn global add @neutralinojs/neu
+                  neu update
 
             - name: Auto-Bump Version
               run: |
@@ -58,7 +63,7 @@ jobs:
               shell: pwsh
 
             - name: Build application
-              run: bun run build
+              run: yarn build
 
             - name: Prepare Release Folder
               run: |

@@ -21,7 +21,7 @@ Thank you for your interest in contributing to Monochrome! This guide will help 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (Version 22+ recommended)
-- [Bun](https://bun.sh/) (preferred) or [npm](https://www.npmjs.com/)
+- [Yarn](https://yarnpkg.com/) via Corepack
 
 ### Quick Start
 
@@ -37,17 +37,14 @@ Thank you for your interest in contributing to Monochrome! This guide will help 
 3. Install dependencies:
 
     ```bash
-    bun install
-    # or
-    npm install
+    corepack enable
+    yarn install
     ```
 
 4. Start the development server:
 
     ```bash
-    bun run dev
-    # or
-    npm run dev
+    yarn dev
     ```
 
 5. Open your browser:
@@ -72,26 +69,26 @@ We maintain high code quality standards. All code must pass our linting checks b
 
 ```bash
 # Check everything (runs all linters)
-bun run lint
+yarn lint
 
 # Auto-format all code
-bun run format
+yarn format
 
 # Fix JavaScript issues automatically
-bun run lint:js -- --fix
+yarn lint:js --fix
 
 # Fix CSS issues automatically
-bun run lint:css -- --fix
+yarn lint:css --fix
 
 # Check HTML
-bun run lint:html
+yarn lint:html
 
 # Check specific file types
-bun run lint:js
-bun run lint:css
+yarn lint:js
+yarn lint:css
 ```
 
-> ⚠️ **Important:** A GitHub Action automatically runs `bun run lint` on every push and pull request. Please ensure all checks pass before committing.
+> ⚠️ **Important:** A GitHub Action automatically runs `yarn lint` on every push and pull request. Please ensure all checks pass before committing.
 
 ---
 
@@ -192,10 +189,10 @@ git checkout -b fix/description-of-fix
 
 ```bash
 # Run all linters
-bun run lint
+yarn lint
 
 # Test the build
-bun run build
+yarn build
 ```
 
 ### 4. Commit Your Changes
@@ -323,7 +320,7 @@ If you need to deploy manually:
 
 ```bash
 # Build for production
-bun run build
+yarn build
 
 # The `dist/` folder contains the deployable files
 ```

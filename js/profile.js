@@ -1,4 +1,5 @@
-import { syncManager } from './accounts/pocketbase.js';
+import { db } from './db.js';
+import { syncManager } from './navidrome-sync.js';
 import { authManager } from './accounts/auth.js';
 import { navigate } from './router.js';
 import { MusicAPI } from './music-api.js';
@@ -16,7 +17,6 @@ const viewMyProfileBtn = document.getElementById('view-my-profile-btn');
 const editUsername = document.getElementById('edit-profile-username');
 const editDisplayName = document.getElementById('edit-profile-display-name');
 const editAvatar = document.getElementById('edit-profile-avatar');
-const editBanner = document.getElementById('edit-profile-banner');
 const editStatusSearch = document.getElementById('edit-profile-status-search');
 const editStatusJson = document.getElementById('edit-profile-status-json');
 const statusSearchResults = document.getElementById('status-search-results');
@@ -37,9 +37,22 @@ const usernameError = document.getElementById('username-error');
 let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
 
-async function uploadImage(file) {
-    console.log('Local-only: Upload disabled', file);
-    return '/assets/appicon.png';
+async function uploadImage(file, idPrefix) {
+    if (idPrefix !== 'edit-profile-avatar') {
+        console.log('Local-only: banner upload disabled', file);
+        return '/assets/no_album_cover.png';
+    }
+    const formData = new FormData();
+    formData.set('image', file);
+    const response = await fetch('/api/user/avatar', {
+        method: 'POST',
+        body: formData,
+    });
+    if (!response.ok) {
+        throw new Error(`Avatar upload failed: ${response.status}`);
+    }
+    const user = await MusicAPI.instance.subsonicAPI.fetchNative('/api/user/me').catch(() => null);
+    return user?.id ? `/api/user/${encodeURIComponent(user.id)}/avatar` : '/assets/user.png';
 }
 
 function setupImageUploadControl(idPrefix) {
@@ -87,7 +100,7 @@ function setupImageUploadControl(idPrefix) {
         uploadBtn.disabled = true;
 
         try {
-            const url = await uploadImage(file);
+            const url = await uploadImage(file, idPrefix);
             urlInput.value = url;
             statusEl.textContent = 'Done!';
             statusEl.style.color = '#10b981';
@@ -112,16 +125,14 @@ function setupImageUploadControl(idPrefix) {
 }
 
 const resetAvatarControl = setupImageUploadControl('edit-profile-avatar');
-const resetBannerControl = setupImageUploadControl('edit-profile-banner');
 
 export async function loadProfile(username) {
     document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
     profilePage.classList.add('active');
 
-    document.getElementById('profile-banner').style.backgroundImage = '';
-    document.getElementById('profile-avatar').src = '/assets/appicon.png';
+    document.getElementById('profile-avatar').src = '/assets/user.png';
     document.getElementById('profile-display-name').textContent = 'Loading...';
-    document.getElementById('profile-username').textContent = '@' + username;
+    document.getElementById('profile-username').textContent = username.startsWith('@') ? username : '@' + username;
     document.getElementById('profile-status').style.display = 'none';
     document.getElementById('profile-about').textContent = '';
     document.getElementById('profile-website').style.display = 'none';
@@ -154,7 +165,27 @@ export async function loadProfile(username) {
 
     editProfileBtn.style.display = 'none';
 
-    const profile = await syncManager.getProfile(username);
+    const subsonicUser = await MusicAPI.instance.subsonicAPI.getCurrentUser();
+    const isOwner = subsonicUser && subsonicUser.username.toLowerCase() === username.toLowerCase();
+
+    let profile = null;
+    if (isOwner) {
+        // Load my profile from local DB
+        const savedProfile = await db.getSetting('user_profile');
+        if (savedProfile) {
+            profile = savedProfile;
+        } else {
+            profile = {
+                username: subsonicUser.username,
+                display_name: subsonicUser.name || subsonicUser.username,
+                avatar_url: '/assets/user.png',
+                is_local: true,
+                user_playlists: {}
+            };
+        }
+    } else {
+        profile = await syncManager.getProfile(username);
+    }
 
     if (!profile) {
         document.getElementById('profile-display-name').textContent = 'User not found';
@@ -162,8 +193,8 @@ export async function loadProfile(username) {
     }
 
     document.getElementById('profile-display-name').textContent = profile.display_name || username;
-    if (profile.banner) document.getElementById('profile-banner').style.backgroundImage = `url('${profile.banner}')`;
     if (profile.avatar_url) document.getElementById('profile-avatar').src = profile.avatar_url;
+    else document.getElementById('profile-avatar').src = '/assets/user.png';
 
     if (profile.status) {
         const statusEl = document.getElementById('profile-status');
@@ -215,7 +246,7 @@ export async function loadProfile(username) {
             favAlbumsSection.style.display = 'block';
             favAlbumsContainer.innerHTML = profile.favorite_albums
                 .map((album) => {
-                    const image = api.getCoverUrl(album.cover);
+                    const image = album.cover ? api.getCoverUrl(album.cover) : '/assets/no_album_cover.png';
                     return `
                     <div class="favorite-album-item" style="display: flex; gap: 1rem; margin-bottom: 1rem; background: var(--card); padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border);">
                         <div class="card" style="width: 120px; flex-shrink: 0; padding: 0; border: none; background: transparent; cursor: pointer;" onclick="window.location.hash='/album/${album.id}'">
@@ -257,7 +288,7 @@ export async function loadProfile(username) {
                             const isNowPlaying = track['@attr']?.nowplaying === 'true';
                             let image = getLastFmImage(track.image);
                             const hasImage = !!image;
-                            if (!image) image = '/assets/appicon.png';
+                            if (!image) image = '/assets/no_album_cover.png';
 
                             track._imgId = `scrobble-img-${index}`;
                             track._needsCover = !hasImage;
@@ -274,7 +305,7 @@ export async function loadProfile(username) {
 
                             return `
                         <div class="track-item lastfm-track" data-title="${escapeHtml(track.name)}" data-artist="${escapeHtml(track.artist?.['#text'] || track.artist?.name || '')}" style="grid-template-columns: 40px 1fr auto; cursor: pointer;">
-                            <img id="${track._imgId}" src="${image}" class="track-item-cover" style="width: 40px; height: 40px; border-radius: 4px;" loading="lazy" onerror="this.src='/assets/appicon.png'">
+                            <img id="${track._imgId}" src="${image}" class="track-item-cover" style="width: 40px; height: 40px; border-radius: 4px;" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">
                             <div class="track-item-info">
                                 <div class="track-item-details">
                                     <div class="title">${track.name}</div>
@@ -316,7 +347,7 @@ export async function loadProfile(username) {
                         .map((artist, index) => {
                             let image = getLastFmImage(artist.image);
                             const hasImage = !!image;
-                            if (!image) image = '/assets/appicon.png';
+                            if (!image) image = '/assets/no_album_cover.png';
 
                             const imgId = `top-artist-img-${index}`;
                             artist._imgId = imgId;
@@ -325,7 +356,7 @@ export async function loadProfile(username) {
                             return `
                         <div class="card artist lastfm-card" data-name="${escapeHtml(artist.name)}" style="cursor: pointer;">
                             <div class="card-image-wrapper">
-                                <img id="${imgId}" src="${image}" class="card-image" loading="lazy" onerror="this.src='/assets/appicon.png'">
+                                <img id="${imgId}" src="${image}" class="card-image" loading="lazy" onerror="this.src='/assets/artist_placeholder.png'">
                             </div>
                             <div class="card-info">
                                 <div class="card-title">${artist.name}</div>
@@ -361,7 +392,7 @@ export async function loadProfile(username) {
                         .map((album, index) => {
                             let image = getLastFmImage(album.image);
                             const hasImage = !!image;
-                            if (!image) image = '/assets/appicon.png';
+                            if (!image) image = '/assets/no_album_cover.png';
 
                             const imgId = `top-album-img-${index}`;
                             album._imgId = imgId;
@@ -376,7 +407,7 @@ export async function loadProfile(username) {
                             return `
                         <div class="card lastfm-card" data-name="${escapeHtml(album.name)}" data-artist="${escapeHtml(artistName)}" style="cursor: pointer;">
                             <div class="card-image-wrapper">
-                                <img id="${imgId}" src="${image}" class="card-image" loading="lazy" onerror="this.src='/assets/appicon.png'">
+                                <img id="${imgId}" src="${image}" class="card-image" loading="lazy" onerror="this.src='/assets/artist_placeholder.png'">
                             </div>
                             <div class="card-info">
                                 <div class="card-title">${album.name}</div>
@@ -412,7 +443,7 @@ export async function loadProfile(username) {
                         .map((track, index) => {
                             let image = getLastFmImage(track.image);
                             const hasImage = !!image;
-                            if (!image) image = '/assets/appicon.png';
+                            if (!image) image = '/assets/no_album_cover.png';
 
                             const imgId = `top-track-img-${index}`;
                             track._imgId = imgId;
@@ -426,7 +457,7 @@ export async function loadProfile(username) {
 
                             return `
                         <div class="track-item lastfm-track" data-title="${escapeHtml(track.name)}" data-artist="${escapeHtml(artistName)}" style="grid-template-columns: 40px 1fr auto; cursor: pointer;">
-                            <img id="${imgId}" src="${image}" class="track-item-cover" style="width: 40px; height: 40px; border-radius: 4px;" loading="lazy" onerror="this.src='/assets/appicon.png'">
+                            <img id="${imgId}" src="${image}" class="track-item-cover" style="width: 40px; height: 40px; border-radius: 4px;" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">
                             <div class="track-item-info">
                                 <div class="track-item-details">
                                     <div class="title">${track.name}</div>
@@ -457,40 +488,41 @@ export async function loadProfile(username) {
             .catch(console.error);
     }
 
-    const currentUser = await syncManager.getUserData();
-    const isOwner = currentUser && currentUser.profile && currentUser.profile.username === username;
-
     if (isOwner) {
         editProfileBtn.style.display = 'inline-flex';
     }
 
-    if (profile.privacy?.playlists !== 'private' || isOwner) {
+    if (isOwner || (profile && profile.privacy?.playlists !== 'private')) {
         const container = document.getElementById('profile-playlists-container');
-        const playlists = profile.user_playlists || {};
+        let playlists = [];
+        
+        if (isOwner) {
+            // Get all playlists from local DB
+            playlists = await db.getPlaylists(true);
+        } else if (profile && profile.user_playlists) {
+            playlists = Object.values(profile.user_playlists);
+        }
 
-        Object.values(playlists).forEach((playlist) => {
-            if (!playlist.isPublic && !isOwner) return;
+        const publicPlaylists = playlists.filter(p => p.isPublic || p.visibility === 'public' || p.visibility === 'featured');
 
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="card-image-wrapper">
-                    <img src="${playlist.cover || '/assets/appicon.png'}" class="card-image" loading="lazy" alt="${playlist.name}">
-                </div>
-                <div class="card-info">
-                    <div class="card-title">${playlist.name}</div>
-                    <div class="card-subtitle">${playlist.numberOfTracks || 0} tracks</div>
-                </div>
-            `;
-            card.onclick = () => {
-                window.location.hash = `/userplaylist/${playlist.id}`;
-            };
-            container.appendChild(card);
-        });
-
-        if (container.children.length === 0) {
-            container.innerHTML =
-                '<p style="color: var(--muted-foreground); grid-column: 1/-1; text-align: center;">No public playlists.</p>';
+        if (publicPlaylists.length === 0) {
+            container.innerHTML = `<div class="empty-state">No public playlists found.</div>`;
+        } else {
+            publicPlaylists.forEach((playlist) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-image-wrapper">
+                        <img src="${playlist.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${escapeHtml(playlist.name)}</div>
+                        <div class="card-subtitle">${playlist.numberOfTracks} songs</div>
+                    </div>
+                `;
+                card.onclick = () => navigate(`/userplaylist/${playlist.id}`);
+                container.appendChild(card);
+            });
         }
     }
 }
@@ -503,7 +535,6 @@ export async function openEditProfile() {
         editUsername.value = p.username || '';
         editDisplayName.value = p.display_name || '';
         resetAvatarControl(p.avatar_url);
-        resetBannerControl(p.banner);
 
         editStatusJson.value = p.status || '';
         editStatusSearch.value = '';
@@ -563,7 +594,6 @@ async function saveProfile() {
         username: newUsername,
         display_name: editDisplayName.value.trim(),
         avatar_url: editAvatar.value.trim(),
-        banner: editBanner.value.trim(),
         status: editStatusJson.value.trim() || (editStatusSearch.value.trim() ? editStatusSearch.value.trim() : ''),
         about: editAbout.value.trim(),
         website: editWebsite.value.trim(),
@@ -592,9 +622,98 @@ async function saveProfile() {
     }
 }
 
-editProfileBtn.addEventListener('click', openEditProfile);
+editProfileBtn.addEventListener('click', () => navigate('/settings/profile'));
 cancelProfileBtn.addEventListener('click', () => editProfileModal.classList.remove('active'));
 saveProfileBtn.addEventListener('click', saveProfile);
+
+export async function initProfileEditPage() {
+    const data = await syncManager.getUserData();
+    if (!data || !data.profile) {
+        navigate('/home');
+        return;
+    }
+
+    const p = data.profile;
+    const dispInput = document.getElementById('edit-page-display-name');
+    const userInput = document.getElementById('edit-page-username');
+    const aboutInput = document.getElementById('edit-page-about');
+    const webInput = document.getElementById('edit-page-website');
+    const previewImg = document.getElementById('edit-page-avatar-preview');
+    const fileInput = document.getElementById('edit-page-avatar-file');
+    const uploadBtn = document.getElementById('edit-page-avatar-upload-btn');
+    const saveBtn = document.getElementById('edit-page-save-btn');
+    const cancelBtn = document.getElementById('edit-page-cancel-btn');
+    const errorText = document.getElementById('edit-page-username-error');
+
+    if (!dispInput || !userInput || !aboutInput || !webInput || !previewImg || !fileInput || !uploadBtn || !saveBtn || !cancelBtn || !errorText) return;
+
+    dispInput.value = p.display_name || '';
+    userInput.value = p.username || '';
+    aboutInput.value = p.about || '';
+    webInput.value = p.website || '';
+    previewImg.src = p.avatar_url || '/assets/user.png';
+
+    uploadBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            uploadBtn.disabled = true;
+            const url = await uploadImage(file, 'edit-profile-avatar');
+            previewImg.src = url;
+            p.avatar_url = url; // Temporarily store in memory
+        } catch (err) {
+            alert('Failed to upload image');
+            console.error(err);
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    };
+
+    saveBtn.onclick = async () => {
+        const newUsername = userInput.value.trim();
+        if (!newUsername) {
+            errorText.textContent = 'Username cannot be empty';
+            errorText.style.display = 'block';
+            return;
+        }
+
+        if (p.username !== newUsername) {
+            const taken = await syncManager.isUsernameTaken(newUsername);
+            if (taken) {
+                errorText.textContent = 'Username is already taken';
+                errorText.style.display = 'block';
+                return;
+            }
+        }
+
+        errorText.style.display = 'none';
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        const updated = {
+            ...p,
+            username: newUsername,
+            display_name: dispInput.value.trim(),
+            avatar_url: previewImg.src,
+            about: aboutInput.value.trim(),
+            website: webInput.value.trim(),
+        };
+
+        try {
+            await syncManager.updateProfile(updated);
+            navigate(`/user/@${newUsername}`);
+        } catch (e) {
+            alert('Failed to save profile');
+            console.error(e);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+        }
+    };
+
+    cancelBtn.onclick = () => window.history.back();
+}
 
 viewMyProfileBtn.addEventListener('click', async () => {
     const data = await syncManager.getUserData();

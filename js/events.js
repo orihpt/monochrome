@@ -110,7 +110,7 @@ async function showTrackLibraryMenu(trigger, track, ui) {
             return `<div class="track-library-menu-art track-library-menu-collage">${covers}</div>`;
         }
 
-        return `<img src="/assets/appicon.png" alt="" class="track-library-menu-art" loading="lazy">`;
+        return `<img src="/assets/no_album_cover.png" alt="" class="track-library-menu-art" loading="lazy">`;
     };
 
     const renderToggle = (active) => `
@@ -322,6 +322,9 @@ async function showTrackLibraryMenu(trigger, track, ui) {
             document.getElementById('playlist-description-input').value = '';
             createModal.dataset.editingId = '';
             document.getElementById('import-section').style.display = 'none';
+            if (typeof window.setPlaylistVisibilityControl === 'function') {
+                window.setPlaylistVisibilityControl('featured');
+            }
             createModal._pendingTracks = [track];
             createModal.classList.add('active');
             document.getElementById('playlist-name-input').focus();

@@ -1,5 +1,6 @@
 
 import { MusicAPI } from './music-api.js';
+import { db } from './db.js';
 
 export const initAuthModal = () => {
     const modal = document.getElementById('waves-music-auth-modal');
@@ -40,8 +41,13 @@ export const initAuthModal = () => {
             console.log('Waves Music Auth: Response received', response);
             if (response && response.status === 'ok') {
                 // Success! Save credentials
+                const previousUser = localStorage.getItem('subsonic_user');
+                if (previousUser && previousUser !== username) {
+                    await db.clearUserPlaylists();
+                }
                 localStorage.setItem('subsonic_user', username);
                 localStorage.setItem('subsonic_pass', password);
+                localStorage.setItem('waves_last_subsonic_user', username);
 
                 modal.style.animation = 'fadeIn 0.3s ease-out reverse';
                 setTimeout(() => {

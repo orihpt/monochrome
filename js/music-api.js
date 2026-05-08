@@ -261,12 +261,45 @@ export class MusicAPI {
         return [];
     }
 
+    async getCommunityActivity(limit = 20) {
+        if (typeof this.subsonicAPI.getCommunityActivity === 'function') {
+            return this.subsonicAPI.getCommunityActivity(limit);
+        }
+        return { recentlyPlayed: [], mostPlayed: [], followingRecent: [] };
+    }
+
+    async getFeaturedPlaylists(limit = 24) {
+        if (typeof this.subsonicAPI.getFeaturedPlaylists === 'function') {
+            return this.subsonicAPI.getFeaturedPlaylists(limit);
+        }
+        return [];
+    }
+
+    async searchUsers(query, limit = 20) {
+        if (typeof this.subsonicAPI.searchUsers === 'function') {
+            return this.subsonicAPI.searchUsers(query, limit);
+        }
+        return [];
+    }
+
+    async followUser(id) {
+        return this.subsonicAPI.followUser(id);
+    }
+
+    async unfollowUser(id) {
+        return this.subsonicAPI.unfollowUser(id);
+    }
+
     async createSubsonicPlaylist(name, trackIds = [], description = '') {
         return this.subsonicAPI.createPlaylist(name, trackIds, description);
     }
 
     async updateSubsonicPlaylist(id, updates = {}) {
         return this.subsonicAPI.updatePlaylist(id, updates);
+    }
+
+    async setPlaylistVisibility(id, visibility) {
+        return this.subsonicAPI.setPlaylistVisibility(id, visibility);
     }
 
     async importCuratorPlaylist(payload) {

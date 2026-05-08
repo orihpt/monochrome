@@ -136,6 +136,13 @@ export function createRouter(ui) {
                     await loadProfile(decodeURIComponent(param.slice(1)));
                 }
                 break;
+            case 'settings':
+                if (param === 'profile') {
+                    await ui.renderProfileEditPage();
+                } else {
+                    ui.showPage('settings');
+                }
+                break;
             default:
                 ui.showPage(page);
                 break;

@@ -799,6 +799,10 @@ export class MusicDatabase {
         });
     }
 
+    async clearUserPlaylists() {
+        await this.performTransaction('user_playlists', 'readwrite', (store) => store.clear());
+    }
+
     async updatePlaylistName(playlistId, newName) {
         const playlist = await this.performTransaction('user_playlists', 'readonly', (store) => store.get(playlistId));
         if (!playlist) throw new Error('Playlist not found');

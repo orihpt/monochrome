@@ -39,6 +39,17 @@ export class SubsonicAPI {
         return data['subsonic-response'];
     }
 
+    async fetchNative(path, options = {}) {
+        const response = await fetch(path, {
+            headers: options.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        if (!response.ok) {
+            throw new Error(`Native API request failed: ${response.status}`);
+        }
+        return response.json();
+    }
+
     async getCurrentUser() {
         const username = localStorage.getItem('subsonic_user') || this.user;
         const res = await this.fetchAPI('getUser', `username=${encodeURIComponent(username)}`);
@@ -162,7 +173,7 @@ export class SubsonicAPI {
     }
 
     getCoverUrl(id, size) {
-        if (!id) return '/assets/1024w_new.png';
+        if (!id) return '/assets/no_album_cover.png';
         return `${this.baseUrl}/getCoverArt.view${this.credentials}&id=${id}&size=${size || 300}`;
     }
 
@@ -175,7 +186,7 @@ export class SubsonicAPI {
 
     getArtistPictureUrl(id /*, size */) {
         if (typeof id === 'string' && id.startsWith('/rest/')) return id;
-        if (!id) return '/assets/appicon.png';
+        if (!id) return '/assets/artist_placeholder.png';
         
         // Use Navidrome's rich image endpoint for artists as it's more reliable
         // Strip 'ar-' prefix and any '_0' suffix to get the raw artist ID
@@ -415,6 +426,47 @@ export class SubsonicAPI {
         this.throwIfSubsonicError(res);
         const playlists = res?.playlists?.playlist || [];
         return playlists.map((playlist) => this.preparePlaylist(playlist)).filter(Boolean);
+    }
+
+    async getCommunityActivity(limit = 20) {
+        const data = await this.fetchNative(`/api/community/activity?limit=${encodeURIComponent(limit)}`);
+        return {
+            recentlyPlayed: (data.recentlyPlayed || []).map((song) => this.prepareTrack(song)).filter(Boolean),
+            mostPlayed: (data.mostPlayed || []).map((song) => this.prepareTrack(song)).filter(Boolean),
+            followingRecent: (data.followingRecent || []).map((song) => this.prepareTrack(song)).filter(Boolean),
+        };
+    }
+
+    async getFeaturedPlaylists(limit = 24) {
+        const playlists = await this.fetchNative(`/api/community/featured?limit=${encodeURIComponent(limit)}`);
+        return (playlists || []).map((playlist) => this.preparePlaylist(playlist)).filter(Boolean);
+    }
+
+    async searchUsers(query, limit = 20) {
+        try {
+            return await this.fetchNative(`/api/user/search?q=${encodeURIComponent(query || '')}&limit=${encodeURIComponent(limit)}`);
+        } catch (error) {
+            console.warn('Native user search failed, falling back to Subsonic getUsers:', error);
+            const res = await this.fetchAPI('getUsers');
+            const users = res?.users?.user || [];
+            const q = String(query || '').trim().toLowerCase();
+            return users
+                .map((user) => ({
+                    id: user.username,
+                    userName: user.username,
+                    name: user.username,
+                }))
+                .filter((user) => !q || user.userName.toLowerCase().includes(q) || user.name.toLowerCase().includes(q))
+                .slice(0, limit);
+        }
+    }
+
+    async followUser(id) {
+        return this.fetchNative(`/api/user/${encodeURIComponent(id)}/follow`, { method: 'POST' });
+    }
+
+    async unfollowUser(id) {
+        return this.fetchNative(`/api/user/${encodeURIComponent(id)}/follow`, { method: 'DELETE' });
     }
 
     async getAllArtists(options = {}) {
@@ -664,7 +716,20 @@ export class SubsonicAPI {
         if (updates.public != null) params.set('public', updates.public ? 'true' : 'false');
         const res = await this.fetchAPI('updatePlaylist', params.toString());
         this.throwIfSubsonicError(res);
+        if (updates.visibility != null) {
+            await this.setPlaylistVisibility(id, updates.visibility);
+        }
         return true;
+    }
+
+    async setPlaylistVisibility(id, visibility) {
+        const playlist = await this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`);
+        playlist.visibility = visibility;
+        playlist.public = visibility === 'public' || visibility === 'featured';
+        return this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`, {
+            method: 'PUT',
+            body: JSON.stringify(playlist),
+        });
     }
 
     async importCuratorPlaylist({ name, description, file }) {

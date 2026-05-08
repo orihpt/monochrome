@@ -217,7 +217,7 @@ export class ListeningPartyManager {
                                 const name = modal.querySelector('#guest-name-input').value.trim() || 'Guest';
                                 const profile = {
                                     name,
-                                    avatar_url: '/assets/appicon.png',
+                                    avatar_url: '/assets/user.png',
                                 };
                                 localStorage.setItem('party_guest_profile', JSON.stringify(profile));
                                 return { profile };
@@ -247,13 +247,13 @@ export class ListeningPartyManager {
             const name =
                 pbUser?.display_name || pbUser?.username || user.displayName || user.email?.split('@')[0] || 'Member';
             const avatar =
-                pbUser?.avatar_url || user.photoURL || '/assets/appicon.png';
+                pbUser?.avatar_url || user.photoURL || '/assets/user.png';
             return { name, avatar_url: avatar };
         }
         const cached = localStorage.getItem('party_guest_profile');
         return cached
             ? JSON.parse(cached)
-            : { name: 'Guest', avatar_url: '/assets/appicon.png' };
+            : { name: 'Guest', avatar_url: '/assets/user.png' };
     }
 
     setupSubscriptions(partyId) {

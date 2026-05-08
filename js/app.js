@@ -1,14 +1,12 @@
 //js/app.js
 import { registerSW } from 'virtual:pwa-register';
-import { HiFiClient } from './HiFi.js';
-import { modernSettings } from './ModernSettings.js';
-import { syncManager } from './navidrome-sync.js';
 import { initAnalytics } from './analytics.js';
 import './commandPalette.js';
 import { db } from './db.js';
 import { showNotification } from './downloads.js';
 import { handleTrackAction, initializePlayerEvents, initializeTrackInteractions } from './events.js';
 import { hapticLight } from './haptics.js';
+import { HiFiClient } from './HiFi.js';
 import {
     SVG_ANIMATE_SPIN,
     SVG_CLOSE,
@@ -17,8 +15,10 @@ import {
     SVG_RESET
 } from './icons.js';
 import { clearLyricsPanelSync, LyricsManager, openLyricsPanel } from './lyrics.js';
+import { modernSettings } from './ModernSettings.js';
 import { MultiScrobbler } from './multi-scrobbler.js';
 import { MusicAPI } from './music-api.js';
+import { syncManager } from './navidrome-sync.js';
 import { Player } from './player.js';
 import {
     importToLibrary,
@@ -46,6 +46,33 @@ import { initTracker } from './tracker.js';
 import { initializeUIInteractions } from './ui-interactions.js';
 import { UIRenderer } from './ui.js';
 import { debounce, getShareUrl, trackDataStore } from './utils.js';
+
+function setPlaylistVisibilityControl(visibility = 'featured') {
+    const normalized = ['private', 'public', 'featured'].includes(visibility) ? visibility : 'featured';
+    const valueInput = document.getElementById('playlist-visibility-select');
+    if (valueInput) valueInput.value = normalized;
+    document.querySelectorAll('.playlist-visibility-option').forEach((button) => {
+        const active = button.dataset.visibility === normalized;
+        button.classList.toggle('btn-primary', active);
+        button.classList.toggle('btn-secondary', !active);
+        const checkIcon = button.querySelector('.check-icon');
+        if (checkIcon) checkIcon.style.display = active ? 'block' : 'none';
+    });
+}
+window.setPlaylistVisibilityControl = setPlaylistVisibilityControl;
+
+async function clearPlaylistsIfUserChanged() {
+    const currentUser = localStorage.getItem('subsonic_user') || '';
+    const previousUser = localStorage.getItem('waves_last_subsonic_user') || '';
+    if (currentUser && previousUser && currentUser !== previousUser) {
+        await db.clearUserPlaylists().catch((error) => console.warn('Failed to clear local playlists:', error));
+    }
+    if (currentUser) {
+        localStorage.setItem('waves_last_subsonic_user', currentUser);
+    }
+}
+
+void clearPlaylistsIfUserChanged();
 
 // Capture real iOS state before spoofing (needed for background audio)
 if (typeof window !== 'undefined') {
@@ -96,14 +123,14 @@ function showCuratorImportResults(result) {
         .map(([title, rows]) => {
             const body = rows.length
                 ? rows
-                      .map(
-                          (row) => `
+                    .map(
+                        (row) => `
                             <div class="modal-list-item" style="display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center">
                                 <span>${escapeHtml(row.artist || '')} - ${escapeHtml(row.name || '')}${row.album ? ` (${escapeHtml(row.album)})` : ''}</span>
                                 <span style="opacity: 0.65">${escapeHtml(row.isrc || '')}</span>
                             </div>`
-                      )
-                      .join('')
+                    )
+                    .join('')
                 : '<div class="modal-list-item" style="opacity: 0.65">אין שירים</div>';
             return `
                 <section style="margin: 1rem 0">
@@ -301,7 +328,7 @@ async function disablePwaForAuthGate() {
 
 async function uploadCoverImage(file) {
     console.log('Local-only: Upload disabled', file);
-    return '/assets/appicon.png';
+    return '/assets/no_album_cover.png';
 }
 
 import { initAuthModal } from './auth-modal.js';
@@ -1154,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             modal.dataset.editingId = '';
             document.getElementById('import-section').style.display = isCuratorUser ? 'none' : 'block';
             document.getElementById('curator-import-section').style.display = isCuratorUser ? 'block' : 'none';
-            document.getElementById('playlist-public-setting').style.display = isCuratorUser ? 'flex' : 'none';
+            document.getElementById('playlist-public-setting').style.display = 'flex';
             document.getElementById('curator-import-file-input').value = '';
             document.getElementById('csv-file-input').value = '';
             document.getElementById('ytm-url-input').value = '';
@@ -1176,8 +1203,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Reset Public Toggle
             const publicToggle = document.getElementById('playlist-public-toggle');
+            const visibilitySelect = document.getElementById('playlist-visibility-select');
             const shareBtn = document.getElementById('playlist-share-btn');
             if (publicToggle) publicToggle.checked = false;
+            setPlaylistVisibilityControl('featured');
             if (shareBtn) shareBtn.style.display = 'none';
 
             // Reset cover upload state
@@ -1198,6 +1227,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             modal.classList.add('active');
             document.getElementById('playlist-name-input').focus();
+        }
+
+        const visibilityButton = e.target.closest('.playlist-visibility-option');
+        if (visibilityButton) {
+            e.preventDefault();
+            setPlaylistVisibilityControl(visibilityButton.dataset.visibility);
+        }
+
+        const followUserBtn = e.target.closest('[data-action="follow-user"]');
+        if (followUserBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const userId = followUserBtn.dataset.userId;
+            if (userId) {
+                followUserBtn.disabled = true;
+                try {
+                    await MusicAPI.instance.followUser(userId);
+                    followUserBtn.textContent = 'Following';
+                } catch (error) {
+                    console.error('Failed to follow user:', error);
+                    showNotification('Failed to follow user.', 'error');
+                    followUserBtn.disabled = false;
+                }
+            }
         }
 
         if (e.target.closest('#create-folder-btn') || e.target.closest('#library-create-folder-card')) {
@@ -1252,7 +1305,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target.closest('#playlist-modal-save')) {
             let name = document.getElementById('playlist-name-input').value.trim();
             let description = document.getElementById('playlist-description-input').value.trim();
-            const isPublic = document.getElementById('playlist-public-toggle')?.checked;
+            const visibility = document.getElementById('playlist-visibility-select')?.value || 'featured';
+            const isPublic = visibility !== 'private';
             const isStrictAlbumMatch = document.getElementById('strict-album-match-toggle')?.checked;
 
             if (name) {
@@ -1279,6 +1333,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                         if (isPublic && playlist?.id) {
                             await MusicAPI.instance.setCuratorPlaylistPublished(playlist.id, true);
+                        }
+                        if (playlist?.id && typeof MusicAPI.instance.setPlaylistVisibility === 'function') {
+                            await MusicAPI.instance.setPlaylistVisibility(playlist.id, visibility);
                         }
                         modal.classList.remove('active');
                         UIRenderer.instance.renderLibraryPage();
@@ -1319,9 +1376,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             playlist.name = name;
                             playlist.cover = cover;
                             playlist.description = description;
+                            playlist.visibility = visibility;
                             await handlePublicStatus(playlist);
                             await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
                             await syncManager.syncUserPlaylist(playlist, 'update');
+                            window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
                             UIRenderer.instance.renderLibraryPage();
                             // Also update current page if we are on it
                             if (window.location.pathname === `/userplaylist/${editingId}`) {
@@ -1834,10 +1893,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     await db.createPlaylist(name, tracks, cover, description).then(async (playlist) => {
+                        playlist.visibility = visibility;
                         await handlePublicStatus(playlist);
-                        // Update DB again with isPublic flag
+                        // Update DB again with isPublic flag and visibility
                         await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
                         await syncManager.syncUserPlaylist(playlist, 'create');
+                        window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
                         UIRenderer.instance.renderLibraryPage();
                         modal.classList.remove('active');
                     });
@@ -1857,21 +1918,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             await db.getPlaylist(playlistId).then(async (playlist) => {
                 if (playlist) {
                     const modal = document.getElementById('playlist-modal');
-                    document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
+                    document.getElementById('playlist-modal-title').textContent = 'עריכת הפלייליסט';
                     document.getElementById('playlist-name-input').value = playlist.name;
                     document.getElementById('playlist-cover-input').value = playlist.cover || '';
                     document.getElementById('playlist-description-input').value = playlist.description || '';
                     document.getElementById('curator-import-section').style.display = 'none';
                     document.getElementById('import-section').style.display = 'none';
-                    document.getElementById('playlist-public-setting').style.display = 'none';
+                    document.getElementById('playlist-public-setting').style.display = 'flex';
 
                     // Set Public Toggle
                     const publicToggle = document.getElementById('playlist-public-toggle');
+                    const visibilitySelect = document.getElementById('playlist-visibility-select');
                     const shareBtn = document.getElementById('playlist-share-btn');
 
                     // Check if actually public in Pocketbase to be sure (async) or trust local flag
                     // We trust local flag for UI speed, but could verify.
                     if (publicToggle) publicToggle.checked = !!playlist.isPublic;
+                    setPlaylistVisibilityControl(playlist.visibility || (playlist.isPublic ? 'public' : 'private'));
 
                     if (shareBtn) {
                         shareBtn.style.display = playlist.isPublic ? 'flex' : 'none';
@@ -1932,18 +1995,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .then((playlist) => {
                     if (playlist) {
                         const modal = document.getElementById('playlist-modal');
-                        document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
+                        document.getElementById('playlist-modal-title').textContent = 'עריכת הפלייליסט';
                         document.getElementById('playlist-name-input').value = playlist.name;
                         document.getElementById('playlist-cover-input').value = playlist.cover || '';
                         document.getElementById('playlist-description-input').value = playlist.description || '';
                         document.getElementById('curator-import-section').style.display = 'none';
                         document.getElementById('import-section').style.display = 'none';
-                        document.getElementById('playlist-public-setting').style.display = 'none';
+                        document.getElementById('playlist-public-setting').style.display = 'flex';
 
                         const publicToggle = document.getElementById('playlist-public-toggle');
+                        const visibilitySelect = document.getElementById('playlist-visibility-select');
                         const shareBtn = document.getElementById('playlist-share-btn');
 
                         if (publicToggle) publicToggle.checked = !!playlist.isPublic;
+                        if (visibilitySelect) setPlaylistVisibilityControl(playlist.visibility || (playlist.isPublic ? 'public' : 'private'));
                         if (shareBtn) {
                             shareBtn.style.display = playlist.isPublic ? 'flex' : 'none';
                             shareBtn.onclick = async () => {
@@ -2151,6 +2216,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('playlist-cover-input').value = '';
                         createModal.dataset.editingId = '';
                         document.getElementById('import-section').style.display = 'none'; // Hide import for simple add
+                        document.getElementById('playlist-public-setting').style.display = 'flex';
+                        setPlaylistVisibilityControl('featured');
 
                         // Pass tracks
                         createModal._pendingTracks = tracks;
@@ -2646,9 +2713,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 headerAccountDropdown.innerHTML = `
                     <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border)">
                         <div style="font-size: 0.85rem; color: var(--muted-foreground)">מחובר בתור</div>
-                        <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)">${username}</div>
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)" id="header-account-display-name">${username}</div>
                     </div>
                     <div style="padding: 0.5rem">
+                        <button class="btn-secondary" id="header-nav-profile" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span>הפרופיל שלי</span>
+                        </button>
                         <button class="btn-secondary" id="header-nav-settings" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span>הגדרות</span>
@@ -2668,6 +2739,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
 
+                document.getElementById('header-nav-profile')?.addEventListener('click', async () => {
+                    headerAccountDropdown.classList.remove('active');
+                    const username = localStorage.getItem('subsonic_user');
+                    if (username) navigate(`/user/@${username}`);
+                    else navigate('/settings/profile');
+                });
+
                 document.getElementById('header-nav-settings')?.addEventListener('click', () => {
                     headerAccountDropdown.classList.remove('active');
                     navigate('/settings');
@@ -2685,9 +2763,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const signOutBtn = document.getElementById('header-sign-out');
                 if (signOutBtn) {
-                    signOutBtn.onclick = () => {
+                    signOutBtn.onclick = async () => {
+                        await db.clearUserPlaylists().catch((error) => console.warn('Failed to clear local playlists:', error));
                         localStorage.removeItem('subsonic_user');
                         localStorage.removeItem('subsonic_pass');
+                        localStorage.removeItem('waves_last_subsonic_user');
                         window.location.reload();
                     };
                 }

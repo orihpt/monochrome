@@ -64,7 +64,7 @@ const exactTranslations = new Map(
         'Create Playlist': 'צור פלייליסט',
         'Playlist name': 'שם הפלייליסט',
         'Cover image URL': 'קישור לתמונת עטיפה',
-        'Description (optional)': 'תיאור (אופציונלי)',
+        'תיאור (לא חובה)': 'תיאור (אופציונלי)',
         'Upload': 'העלה',
         'or URL': 'או קישור',
         'Import from CSV': 'ייבוא מ-CSV',

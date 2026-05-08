@@ -89,6 +89,7 @@ export const syncManager = {
 
     // Compatibility methods for existing code
     async getPublicPlaylist() { return null; },
+    async getProfile() { return null; },
     async syncUserFolder() {},
     async publishPlaylist() {},
     async unpublishPlaylist() {},

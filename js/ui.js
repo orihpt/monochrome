@@ -8,6 +8,7 @@ import { showNotification } from './downloads.js';
 import { partyManager } from './listening-party.js';
 import { clearFullscreenLyricsSync, renderLyricsInFullscreen, renderLyricsInPage } from './lyrics.js';
 import { navigate } from './router.js';
+import { loadProfile, initProfileEditPage } from './profile.js';
 import { sidePanelManager } from './side-panel.js';
 import {
     backgroundSettings,
@@ -215,6 +216,8 @@ export class UIRenderer {
     constructor(api, player) {
         this.api = api;
         this.player = player;
+        this.initializeHeaderAccount();
+
         this.currentTrack = null;
         this.searchAbortController = null;
         this.vibrantColorCache = new Map();
@@ -273,6 +276,59 @@ export class UIRenderer {
         window.addEventListener('playlist-tracks-changed', () => {
             this.trackLibraryStateCache = null;
         });
+    }
+
+    initializeHeaderAccount() {
+        authManager.onAuthStateChanged(async (user) => {
+            await this.updateHeaderAccountIcon(user);
+        });
+    }
+
+    async updateHeaderAccountIcon(user) {
+        const iconWrap = document.getElementById('header-account-icon');
+        const img = document.getElementById('header-account-img');
+        const btn = document.getElementById('header-account-btn');
+
+        if (!iconWrap || !img || !btn) return;
+
+        let avatarUrl = '/assets/user.png';
+        let displayName = 'Account';
+
+        const subsonicUser = localStorage.getItem('subsonic_user');
+        if (subsonicUser) {
+            displayName = subsonicUser;
+            try {
+                const fullUser = await this.api.subsonicAPI.getCurrentUser();
+                if (fullUser) {
+                    displayName = fullUser.name || fullUser.username;
+                    if (fullUser.id) {
+                        avatarUrl = `/api/user/${encodeURIComponent(fullUser.id)}/avatar`;
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to fetch full user for header icon', e);
+            }
+        } else if (user) {
+            displayName = user.displayName || user.email;
+        }
+
+        img.src = avatarUrl;
+        img.onerror = () => {
+            img.style.display = 'none';
+            const defaultIcon = document.getElementById('header-account-default-icon');
+            if (defaultIcon) defaultIcon.style.display = 'block';
+        };
+
+        img.onload = () => {
+            img.style.display = 'block';
+            const defaultIcon = document.getElementById('header-account-default-icon');
+            if (defaultIcon) defaultIcon.style.display = 'none';
+        };
+
+        btn.title = displayName;
+
+        const dropdownName = document.getElementById('header-account-display-name');
+        if (dropdownName) dropdownName.textContent = displayName;
     }
 
     static async initialize(api, player) {
@@ -422,7 +478,7 @@ export class UIRenderer {
                             ? this.api.getArtistPictureUrl(item.cover)
                             : this.api.getCoverUrl(item.cover);
                     const coverClass = item.type === 'artist' ? 'artist' : '';
-                    iconHTML = `<img src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='assets/1024w_new.png'">`;
+                    iconHTML = `<img src="${coverUrl}" class="pinned-item-cover ${coverClass}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">`;
                 }
 
                 return `
@@ -604,7 +660,7 @@ export class UIRenderer {
         const trackTitle = getTrackTitle(track);
         const isCurrentTrack = this.player?.currentTrack?.id === track.id;
 
-        if (track.isLocal && (!track.album?.cover || track.album.cover === 'assets/appicon.png')) {
+        if (track.isLocal && (!track.album?.cover || track.album.cover === '/assets/no_album_cover.png')) {
             showCover = false;
         }
 
@@ -701,7 +757,7 @@ export class UIRenderer {
         }
 
         const artistFallbackId = (typeof cover === 'string' && cover.startsWith('ar-')) ? cover : `ar-${cover}`;
-        const fallbackUrl = type === 'artist' ? this.api.getCoverUrl(artistFallbackId, size) : 'assets/1024w_new.png';
+        const fallbackUrl = type === 'artist' ? this.api.getCoverUrl(artistFallbackId, size) : '/assets/no_album_cover.png';
         return `<img src="${imageUrl}" class="${className}" alt="${alt}" loading="${loading}" onerror="this.src='${fallbackUrl}'; this.onerror=null;">`;
     }
 
@@ -794,7 +850,7 @@ export class UIRenderer {
     }
 
     createMixCardHTML(mix) {
-        const imageSrc = mix.cover || '/assets/appicon.png';
+        const imageSrc = mix.cover || '/assets/no_album_cover.png';
         const description = mix.subTitle || mix.description || '';
         const isCompact = cardSettings.isCompactAlbum();
 
@@ -810,6 +866,25 @@ export class UIRenderer {
                     ${this.createHeartIcon(false)}
                 </button>
             `,
+            isCompact,
+        });
+    }
+
+    createUserCardHTML(user) {
+        const avatar = user.avatarFile ? `/api/user/${encodeURIComponent(user.id)}/avatar` : '/assets/user.png';
+        const name = user.display_name || user.userName || user.name || 'User';
+        const isCompact = cardSettings.isCompactAlbum();
+
+        return this.createBaseCardHTML({
+            type: 'user',
+            id: user.id,
+            href: `/user/@${user.userName}`,
+            title: escapeHtml(name),
+            subtitle: `@${user.userName}`,
+            imageHTML: `
+                    <img src="${avatar}" alt="${escapeHtml(name)}" class="card-image" loading="lazy" onerror="this.src='/assets/user.png'">
+            `,
+            actionButtonsHTML: '',
             isCompact,
         });
     }
@@ -854,7 +929,7 @@ export class UIRenderer {
             } else if (uniqueCovers.length > 0) {
                 imageHTML = `<img src="${this.api.getCoverUrl(uniqueCovers[0])}" alt="${playlist.name}" class="card-image" loading="lazy">`;
             } else {
-                imageHTML = `<img src="/assets/appicon.png" alt="${playlist.name}" class="card-image" loading="lazy">`;
+                imageHTML = `<img src="/assets/no_album_cover.png" alt="${playlist.name}" class="card-image" loading="lazy">`;
             }
         }
 
@@ -871,7 +946,7 @@ export class UIRenderer {
             subtitle,
             imageHTML: imageHTML,
             actionButtonsHTML: `
-                <button class="edit-playlist-btn" data-action="edit-playlist" title="Edit Playlist">
+                <button class="edit-playlist-btn" data-action="edit-playlist" title="עריכת הפלייליסט">
                     ${SVG_SQUARE_PEN(20)}
                 </button>
                 <button class="delete-playlist-btn" data-action="delete-playlist" title="Delete Playlist">
@@ -2885,19 +2960,21 @@ export class UIRenderer {
         if (showAllMixesBtn && !showAllMixesBtn.dataset.initialized) {
             showAllMixesBtn.dataset.initialized = 'true';
             showAllMixesBtn.addEventListener('click', async () => {
-                const tab = document.querySelector('.home-tab[data-tab="curator-mixes"]') || { click: () => {
-                    document.querySelectorAll('.home-tab').forEach((t) => t.classList.remove('active'));
-                    document.querySelectorAll('.home-view').forEach((v) => {
-                        v.style.display = 'none';
-                        v.classList.remove('active');
-                    });
-                    const view = document.getElementById('home-view-curator-mixes');
-                    if (view) {
-                        view.style.display = 'block';
-                        view.classList.add('active');
-                        this.renderCuratorMixesPage();
+                const tab = document.querySelector('.home-tab[data-tab="curator-mixes"]') || {
+                    click: () => {
+                        document.querySelectorAll('.home-tab').forEach((t) => t.classList.remove('active'));
+                        document.querySelectorAll('.home-view').forEach((v) => {
+                            v.style.display = 'none';
+                            v.classList.remove('active');
+                        });
+                        const view = document.getElementById('home-view-curator-mixes');
+                        if (view) {
+                            view.style.display = 'block';
+                            view.classList.add('active');
+                            this.renderCuratorMixesPage();
+                        }
                     }
-                }};
+                };
                 if (tab.click) tab.click();
             });
         }
@@ -2945,10 +3022,66 @@ export class UIRenderer {
                     await this.renderHomeArtistsPage();
                 } else if (tab.dataset.tab === 'albums') {
                     await this.renderHomeAlbumsPage();
+                } else if (tab.dataset.tab === 'community') {
+                    await this.renderCommunityPage();
                 } else if (tab.dataset.tab === 'artist-requests') {
                     await this.renderArtistRequestsPage();
                 }
             });
+        }
+    }
+
+    async renderCommunityPage() {
+        const recentlyEl = document.getElementById('community-recently-played');
+        const mostEl = document.getElementById('community-most-played');
+        const followingEl = document.getElementById('community-following-played');
+        const featuredEl = document.getElementById('community-featured-playlists');
+        if (!recentlyEl || !mostEl || !followingEl || !featuredEl) return;
+
+        recentlyEl.innerHTML = this.createSkeletonTracks(6, true);
+        mostEl.innerHTML = this.createSkeletonTracks(6, true);
+        followingEl.innerHTML = this.createSkeletonTracks(6, true);
+        featuredEl.innerHTML = this.createSkeletonCards(8, false);
+
+        try {
+            const [activity, featuredPlaylists] = await Promise.all([
+                this.api.getCommunityActivity(20),
+                this.api.getFeaturedPlaylists(24),
+            ]);
+
+            if (activity.recentlyPlayed?.length) {
+                await this.renderListWithTracks(recentlyEl, activity.recentlyPlayed, true, false, false, true);
+            } else {
+                recentlyEl.innerHTML = createPlaceholder('אין עדיין השמעות בקהילה.');
+            }
+
+            if (activity.mostPlayed?.length) {
+                await this.renderListWithTracks(mostEl, activity.mostPlayed, true, false, false, true);
+            } else {
+                mostEl.innerHTML = createPlaceholder('אין עדיין שירים מובילים.');
+            }
+
+            if (activity.followingRecent?.length) {
+                await this.renderListWithTracks(followingEl, activity.followingRecent, true, false, false, true);
+            } else {
+                followingEl.innerHTML = createPlaceholder('עקבו אחרי משתמשים כדי לראות מה הם שומעים.');
+            }
+
+            featuredEl.innerHTML = featuredPlaylists.length
+                ? featuredPlaylists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('')
+                : createPlaceholder('אין עדיין פלייליסטים מומלצים.');
+
+            for (const playlist of featuredPlaylists) {
+                const el = featuredEl.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid))}"]`);
+                if (el) trackDataStore.set(el, playlist);
+            }
+        } catch (error) {
+            console.warn('Failed to load community page:', error);
+            const errorMsg = createPlaceholder('לא ניתן לטעון את פעילות הקהילה.');
+            recentlyEl.innerHTML = errorMsg;
+            mostEl.innerHTML = errorMsg;
+            followingEl.innerHTML = errorMsg;
+            featuredEl.innerHTML = errorMsg;
         }
     }
 
@@ -3775,9 +3908,10 @@ export class UIRenderer {
         const isTrack = kind === 'track';
         const isAlbum = kind === 'album';
         const isArtist = kind === 'artist';
-        const typeLabel = isTrack ? 'שיר' : isAlbum ? 'אלבום' : 'אמן';
+        const isUser = kind === 'user';
+        const typeLabel = isTrack ? 'שיר' : isAlbum ? 'אלבום' : isUser ? 'משתמש' : 'אמן';
         const id = item.id;
-        const href = isTrack ? `/track/${id}` : isAlbum ? (item._href || `/album/${id}`) : `/artist/${id}`;
+        const href = isTrack ? `/track/${id}` : isAlbum ? (item._href || `/album/${id}`) : isUser ? `/profile/${id}` : `/artist/${id}`;
         const explicitBadge = hasExplicitContent(item) ? this.createExplicitBadge() : '';
         const qualityBadge = createQualityBadgeHTML(item);
 
@@ -3867,6 +4001,16 @@ export class UIRenderer {
             `;
             extraClasses = `artist${contentBlockingSettings?.shouldHideArtist(item) ? ' blocked' : ''}`;
             extraAttributes = contentBlockingSettings?.shouldHideArtist(item) ? 'title="Blocked: Artist blocked"' : '';
+        } else if (isUser) {
+            title = escapeHtml(item.name || item.userName || 'User');
+            subtitle = escapeHtml([typeLabel, item.userName ? `@${item.userName}` : ''].filter(Boolean).join(' • '));
+            imageHTML = `<img src="${item.avatarFile ? `/api/user/${encodeURIComponent(item.id)}/avatar` : '/assets/user.png'}" alt="${title}" class="search-all-image" loading="${isFeatured ? 'eager' : 'lazy'}" onerror="this.src='/assets/user.png'">`;
+            actionHTML = `
+                <button class="btn-secondary search-all-action" data-action="follow-user" data-user-id="${escapeHtml(id)}" title="Follow">
+                    Follow
+                </button>
+            `;
+            extraClasses = 'user';
         }
 
         return `
@@ -4022,8 +4166,45 @@ export class UIRenderer {
     }
 
     async renderHomeEditorsPicks(forceRefresh = false, containerId = 'home-editors-picks') {
-        return; // Disabled for offline-first local media ecosystem
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
+        if (!homePageSettings.shouldShowEditorsPicks()) {
+            const section = container.closest('.content-section');
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        try {
+            const playlists = await db.getPlaylists(true);
+            const featured = playlists.filter(p => p.visibility === 'featured');
+
+            if (featured.length === 0) {
+                const section = container.closest('.content-section');
+                if (section) section.style.display = 'none';
+                return;
+            }
+
+            const section = container.closest('.content-section');
+            if (section) section.style.display = 'block';
+
+            container.innerHTML = featured.map(p => `
+                <div class="card" onclick="window.location.hash='/userplaylist/${p.id}'">
+                    <div class="card-image-wrapper">
+                        <img src="${p.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
+                        <button class="play-button" aria-label="Play ${escapeHtml(p.name)}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${escapeHtml(p.name)}</div>
+                        <div class="card-subtitle">${p.numberOfTracks} songs</div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error('Failed to render editors picks', e);
+        }
     }
 
     async renderHomeArtists(forceRefresh = false, providedSeeds = null) {
@@ -4311,18 +4492,24 @@ export class UIRenderer {
         const artistsContainer = document.getElementById('search-artists-container');
         const albumsContainer = document.getElementById('search-albums-container');
         const playlistsContainer = document.getElementById('search-playlists-container');
+        const usersContainer = document.getElementById('search-users-container');
 
         allContainer.innerHTML = this.createSkeletonTracks(8, true);
         tracksContainer.innerHTML = this.createSkeletonTracks(8, true);
         artistsContainer.innerHTML = this.createSkeletonCards(6, true);
         albumsContainer.innerHTML = this.createSkeletonCards(6, false);
         playlistsContainer.innerHTML = this.createSkeletonCards(6, false);
+        if (usersContainer) usersContainer.innerHTML = this.createSkeletonCards(6, true);
 
         if (this.searchAbortController) {
             this.searchAbortController.abort();
         }
         this.searchAbortController = new AbortController();
         const signal = this.searchAbortController.signal;
+        const userSearchPromise = this.api.searchUsers(query, 12).catch((error) => {
+            console.warn('User search failed:', error);
+            return [];
+        });
 
         try {
             const provider = this.api.getCurrentProvider();
@@ -4332,6 +4519,7 @@ export class UIRenderer {
             let finalArtists = (results.artists && results.artists.items) || [];
             let finalAlbums = (results.albums && results.albums.items) || [];
             let finalPlaylists = (results.playlists && results.playlists.items) || [];
+            let finalUsers = await userSearchPromise;
 
             if (finalArtists.length === 0 && finalTracks.length > 0) {
                 const artistMap = new Map();
@@ -4364,14 +4552,22 @@ export class UIRenderer {
             finalAlbums = finalAlbums.filter((t) => !_isBlockedCopyright(t.copyright));
 
             // Track search with results
+            const normalizedQuery = query.trim().toLowerCase();
+            const userItems = finalUsers.slice(0, 4).map((item, sourceIndex) => ({
+                kind: 'user',
+                item,
+                sourceIndex,
+                rank: this.rankUserSearchResult(item, normalizedQuery, sourceIndex),
+            }));
             const allItems = [
                 ...finalTracks.slice(0, 8).map((item, sourceIndex) => ({ kind: 'track', item, sourceIndex })),
                 ...finalAlbums.slice(0, 8).map((item, sourceIndex) => ({ kind: 'album', item, sourceIndex })),
                 ...finalArtists.slice(0, 8).map((item, sourceIndex) => ({ kind: 'artist', item, sourceIndex })),
+                ...userItems.filter((result) => result.rank >= 85),
             ]
                 .map((result) => ({
                     ...result,
-                    rank: this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex),
+                    rank: result.rank ?? this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex),
                 }))
                 .sort((a, b) => b.rank - a.rank);
 
@@ -4386,10 +4582,12 @@ export class UIRenderer {
                             ? `[data-track-id="${CSS.escape(String(item.id))}"]`
                             : kind === 'album'
                                 ? `[data-album-id="${CSS.escape(String(item.id))}"]`
-                                : `[data-artist-id="${CSS.escape(String(item.id))}"]`;
+                                : kind === 'artist'
+                                    ? `[data-artist-id="${CSS.escape(String(item.id))}"]`
+                                    : `[data-user-id="${CSS.escape(String(item.id))}"]`;
                     allContainer.querySelectorAll(selector).forEach((el) => {
                         trackDataStore.set(el, item);
-                        this.updateLikeState(el, kind, item.id).catch(console.error);
+                        if (kind !== 'user') this.updateLikeState(el, kind, item.id).catch(console.error);
                     });
                 }
             } else {
@@ -4438,16 +4636,40 @@ export class UIRenderer {
                 }
             }
 
+            if (usersContainer) {
+                usersContainer.innerHTML = finalUsers.length
+                    ? finalUsers.map((user) => this.createUserCardHTML(user)).join('')
+                    : createPlaceholder('No users found.');
+                for (const user of finalUsers) {
+                    const el = usersContainer.querySelector(`[data-user-id="${CSS.escape(String(user.id))}"]`);
+                    if (el) trackDataStore.set(el, user);
+                }
+            }
+
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error('Search failed:', error);
+            const finalUsers = await userSearchPromise;
             const errorMsg = createPlaceholder(`Error during search. ${error.message}`);
             allContainer.innerHTML = errorMsg;
             tracksContainer.innerHTML = errorMsg;
             artistsContainer.innerHTML = errorMsg;
             albumsContainer.innerHTML = errorMsg;
             playlistsContainer.innerHTML = errorMsg;
+            if (usersContainer) {
+                usersContainer.innerHTML = finalUsers.length
+                    ? finalUsers.map((user) => this.createUserCardHTML(user)).join('')
+                    : errorMsg;
+            }
         }
+    }
+
+    rankUserSearchResult(user, normalizedQuery, sourceIndex = 0) {
+        const names = [user.userName, user.name].filter(Boolean).map((value) => String(value).toLowerCase());
+        if (names.some((name) => name === normalizedQuery)) return 120 - sourceIndex;
+        if (names.some((name) => name.startsWith(normalizedQuery))) return 92 - sourceIndex;
+        if (names.some((name) => name.includes(normalizedQuery))) return 70 - sourceIndex;
+        return 0;
     }
 
     renderSearchHistory() {
@@ -5119,7 +5341,7 @@ export class UIRenderer {
                             collageEl.appendChild(img);
                         });
                     } else {
-                        imageEl.src = '/assets/appicon.png';
+                        imageEl.src = '/assets/no_album_cover.png';
                         imageEl.style.display = 'block';
                         if (collageEl) collageEl.style.display = 'none';
                     }
@@ -5269,7 +5491,7 @@ export class UIRenderer {
 
                     await this.extractAndApplyColor(this.api.getCoverUrl(imageId, '160'));
                 } else {
-                    imageEl.src = '/assets/appicon.png';
+                    imageEl.src = '/assets/no_album_cover.png';
                     this.setPageBackground(null);
                     this.resetVibrantColor();
                 }
@@ -7205,4 +7427,8 @@ export class UIRenderer {
         container.classList.toggle('visualizer-active', started);
     }
 
+    async renderProfileEditPage() {
+        this.showPage('profile-edit');
+        await initProfileEditPage();
+    }
 }

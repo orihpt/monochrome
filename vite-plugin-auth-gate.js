@@ -81,7 +81,7 @@ export default function authGatePlugin() {
             }
 
             let loginHtml = null;
-            const AUTH_ENABLED = (env.AUTH_ENABLED ?? 'false') !== 'false';
+            const AUTH_ENABLED = env.AUTH_ENABLED === 'true' && env.OFFLINE_MODE === 'false';
             if (AUTH_ENABLED) {
                 const loginPath = join(distDir, 'login.html');
                 if (existsSync(loginPath)) {

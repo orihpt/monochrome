@@ -1448,6 +1448,59 @@ export class LosslessAPI {
         throw new Error('Track metadata not found');
     }
 
+    async checkRecommendationStatus() {
+        try {
+            const response = await this.fetchWithRetry('/v1/recommend/status', {
+                type: 'api',
+                minVersion: '2.4',
+            });
+            return response.ok;
+        } catch (error) {
+            console.warn('Recommendation service status check failed:', error);
+            return false;
+        }
+    }
+
+    async getPopularPlaylists(limit = 12) {
+        try {
+            const response = await this.fetchWithRetry(`/community/popular_playlists?limit=${limit}`, {
+                type: 'api',
+                minVersion: '2.4',
+            });
+            const data = await response.json();
+            return data.map(p => this.preparePlaylist(p));
+        } catch (error) {
+            console.error('Failed to fetch popular playlists:', error);
+            return [];
+        }
+    }
+
+    async getRecentlyAddedTracks(limit = 20) {
+        try {
+            const response = await this.fetchWithRetry(`/library/recently_added?limit=${limit}`, {
+                type: 'api',
+                minVersion: '2.4',
+            });
+            const data = await response.json();
+            return data.map(t => this.prepareTrack(t));
+        } catch (error) {
+            console.error('Failed to fetch recently added tracks:', error);
+            return [];
+        }
+    }
+
+    async incPlaylistPlayCount(id) {
+        try {
+            // This endpoint might not exist yet, but we'll try it if we want to track plays
+            await this.fetchWithRetry(`/playlist/${id}/played`, {
+                method: 'POST',
+                type: 'api',
+            });
+        } catch (error) {
+            // Silently fail as this is just for stats
+        }
+    }
+
     async getTrackRecommendations(id) {
         const cached = await this.cache.get('recommendations', id);
         if (cached) return cached;

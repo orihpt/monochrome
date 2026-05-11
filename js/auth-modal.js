@@ -44,6 +44,7 @@ export const initAuthModal = () => {
                 const previousUser = localStorage.getItem('subsonic_user');
                 if (previousUser && previousUser !== username) {
                     await db.clearUserPlaylists();
+                    localStorage.removeItem('navidrome_native_token');
                 }
                 localStorage.setItem('subsonic_user', username);
                 localStorage.setItem('subsonic_pass', password);

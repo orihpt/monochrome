@@ -5,6 +5,10 @@ const PASSWORD = '0hN0L3aked123';
 const QUERY = 'THE DINER';
 const ALBUM = 'HIT ME HARD AND SOFT';
 
+async function expectNoUnhandledPromiseOverlay(page) {
+  await expect(page.locator('div', { hasText: /^Unhandled Promise Rejection:/ })).toHaveCount(0);
+}
+
 test('logs in, searches THE DINER, opens its album, and plays the song', async ({ page }) => {
   test.setTimeout(120000);
 
@@ -75,9 +79,31 @@ test('logs in, searches THE DINER, opens its album, and plays the song', async (
       () =>
         page.evaluate(() => {
           const audio = document.querySelector('#audio-player');
-          return audio ? !audio.paused || audio.currentTime > 0 || audio.readyState >= 2 : false;
+          return audio ? !audio.paused && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA : false;
         }),
       { timeout: 20000 }
     )
     .toBe(true);
+
+  const firstPosition = await page.evaluate(() => document.querySelector('#audio-player')?.currentTime || 0);
+  await expect
+    .poll(
+      () =>
+        page.evaluate((start) => {
+          const audio = document.querySelector('#audio-player');
+          return audio ? audio.currentTime - start : 0;
+        }, firstPosition),
+      { timeout: 15000 }
+    )
+    .toBeGreaterThan(0.25);
+
+  await page.goto('/lyrics');
+  await page.waitForFunction(() => window.__wavesAppReady === true, null, { timeout: 30000 });
+  await expect(page.locator('#page-lyrics')).toBeVisible({ timeout: 15000 });
+  await expectNoUnhandledPromiseOverlay(page);
+
+  await page.reload();
+  await page.waitForFunction(() => window.__wavesAppReady === true, null, { timeout: 30000 });
+  await expect(page.locator('#page-lyrics')).toBeVisible({ timeout: 15000 });
+  await expectNoUnhandledPromiseOverlay(page);
 });

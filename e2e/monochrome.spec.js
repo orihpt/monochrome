@@ -5,12 +5,11 @@ test.describe('Monochrome E2E Tests', () => {
     // Go to the app
     await page.goto('http://localhost:5173/');
     
-    // Inject CSS to hide all modal overlays and error toasts to prevent click interception
+    // Inject CSS to hide modals that would otherwise intercept clicks in legacy smoke tests.
     await page.addStyleTag({
       content: `
         .modal-overlay,
-        #waves-music-auth-modal,
-        div:has(> text("Unhandled Promise Rejection")) {
+        #waves-music-auth-modal {
           display: none !important;
           pointer-events: none !important;
         }
@@ -48,6 +47,29 @@ test.describe('Monochrome E2E Tests', () => {
     // Check if the player bar shows something is playing
     const playPauseBtn = page.locator('.now-playing-bar .play-pause-btn');
     await expect(playPauseBtn).toBeVisible();
+
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const audio = document.querySelector('#audio-player');
+            return audio ? !audio.paused && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA : false;
+          }),
+        { timeout: 20000 }
+      )
+      .toBe(true);
+
+    const firstPosition = await page.evaluate(() => document.querySelector('#audio-player')?.currentTime || 0);
+    await expect
+      .poll(
+        () =>
+          page.evaluate((start) => {
+            const audio = document.querySelector('#audio-player');
+            return audio ? audio.currentTime - start : 0;
+          }, firstPosition),
+        { timeout: 15000 }
+      )
+      .toBeGreaterThan(0.25);
   });
 
   test('should create a playlist', async ({ page }) => {

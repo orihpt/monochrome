@@ -48,55 +48,19 @@ export class AuthManager {
     }
 
     async signInWithGoogle() {
-        try {
-            auth.createOAuth2Session(
-                'google',
-                window.location.origin + '/index.html?oauth=1',
-                window.location.origin + '/login.html'
-            );
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert(`Login failed: ${error.message}`);
-        }
+        this.showExternalAuthDisabled();
     }
 
     async signInWithGitHub() {
-        try {
-            auth.createOAuth2Session(
-                'github',
-                window.location.origin + '/index.html?oauth=1',
-                window.location.origin + '/login.html'
-            );
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert(`Login failed: ${error.message}`);
-        }
+        this.showExternalAuthDisabled();
     }
 
     async signInWithSpotify() {
-        try {
-            auth.createOAuth2Session(
-                'spotify',
-                window.location.origin + '/index.html?oauth=1',
-                window.location.origin + '/login.html'
-            );
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert(`Login failed: ${error.message}`);
-        }
+        this.showExternalAuthDisabled();
     }
 
     async signInWithDiscord() {
-        try {
-            auth.createOAuth2Session(
-                'discord',
-                window.location.origin + '/index.html?oauth=1',
-                window.location.origin + '/login.html'
-            );
-        } catch (error) {
-            console.error('Login failed:', error);
-            alert(`Login failed: ${error.message}`);
-        }
+        this.showExternalAuthDisabled();
     }
 
     async signInWithEmail(email, password) {
@@ -129,14 +93,11 @@ export class AuthManager {
     }
 
     async sendPasswordReset(email) {
-        try {
-            await auth.createRecovery(email, window.location.origin + '/reset-password');
-            alert(`Password reset email sent to ${email}`);
-        } catch (error) {
-            console.error('Password reset failed:', error);
-            alert(`Failed to send reset email: ${error.message}`);
-            throw error;
-        }
+        throw new Error('Password reset is disabled in offline mode.');
+    }
+
+    showExternalAuthDisabled() {
+        alert('External sign-in is disabled. Use your local Waves Music account.');
     }
 
     async resetPassword(userId, secret, password, confirmPassword) {
@@ -237,21 +198,19 @@ export class AuthManager {
             if (discordBtn) discordBtn.style.display = 'none';
             if (statusText) statusText.textContent = `Signed in as ${user.email}`;
         } else {
-            connectBtn.textContent = 'Connect with Google';
+            connectBtn.textContent = 'Local account required';
             connectBtn.classList.remove('danger');
-            connectBtn.onclick = () => this.signInWithGoogle();
+            connectBtn.onclick = () => this.showExternalAuthDisabled();
 
             if (clearDataBtn) clearDataBtn.style.display = 'none';
-            if (emailToggleBtn) emailToggleBtn.style.display = 'inline-block';
+            if (emailToggleBtn) emailToggleBtn.style.display = 'none';
             if (githubBtn) {
-                githubBtn.style.display = 'inline-block';
-                githubBtn.onclick = () => this.signInWithGitHub();
+                githubBtn.style.display = 'none';
             }
             if (discordBtn) {
-                discordBtn.style.display = 'inline-block';
-                discordBtn.onclick = () => this.signInWithDiscord();
+                discordBtn.style.display = 'none';
             }
-            if (statusText) statusText.textContent = 'Sync your library across devices';
+            if (statusText) statusText.textContent = 'Sign in with your local music server account.';
         }
     }
 }

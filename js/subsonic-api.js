@@ -8,6 +8,8 @@ export class SubsonicAPI {
         this._password = '';
         this.version = '1.16.1';
         this.client = 'waves-music';
+        this.nativeTokenKey = 'navidrome_native_token';
+        this.nativeLoginPromise = null;
     }
 
     get user() {
@@ -55,11 +57,73 @@ export class SubsonicAPI {
         return data['subsonic-response'];
     }
 
+    async getNativeToken({ forceRefresh = false } = {}) {
+        if (!forceRefresh) {
+            const savedToken = localStorage.getItem(this.nativeTokenKey);
+            if (savedToken) return savedToken;
+        }
+
+        const username = this.user;
+        const password = this.password;
+        if (!username || !password) {
+            throw new Error('Native API request failed: missing credentials');
+        }
+
+        if (!forceRefresh && this.nativeLoginPromise) {
+            return this.nativeLoginPromise;
+        }
+
+        this.nativeLoginPromise = fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        })
+            .then(async (response) => {
+                if (!response.ok) {
+                    localStorage.removeItem(this.nativeTokenKey);
+                    throw new Error(`Native API login failed: ${response.status}`);
+                }
+                const data = await response.json();
+                if (!data?.token) {
+                    localStorage.removeItem(this.nativeTokenKey);
+                    throw new Error('Native API login failed: missing token');
+                }
+                localStorage.setItem(this.nativeTokenKey, data.token);
+                return data.token;
+            })
+            .finally(() => {
+                this.nativeLoginPromise = null;
+            });
+
+        return this.nativeLoginPromise;
+    }
+
     async fetchNative(path, options = {}) {
-        const response = await fetch(path, {
-            headers: options.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-            ...options,
-        });
+        const send = async (forceRefresh = false) => {
+            const token = await this.getNativeToken({ forceRefresh });
+            const headers = new Headers(options.headers || {});
+            if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+                headers.set('Content-Type', 'application/json');
+            }
+            headers.set('X-ND-Authorization', `Bearer ${token}`);
+
+            return fetch(path, {
+                ...options,
+                headers,
+            });
+        };
+
+        let response = await send(false);
+        if (response.status === 401) {
+            localStorage.removeItem(this.nativeTokenKey);
+            response = await send(true);
+        }
+
+        const refreshedToken = response.headers.get('X-ND-Authorization');
+        if (refreshedToken) {
+            localStorage.setItem(this.nativeTokenKey, refreshedToken);
+        }
+
         if (!response.ok) {
             throw new Error(`Native API request failed: ${response.status}`);
         }
@@ -184,8 +248,20 @@ export class SubsonicAPI {
 
     // --- URL helpers ---
 
-    getStreamUrl(id) {
-        return { url: `${this.baseUrl}/stream.view${this.credentials}&id=${id}` };
+    getStreamUrl(id, quality = 'HIGH') {
+        const maxBitRateByQuality = {
+            LOW: 128,
+            HIGH: 320,
+            LOSSLESS: 320,
+            HI_RES_LOSSLESS: 320,
+        };
+        const maxBitRate = maxBitRateByQuality[quality] || maxBitRateByQuality.HIGH;
+        const params = new URLSearchParams({
+            id,
+            format: 'mp3',
+            maxBitRate: String(maxBitRate),
+        });
+        return { url: `${this.baseUrl}/stream.view${this.credentials}&${params.toString()}` };
     }
 
     getCoverUrl(id, size) {
@@ -608,6 +684,10 @@ export class SubsonicAPI {
         }
     }
 
+    async getUserProfile(usernameOrId) {
+        return this.fetchNative(`/api/user/${encodeURIComponent(usernameOrId)}/profile`);
+    }
+
     async followUser(id) {
         return this.fetchNative(`/api/user/${encodeURIComponent(id)}/follow`, { method: 'POST' });
     }
@@ -855,6 +935,15 @@ export class SubsonicAPI {
         return playlist;
     }
 
+    async replacePlaylistTracks(id, trackIds = []) {
+        const params = new URLSearchParams();
+        params.set('playlistId', id);
+        for (const trackId of trackIds) params.append('songId', trackId);
+        const res = await this.fetchAPI('createPlaylist', params.toString());
+        this.throwIfSubsonicError(res);
+        return this.preparePlaylist(res?.playlist);
+    }
+
     async updatePlaylist(id, updates = {}) {
         const params = new URLSearchParams();
         params.set('playlistId', id);
@@ -866,6 +955,14 @@ export class SubsonicAPI {
         if (updates.visibility != null) {
             await this.setPlaylistVisibility(id, updates.visibility);
         }
+        return true;
+    }
+
+    async deletePlaylist(id) {
+        const params = new URLSearchParams();
+        params.set('id', id);
+        const res = await this.fetchAPI('deletePlaylist', params.toString());
+        this.throwIfSubsonicError(res);
         return true;
     }
 

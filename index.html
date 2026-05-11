@@ -93,60 +93,60 @@
     <div id="context-menu">
         <ul>
             <li data-action="play-card" data-type-filter="album,playlist,mix,user-playlist,artist">
-                <use svg="./images/play.svg" size="16" /><span class="menu-label">Play</span>
+                <use svg="./images/play.svg" size="16" /><span class="menu-label">נגן</span>
             </li>
             <li data-action="shuffle-play-card" data-type-filter="album,playlist,mix,user-playlist,artist">
-                <use svg="!lucide/shuffle.svg" size="16" /><span class="menu-label">Shuffle play</span>
+                <use svg="!lucide/shuffle.svg" size="16" /><span class="menu-label">נגן באקראי</span>
             </li>
             <li data-action="start-infinite-radio" data-type-filter="track,album,artist,playlist,user-playlist">
-                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">Start radio</span>
+                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">הפעל רדיו</span>
             </li>
             <li data-action="track-mix" data-type-filter="track,video">
-                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">Mix track</span>
+                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">מיקס לשיר</span>
             </li>
             <li data-action="start-mix" data-type-filter="album">
-                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">Start mix</span>
+                <use svg="!lucide/radio.svg" size="16" /><span class="menu-label">הפעל מיקס</span>
             </li>
             <li data-action="play-next" data-type-filter="track,video">
-                <use svg="!lucide/list-start.svg" size="16" /><span class="menu-label">Play next</span>
+                <use svg="!lucide/list-start.svg" size="16" /><span class="menu-label">נגן הבא</span>
             </li>
             <li data-action="add-to-queue" data-type-filter="track,video,album,playlist,mix,user-playlist,artist">
-                <use svg="!lucide/list-plus.svg" size="16" /><span class="menu-label">Add to queue</span>
+                <use svg="!lucide/list-plus.svg" size="16" /><span class="menu-label">הוסף לתור</span>
             </li>
             <li class="separator"></li>
             <li data-action="toggle-like" data-type-filter="album,artist,playlist,mix,user-playlist"
-                data-label-album="Save album to library" data-label-unlike-album="Remove album from library"
-                data-label-playlist="Save playlist to library"
-                data-label-unlike-playlist="Remove playlist from library">
-                <use svg="!lucide/heart.svg" size="16" /><span class="menu-label">Like</span>
+                data-label-album="שמור אלבום לספרייה" data-label-unlike-album="הסר אלבום מהספרייה"
+                data-label-playlist="שמור פלייליסט לספרייה"
+                data-label-unlike-playlist="הסר פלייליסט מהספרייה">
+                <use svg="!lucide/heart.svg" size="16" /><span class="menu-label">אהבתי</span>
             </li>
             <li data-action="toggle-pin" data-type-filter="album,artist,playlist,user-playlist">
-                <use svg="!lucide/pin.svg" size="16" /><span class="menu-label">Pin</span>
+                <use svg="!lucide/pin.svg" size="16" /><span class="menu-label">נעץ</span>
             </li>
-            <li data-action="toggle-like" data-type-filter="track,video" data-label-track="Mark as favorite"
-                data-label-unlike-track="Remove from favorites" data-label-video="Mark as favorite"
-                data-label-unlike-video="Remove from favorites">
-                <use svg="!lucide/heart.svg" size="16" /><span class="menu-label">Mark as favorite</span>
+            <li data-action="toggle-like" data-type-filter="track,video" data-label-track="סמן כמעודף"
+                data-label-unlike-track="הסר מהמועדפים" data-label-video="סמן כמעודף"
+                data-label-unlike-video="הסר מהמועדפים">
+                <use svg="!lucide/heart.svg" size="16" /><span class="menu-label">סמן כמעודף</span>
             </li>
             <li data-action="add-to-playlist" data-type-filter="track,video">
-                <use svg="!lucide/folder-plus.svg" size="16" /><span class="menu-label">Add to playlist</span>
+                <use svg="!lucide/folder-plus.svg" size="16" /><span class="menu-label">הוסף לפלייליסט</span>
             </li>
             <li data-action="request-song" data-type-filter="track,video">
-                <use svg="!lucide/send.svg" size="16" /><span class="menu-label">Request song</span>
+                <use svg="!lucide/send.svg" size="16" /><span class="menu-label">בקש שיר</span>
             </li>
             <li class="separator"></li>
             <li data-action="go-to-artist" data-type-filter="track,album,video">
-                <use svg="!lucide/user.svg" size="16" /><span class="menu-label">Go to artist</span>
+                <use svg="!lucide/user.svg" size="16" /><span class="menu-label">עבור לאמן</span>
             </li>
             <li data-action="go-to-album" data-type-filter="track,video">
-                <use svg="!lucide/disc.svg" size="16" /><span class="menu-label">Go to album</span>
+                <use svg="!lucide/disc.svg" size="16" /><span class="menu-label">עבור לאלבום</span>
             </li>
             <li class="separator"></li>
             <li data-action="copy-link">
-                <use svg="!lucide/link.svg" size="16" /><span class="menu-label">Copy link</span>
+                <use svg="!lucide/link.svg" size="16" /><span class="menu-label">העתק קישור</span>
             </li>
             <li data-action="open-original-url" data-type-filter="track,video">
-                <use svg="!lucide/external-link.svg" size="16" /><span class="menu-label">Open original URL</span>
+                <use svg="!lucide/external-link.svg" size="16" /><span class="menu-label">פתח קישור מקורי</span>
             </li>
         </ul>
     </div>
@@ -320,8 +320,8 @@
     <div id="playlist-modal" class="modal">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <h3 id="playlist-modal-title">Create Playlist</h3>
-            <input type="text" id="playlist-name-input" class="template-input" placeholder="Playlist name"
+            <h3 id="playlist-modal-title">יצירת פלייליסט</h3>
+            <input type="text" id="playlist-name-input" class="template-input" placeholder="שם הפלייליסט"
                 style="margin: 1rem 0" />
             <div id="playlist-cover-wrapper" style="margin: 0.5rem 0; display: flex; gap: 0.5rem; align-items: stretch">
                 <input type="url" id="playlist-cover-input" class="template-input" placeholder="Cover image URL"
@@ -337,11 +337,11 @@
                             gap: 0.5rem;
                         ">
                     <use svg="!lucide/upload.svg" size="16" />
-                    <span id="playlist-cover-btn-text">Upload</span>
+                    <span id="playlist-cover-btn-text">העלאה</span>
                 </button>
                 <button type="button" id="playlist-cover-toggle-url-btn" class="template-btn"
                     style="padding: 0.5rem; font-size: 0.85rem; white-space: nowrap" title="Switch to URL input">
-                    or URL
+                    או קישור
                 </button>
             </div>
             <div id="playlist-cover-upload-status"
@@ -572,9 +572,9 @@
             </div>
 
             <div class="modal-actions">
-                <button id="playlist-share-btn" class="btn-secondary" style="display: none">Share</button>
-                <button id="playlist-modal-cancel" class="btn-secondary">Cancel</button>
-                <button id="playlist-modal-save" class="btn-primary">Save</button>
+                <button id="playlist-share-btn" class="btn-secondary" style="display: none">שתף</button>
+                <button id="playlist-modal-cancel" class="btn-secondary">ביטול</button>
+                <button id="playlist-modal-save" class="btn-primary">שמירה</button>
             </div>
         </div>
     </div>
@@ -1399,7 +1399,7 @@
                             <h2 class="section-title">Editor's Picks</h2>
                             <div class="card-grid" id="home-editors-picks"></div>
                         </section>
-                        <section class="content-section home-recommended-songs-section">
+                        <section class="content-section home-recommended-songs-section" id="home-recommended-songs-section">
                             <div class="section-header-row">
                                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
                                     <h2 class="section-title">Recommended Songs</h2>
@@ -1422,7 +1422,7 @@
                             </div>
                             <div class="track-list" id="home-recommended-songs"></div>
                         </section>
-                        <section class="content-section">
+                        <section class="content-section" id="home-recommended-albums-section">
                             <div style="
                                         display: flex;
                                         align-items: center;
@@ -1443,7 +1443,7 @@
                             </div>
                             <div class="card-grid" id="home-recommended-albums"></div>
                         </section>
-                        <section class="content-section">
+                        <section class="content-section" id="home-recommended-artists-section">
                             <div style="
                                         display: flex;
                                         align-items: center;
@@ -1478,6 +1478,14 @@
                                 </button>
                             </div>
                             <div class="card-grid" id="home-recent-mixed"></div>
+                        </section>
+                        <section class="content-section" id="home-popular-playlists-section" style="display: none">
+                            <h2 class="section-title">Popular Playlists</h2>
+                            <div class="card-grid" id="home-popular-playlists"></div>
+                        </section>
+                        <section class="content-section" id="home-recently-added-tracks-section" style="display: none">
+                            <h2 class="section-title">Recently Added</h2>
+                            <div class="track-list" id="home-recently-added-tracks"></div>
                         </section>
                     </div>
                 </div>

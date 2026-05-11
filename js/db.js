@@ -579,6 +579,10 @@ export class MusicDatabase {
         );
     }
 
+    _currentOwnerUsername() {
+        return localStorage.getItem('subsonic_user') || '';
+    }
+
     // User Playlists API
     async createPlaylist(name, tracks = [], cover = '', description = '') {
         const id = crypto.randomUUID();
@@ -592,6 +596,8 @@ export class MusicDatabase {
             updatedAt: Date.now(),
             numberOfTracks: tracks.length,
             images: [], // Initialize images
+            ownerUsername: this._currentOwnerUsername(),
+            syncStatus: 'local',
         };
         this._updatePlaylistMetadata(playlist);
         await this.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
@@ -761,8 +767,14 @@ export class MusicDatabase {
             const request = index.getAll();
             request.onsuccess = () => {
                 const playlists = request.result.reverse(); // Newest first
+                const currentOwner = this._currentOwnerUsername();
                 const processedPlaylists = playlists.map((playlist) => {
                     let needsUpdate = false;
+
+                    if (currentOwner && !playlist.ownerUsername) {
+                        playlist.ownerUsername = currentOwner;
+                        needsUpdate = true;
+                    }
 
                     // Lazy migration for numberOfTracks
                     if (typeof playlist.numberOfTracks === 'undefined') {
@@ -792,7 +804,7 @@ export class MusicDatabase {
                     // Return lightweight copy without tracks
                     const { tracks, ...minified } = playlist;
                     return minified;
-                });
+                }).filter((playlist) => !currentOwner || !playlist.ownerUsername || playlist.ownerUsername === currentOwner);
                 resolve(processedPlaylists);
             };
             request.onerror = () => reject(request.error);

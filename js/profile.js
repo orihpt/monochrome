@@ -184,7 +184,12 @@ export async function loadProfile(username) {
             };
         }
     } else {
-        profile = await syncManager.getProfile(username);
+        try {
+            profile = await MusicAPI.instance.getUserProfile(username);
+        } catch (error) {
+            console.warn('Native profile lookup failed, falling back to local sync profile:', error);
+            profile = await syncManager.getProfile(username);
+        }
     }
 
     if (!profile) {
@@ -239,6 +244,30 @@ export async function loadProfile(username) {
         const webEl = document.getElementById('profile-website');
         webEl.href = profile.website;
         webEl.style.display = 'inline-block';
+    }
+
+    const listeningArtists = profile.listening_artists || profile.listeningArtists || profile.top_artists || profile.topArtists || [];
+    if (listeningArtists.length > 0 && topArtistsSection && topArtistsContainer) {
+        topArtistsSection.style.display = 'block';
+        topArtistsContainer.innerHTML = listeningArtists
+            .map((artist) => {
+                const name = artist.name || artist.artist || 'Unknown Artist';
+                const id = artist.id || artist.artistId || '';
+                const image = artist.picture || artist.cover || artist.image || '/assets/artist_placeholder.png';
+                const playCount = artist.playCount || artist.playcount || artist.plays;
+                return `
+                    <div class="card" data-artist-id="${escapeHtml(id)}" data-href="${id ? `/artist/${id}` : ''}" style="cursor: pointer;">
+                        <div class="card-image-wrapper">
+                            <img src="${image}" class="card-image" loading="lazy" onerror="this.src='/assets/artist_placeholder.png'">
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">${escapeHtml(name)}</div>
+                            <div class="card-subtitle">${playCount ? `${parseInt(playCount, 10).toLocaleString()} plays` : 'Listening now'}</div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
     }
 
     if (profile.favorite_albums && profile.favorite_albums.length > 0) {
@@ -501,9 +530,11 @@ export async function loadProfile(username) {
             playlists = await db.getPlaylists(true);
         } else if (profile && profile.user_playlists) {
             playlists = Object.values(profile.user_playlists);
+        } else if (profile && profile.playlists) {
+            playlists = Array.isArray(profile.playlists) ? profile.playlists : Object.values(profile.playlists);
         }
 
-        const publicPlaylists = playlists.filter(p => p.isPublic || p.visibility === 'public' || p.visibility === 'featured');
+        const publicPlaylists = playlists.filter(p => p.isPublic || p.public || p.visibility === 'public' || p.visibility === 'featured');
 
         if (publicPlaylists.length === 0) {
             container.innerHTML = `<div class="empty-state">No public playlists found.</div>`;
@@ -516,7 +547,7 @@ export async function loadProfile(username) {
                         <img src="${playlist.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
                     </div>
                     <div class="card-info">
-                        <div class="card-title">${escapeHtml(playlist.name)}</div>
+                        <div class="card-title">${escapeHtml(playlist.name || playlist.title)}</div>
                         <div class="card-subtitle">${playlist.numberOfTracks} songs</div>
                     </div>
                 `;

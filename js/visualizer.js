@@ -12,6 +12,8 @@ export class Visualizer {
         this.isActive = false;
         this.animationId = null;
         this.activePresetKey = visualizerSettings.getPreset();
+        this.presets = null;
+        this.presetsPromise = null;
 
         // ---- AUDIO BUFFERS (REUSED) ----
         this.bufferLength = 0;
@@ -58,13 +60,31 @@ export class Visualizer {
      * Must be called after class is constructed!
      */
     async initPresets() {
-        this.presets = {
-            lcd: new (await import('./visualizers/lcd.js')).LCDPreset(),
-            particles: new (await import('./visualizers/particles.js')).ParticlesPreset(),
-            'unknown-pleasures': new (await import('./visualizers/unknown_pleasures_webgl.js')).UnknownPleasuresWebGL(),
-            butterchurn: new (await import('./visualizers/butterchurn.js')).ButterchurnPreset(),
-            kawarp: new (await import('./visualizers/kawarp.js')).KawarpPreset(),
-        };
+        if (this.presets) return this.presets;
+        if (!this.presetsPromise) {
+            this.presetsPromise = (async () => {
+                const [lcd, particles, unknownPleasures, butterchurn, kawarp] = await Promise.all([
+                    import('./visualizers/lcd.js'),
+                    import('./visualizers/particles.js'),
+                    import('./visualizers/unknown_pleasures_webgl.js'),
+                    import('./visualizers/butterchurn.js'),
+                    import('./visualizers/kawarp.js'),
+                ]);
+
+                this.presets = {
+                    lcd: new lcd.LCDPreset(),
+                    particles: new particles.ParticlesPreset(),
+                    'unknown-pleasures': new unknownPleasures.UnknownPleasuresWebGL(),
+                    butterchurn: new butterchurn.ButterchurnPreset(),
+                    kawarp: new kawarp.KawarpPreset(),
+                };
+                return this.presets;
+            })().catch((error) => {
+                this.presetsPromise = null;
+                throw error;
+            });
+        }
+        return this.presetsPromise;
     }
 
     updateDimming() {
@@ -74,7 +94,7 @@ export class Visualizer {
     }
 
     get activePreset() {
-        return this.presets[this.activePresetKey] || this.presets['lcd'];
+        return this.presets?.[this.activePresetKey] || this.presets?.lcd || null;
     }
 
     async init() {
@@ -108,6 +128,7 @@ export class Visualizer {
 
     initContext() {
         const preset = this.activePreset;
+        if (!preset) return false;
         const type = preset.contextType || '2d';
         const currentType = this._currentContextType;
 
@@ -150,13 +171,16 @@ export class Visualizer {
         }
 
         this._currentContextType = type;
+        return true;
     }
 
     async start() {
         if (this.isActive) return true;
 
+        await this.initPresets();
+
         if (!this.ctx) {
-            this.initContext();
+            if (!this.initContext()) return false;
         }
         if (!this.audioContext && !this.analyser) {
             await this.init();

@@ -1,6 +1,7 @@
 //js/utils.js
 import { modernSettings } from './ModernSettings.js';
-import { SVG_ATMOS } from './icons.js';
+import { SVG_ATMOS, SVG_MUSIC } from './icons.js';
+import { t } from './i18n.js';
 import { coverArtSizeSettings, qualityBadgeSettings, trackDateSettings } from './storage.js';
 
 export const QUALITY = 'LOSSLESS';
@@ -71,8 +72,21 @@ export const getTrackYearDisplay = (track) => {
     return ` • ${date.getFullYear()}`;
 };
 
-export const createPlaceholder = (text, isLoading = false) => {
-    return `<div class="placeholder-text ${isLoading ? 'loading' : ''}">${text}</div>`;
+export const createPlaceholder = (text, isLoading = false, icon = null, subtitle = null) => {
+    if (isLoading) {
+        return `<div class="placeholder-text loading">${text}</div>`;
+    }
+    
+    const iconHTML = icon ? `<div class="placeholder-icon">${icon}</div>` : `<div class="placeholder-icon">${SVG_MUSIC(48)}</div>`;
+    const subtitleHTML = subtitle ? `<div class="placeholder-subtitle">${subtitle}</div>` : '';
+    
+    return `
+        <div class="rich-placeholder">
+            ${iconHTML}
+            <div class="placeholder-text">${text}</div>
+            ${subtitleHTML}
+        </div>
+    `;
 };
 
 export const trackDataStore = new WeakMap();
@@ -451,15 +465,15 @@ export const calculateTotalDuration = (tracks) => {
 };
 
 export const formatDuration = (seconds) => {
-    if (!seconds || isNaN(seconds)) return '0 דק׳';
+    if (!seconds || isNaN(seconds)) return t('minutes_short', { count: 0 });
 
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
 
     if (hours > 0) {
-        return `${hours} שעות ו-${minutes} דק׳`;
+        return t('hours_and_minutes', { hours, minutes });
     }
-    return `${minutes} דק׳`;
+    return `${minutes} ${t('minutes_short')}`;
 };
 
 const coverCache = new Map();

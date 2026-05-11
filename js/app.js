@@ -114,9 +114,9 @@ function showCuratorImportResults(result) {
     if (!modal || !content || !result) return;
 
     const sections = [
-        ['התאמה מושלמת', normalizeImportRows(result.exactMatches)],
-        ['התאמה לפי שם', normalizeImportRows(result.nameMatches)],
-        ['לא נמצאה התאמה', normalizeImportRows(result.missingTracks)],
+        [t('exact_match'), normalizeImportRows(result.exactMatches)],
+        [t('name_match'), normalizeImportRows(result.nameMatches)],
+        [t('no_match'), normalizeImportRows(result.missingTracks)],
     ];
 
     content.innerHTML = sections
@@ -131,7 +131,7 @@ function showCuratorImportResults(result) {
                             </div>`
                     )
                     .join('')
-                : '<div class="modal-list-item" style="opacity: 0.65">אין שירים</div>';
+                : `<div class="modal-list-item" style="opacity: 0.65">${t('no_tracks')}</div>`;
             return `
                 <section style="margin: 1rem 0">
                     <h4 style="margin: 0 0 0.5rem 0">${title} (${rows.length})</h4>
@@ -1379,7 +1379,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             playlist.visibility = visibility;
                             await handlePublicStatus(playlist);
                             await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
-                            await syncManager.syncUserPlaylist(playlist, 'update');
+                            try {
+                                await syncManager.syncUserPlaylist(playlist, 'update');
+                            } catch (error) {
+                                console.error('Playlist edit saved locally but failed to sync to Navidrome:', error);
+                                showNotification('Playlist changes saved locally. They will sync when the server is available.');
+                            }
                             window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
                             UIRenderer.instance.renderLibraryPage();
                             // Also update current page if we are on it
@@ -1897,7 +1902,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         await handlePublicStatus(playlist);
                         // Update DB again with isPublic flag and visibility
                         await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
-                        await syncManager.syncUserPlaylist(playlist, 'create');
+                        try {
+                            playlist = (await syncManager.syncUserPlaylist(playlist, 'create')) || playlist;
+                        } catch (error) {
+                            console.error('Playlist saved locally but failed to sync to Navidrome:', error);
+                            showNotification('Playlist saved locally. It will sync when the server is available.');
+                        }
                         window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
                         UIRenderer.instance.renderLibraryPage();
                         modal.classList.remove('active');
@@ -1982,8 +1992,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const card = e.target.closest('.user-playlist');
             const playlistId = card.dataset.userPlaylistId;
             if (confirm('Are you sure you want to delete this playlist?')) {
+                const playlistForSync = await db.getPlaylist(playlistId).catch(() => null);
                 await db.deletePlaylist(playlistId);
-                await syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
+                try {
+                    await syncManager.syncUserPlaylist(playlistForSync || { id: playlistId }, 'delete');
+                } catch (error) {
+                    console.error('Playlist deleted locally but failed to delete from Navidrome:', error);
+                    showNotification('Playlist deleted locally. Server delete will need retry when available.');
+                }
                 UIRenderer.instance.renderLibraryPage();
             }
         }
@@ -2055,8 +2071,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target.closest('#delete-playlist-btn')) {
             const playlistId = window.location.pathname.split('/')[2];
             if (confirm('Are you sure you want to delete this playlist?')) {
+                const playlistForSync = await db.getPlaylist(playlistId).catch(() => null);
                 await db.deletePlaylist(playlistId);
-                await syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
+                try {
+                    await syncManager.syncUserPlaylist(playlistForSync || { id: playlistId }, 'delete');
+                } catch (error) {
+                    console.error('Playlist deleted locally but failed to delete from Navidrome:', error);
+                    showNotification('Playlist deleted locally. Server delete will need retry when available.');
+                }
                 navigate('/library');
             }
         }

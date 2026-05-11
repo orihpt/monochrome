@@ -1694,6 +1694,11 @@ export async function handleTrackAction(
                 const shuffleBtn = document.getElementById('shuffle-btn');
                 if (shuffleBtn) shuffleBtn.classList.remove('active');
             }
+
+            if (type === 'playlist' || type === 'user-playlist') {
+                api.incPlaylistPlayCount(item.id || item.uuid);
+            }
+
             player.playAtIndex(0);
             const name = type === 'user-playlist' ? collectionItem.name : collectionItem.title;
             showNotification(`Playing ${type.replace('user-', '')}: ${name}`);
@@ -2362,10 +2367,14 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
         }
 
         if (
-            contextTrack.isUnavailable &&
+            (contextTrack.isUnavailable || (UIRenderer.instance && !UIRenderer.instance.recommendationsAvailable)) &&
             ['play-next', 'add-to-queue', 'download', 'track-mix', 'start-infinite-radio'].includes(item.dataset.action)
         ) {
-            item.style.display = 'none';
+            // Some actions like play-next/add-to-queue/download are only hidden if track is unavailable
+            // but track-mix and start-infinite-radio should also be hidden if recommendations are down
+            if (contextTrack.isUnavailable || ['track-mix', 'start-infinite-radio'].includes(item.dataset.action)) {
+                item.style.display = 'none';
+            }
         }
 
         // Update labels for Like/Save
@@ -2706,6 +2715,10 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         const card = e.target.closest('.card');
         if (card) {
             if (e.target.closest('.edit-playlist-btn') || e.target.closest('.delete-playlist-btn')) {
+                return;
+            }
+
+            if (e.target.closest('[data-action="follow-user"]')) {
                 return;
             }
 
@@ -3073,7 +3086,15 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                 alert('No track is currently playing');
                 return;
             }
-            navigate('/lyrics');
+            if (window.location.pathname === '/lyrics') {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    navigate('/');
+                }
+            } else {
+                navigate('/lyrics');
+            }
         });
     }
 

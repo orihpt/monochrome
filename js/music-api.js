@@ -282,6 +282,13 @@ export class MusicAPI {
         return [];
     }
 
+    async getUserProfile(usernameOrId) {
+        if (typeof this.subsonicAPI.getUserProfile === 'function') {
+            return this.subsonicAPI.getUserProfile(usernameOrId);
+        }
+        return null;
+    }
+
     async followUser(id) {
         return this.subsonicAPI.followUser(id);
     }
@@ -294,8 +301,16 @@ export class MusicAPI {
         return this.subsonicAPI.createPlaylist(name, trackIds, description);
     }
 
+    async replaceSubsonicPlaylistTracks(id, trackIds = []) {
+        return this.subsonicAPI.replacePlaylistTracks(id, trackIds);
+    }
+
     async updateSubsonicPlaylist(id, updates = {}) {
         return this.subsonicAPI.updatePlaylist(id, updates);
+    }
+
+    async deleteSubsonicPlaylist(id) {
+        return this.subsonicAPI.deletePlaylist(id);
     }
 
     async setPlaylistVisibility(id, visibility) {

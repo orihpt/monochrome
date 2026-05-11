@@ -4,10 +4,26 @@ import { PreparedTrack, PreparedAlbum } from './container-classes.js';
 export class SubsonicAPI {
     constructor() {
         this.baseUrl = '/rest';
-        this.user = localStorage.getItem('subsonic_user') || '';
-        this.password = localStorage.getItem('subsonic_pass') || '';
+        this._user = '';
+        this._password = '';
         this.version = '1.16.1';
         this.client = 'waves-music';
+    }
+
+    get user() {
+        return localStorage.getItem('subsonic_user') || this._user || '';
+    }
+
+    set user(value) {
+        this._user = value || '';
+    }
+
+    get password() {
+        return localStorage.getItem('subsonic_pass') || this._password || '';
+    }
+
+    set password(value) {
+        this._password = value || '';
     }
 
     get credentials() {
@@ -273,19 +289,108 @@ export class SubsonicAPI {
 
     // --- Search ---
 
+    async searchLibraryFallback(query, options = {}) {
+        const normalizedQuery = String(query || '').trim().toLowerCase();
+        if (!normalizedQuery) {
+            return {
+                tracks: { items: [] },
+                albums: { items: [] },
+                artists: { items: [] },
+                playlists: { items: [] },
+                videos: { items: [] },
+            };
+        }
+
+        const songLimit = options.limit || options.songCount || 20;
+        const albumLimit = options.albumCount || 12;
+        const artistLimit = options.artistCount || 12;
+        const listSize = 500;
+
+        const albumListRes = await this.fetchAPI(
+            'getAlbumList2',
+            `type=alphabeticalByName&size=${listSize}&offset=0`
+        );
+        this.throwIfSubsonicError(albumListRes);
+
+        const albums = albumListRes?.albumList2?.album || [];
+        const matchedTracks = [];
+        const matchedAlbums = [];
+        const artistMap = new Map();
+
+        const matches = (...values) =>
+            values.some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+
+        for (const albumSummary of albums) {
+            const albumSummaryMatches = matches(albumSummary.name, albumSummary.title, albumSummary.artist, albumSummary.displayArtist);
+            let albumDetails = null;
+
+            if (albumSummaryMatches || matchedTracks.length < songLimit) {
+                try {
+                    const details = await this.getAlbum(albumSummary.id);
+                    albumDetails = details?.album ? { album: details.album, tracks: details.tracks || [] } : null;
+                } catch (error) {
+                    console.warn('Fallback search failed to inspect album:', albumSummary.id, error);
+                }
+            }
+
+            const preparedAlbum = albumDetails?.album || this.prepareAlbum(albumSummary);
+            if (albumSummaryMatches && preparedAlbum && matchedAlbums.length < albumLimit) {
+                matchedAlbums.push(preparedAlbum);
+            }
+
+            const albumTracks = albumDetails?.tracks || [];
+            for (const track of albumTracks) {
+                if (matches(track.title, track.album?.title, track.artist?.name, ...(track.artists || []).map((artist) => artist.name))) {
+                    if (matchedTracks.length < songLimit) matchedTracks.push(track);
+                    if (track.artist?.id && !artistMap.has(track.artist.id)) artistMap.set(track.artist.id, track.artist);
+                    if (preparedAlbum && !matchedAlbums.some((album) => album.id === preparedAlbum.id) && matchedAlbums.length < albumLimit) {
+                        matchedAlbums.push(preparedAlbum);
+                    }
+                }
+            }
+
+            const artistName = albumSummary.artist || albumSummary.displayArtist;
+            if (matches(artistName) && albumSummary.artistId && !artistMap.has(albumSummary.artistId)) {
+                artistMap.set(albumSummary.artistId, { id: albumSummary.artistId, name: artistName });
+            }
+
+            if (matchedTracks.length >= songLimit && matchedAlbums.length >= albumLimit && artistMap.size >= artistLimit) {
+                break;
+            }
+        }
+
+        return {
+            tracks: { items: matchedTracks.slice(0, songLimit) },
+            albums: { items: matchedAlbums.slice(0, albumLimit) },
+            artists: { items: Array.from(artistMap.values()).slice(0, artistLimit) },
+            playlists: { items: [] },
+            videos: { items: [] },
+        };
+    }
+
     async search(query) {
         const res = await this.fetchAPI(
             'search3',
             `query=${encodeURIComponent(query)}&artistCount=12&albumCount=12&songCount=50`
         );
         const result = res?.searchResult3 || {};
-        return {
+        const response = {
             tracks: { items: (result.song || []).map(s => this.prepareTrack(s)).filter(Boolean) },
             albums: { items: (result.album || []).map(a => this.prepareAlbum(a)).filter(Boolean) },
             artists: { items: (result.artist || []).map(a => this.prepareArtist(a)).filter(Boolean) },
             playlists: { items: [] },
             videos: { items: [] },
         };
+
+        if (
+            response.tracks.items.length === 0 &&
+            response.albums.items.length === 0 &&
+            response.artists.items.length === 0
+        ) {
+            return this.searchLibraryFallback(query);
+        }
+
+        return response;
     }
 
     async searchTracks(query, options = {}) {
@@ -330,16 +435,25 @@ export class SubsonicAPI {
     }
 
     async getAlbum(id) {
-        const res = await this.fetchAPI('getAlbum', `id=${id}`);
+        const res = await this.fetchAPI('getAlbum', `id=${encodeURIComponent(id)}`);
+        this.throwIfSubsonicError(res);
         const album = this.prepareAlbum(res?.album);
         const tracks = (res?.album?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
         return { album, tracks };
     }
 
     async getArtist(id) {
-        const res = await this.fetchAPI('getArtist', `id=${id}`);
+        let res;
+        try {
+            res = await this.fetchAPI('getArtist', `id=${encodeURIComponent(id)}`);
+            this.throwIfSubsonicError(res);
+        } catch (error) {
+            console.warn('Subsonic getArtist failed, using album-list fallback:', error);
+            return this.getArtistFallback(id);
+        }
+
         const artist = res?.artist;
-        if (!artist) return null;
+        if (!artist) return this.getArtistFallback(id);
         const prepared = this.prepareArtist(artist);
         prepared.albums = (artist.album || []).map(a => this.prepareAlbum(a)).filter(Boolean);
         const topTracks = await this.getArtistTopTracks(id, { limit: 15 });
@@ -356,6 +470,39 @@ export class SubsonicAPI {
                 localHeaderUrl: richInfo.hasHeader ? this.getArtistRichImageUrl(id, 'header') : null,
             });
         }
+        return prepared;
+    }
+
+    async getArtistFallback(id) {
+        const albumListRes = await this.fetchAPI(
+            'getAlbumList2',
+            'type=alphabeticalByName&size=500&offset=0'
+        );
+        this.throwIfSubsonicError(albumListRes);
+
+        const albums = (albumListRes?.albumList2?.album || []).filter((album) => album.artistId === id);
+        if (albums.length === 0) return null;
+
+        const first = albums[0];
+        const prepared = this.prepareArtist({
+            id,
+            name: first.artist || first.displayArtist || 'Unknown Artist',
+            coverArt: first.coverArt,
+            albumCount: albums.length,
+        });
+        prepared.albums = albums.map((album) => this.prepareAlbum(album)).filter(Boolean);
+
+        const tracks = [];
+        for (const album of albums.slice(0, 6)) {
+            try {
+                const details = await this.getAlbum(album.id);
+                tracks.push(...(details?.tracks || []));
+            } catch (error) {
+                console.warn('Artist fallback failed to inspect album:', album.id, error);
+            }
+            if (tracks.length >= 15) break;
+        }
+        prepared.tracks = tracks.slice(0, 15);
         return prepared;
     }
 

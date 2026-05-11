@@ -30,13 +30,13 @@ test.describe('Monochrome E2E Tests', () => {
     // Mock a logged in state with correct keys and navidrome provider
     await page.evaluate(() => {
         localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
+        localStorage.setItem('subsonic_pass', '0hN0L3aked123');
         localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
         localStorage.setItem('music-provider', 'navidrome');
     });
     
     // Go to an artist page with Navidrome ID
-    await page.goto('http://localhost:5173/artist/2s3tuz4Kd5Kf8WbutjNpaE');
+    await page.goto('http://localhost:5173/artist/2cUlR50RVMP4dAUFB7ghi6');
     
     // Wait for content to load
     await page.waitForSelector('.track-item-info', { timeout: 15000 });
@@ -54,7 +54,7 @@ test.describe('Monochrome E2E Tests', () => {
     // Mock a logged in state
     await page.evaluate(() => {
         localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
+        localStorage.setItem('subsonic_pass', '0hN0L3aked123');
         localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
         localStorage.setItem('music-provider', 'navidrome');
     });
@@ -76,13 +76,13 @@ test.describe('Monochrome E2E Tests', () => {
     // Mock a logged in state
     await page.evaluate(() => {
         localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
+        localStorage.setItem('subsonic_pass', '0hN0L3aked123');
         localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
         localStorage.setItem('music-provider', 'navidrome');
     });
 
     // Go to an artist page
-    await page.goto('http://localhost:5173/artist/2s3tuz4Kd5Kf8WbutjNpaE');
+    await page.goto('http://localhost:5173/artist/2cUlR50RVMP4dAUFB7ghi6');
 
     // Wait for artist name to load
     await expect(page.locator('#artist-detail-name')).toBeAttached({ timeout: 15000 });

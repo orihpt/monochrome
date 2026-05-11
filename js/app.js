@@ -2583,6 +2583,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await handleRouteChange();
 
     window.addEventListener('popstate', handleRouteChange);
+    window.__wavesAppReady = true;
+    window.dispatchEvent(new Event('waves-app-ready'));
 
     document.body.addEventListener('click', (e) => {
         const link = e.target.closest('a');

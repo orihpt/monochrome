@@ -2,12 +2,25 @@ import { db } from './db.js';
 
 export const syncManager = {
     _syncTimeout: null,
+    _disabled: false,
+
+    _isOfflineMode() {
+        return typeof __OFFLINE_MODE__ !== 'undefined' && __OFFLINE_MODE__;
+    },
+
+    async _readJsonResponse(response, fallbackErrorMessage) {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error(`${fallbackErrorMessage}: expected JSON, received ${contentType || 'unknown content type'}`);
+        }
+        return await response.json();
+    },
 
     async fetchSyncData() {
         const response = await fetch('/api/user/sync');
         if (response.status === 401) return null; // Not logged in
         if (!response.ok) throw new Error('Failed to fetch sync data');
-        return await response.json();
+        return await this._readJsonResponse(response, 'Failed to fetch sync data');
     },
 
     async pushSyncData(data, timestamp) {
@@ -20,10 +33,12 @@ export const syncManager = {
             }),
         });
         if (!response.ok) throw new Error('Failed to push sync data');
-        return await response.json();
+        return await this._readJsonResponse(response, 'Failed to push sync data');
     },
 
     async sync() {
+        if (this._disabled || this._isOfflineMode()) return;
+
         try {
             const serverResponse = await this.fetchSyncData();
             if (!serverResponse) return;
@@ -67,6 +82,8 @@ export const syncManager = {
     },
 
     triggerChange() {
+        if (this._disabled || this._isOfflineMode()) return;
+
         const now = Date.now();
         localStorage.setItem('user_data_updated_at', now.toString());
         
@@ -75,6 +92,11 @@ export const syncManager = {
     },
 
     initialize() {
+        if (this._isOfflineMode()) {
+            this._disabled = true;
+            return;
+        }
+
         // Listen for changes that should trigger a sync
         window.addEventListener('favorites-changed', () => this.triggerChange());
         window.addEventListener('playlist-tracks-changed', () => this.triggerChange());

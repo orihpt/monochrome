@@ -4784,6 +4784,21 @@ export class UIRenderer {
             const { album, tracks } = await this.api.getAlbum(albumId, provider);
             this.currentAlbumId = albumId;
 
+            if (!album) {
+                imageEl.src = '';
+                imageEl.style.backgroundColor = 'transparent';
+                titleEl.textContent = 'Album not found';
+                metaEl.textContent = 'This album could not be found in the current music provider.';
+                prodEl.textContent = '';
+                rateCriticsEl.textContent = '';
+                rateUsersEl.textContent = '';
+                tracklistContainer.innerHTML = createPlaceholder('Try switching providers or opening a provider-specific album link.');
+                if (playBtn) playBtn.style.display = 'none';
+                if (dlBtn) dlBtn.style.display = 'none';
+                if (radioBtn) radioBtn.style.display = 'none';
+                return;
+            }
+
             if (_isBlockedCopyright(album.copyright)) {
                 imageEl.src = '';
                 imageEl.style.backgroundColor = 'transparent';
@@ -5142,7 +5157,7 @@ export class UIRenderer {
                 console.warn('Failed to load "More from artist":', err);
             }
         } catch (error) {
-            console.error('Failed to load album:', error);
+            console.warn('Failed to load album:', error);
             tracklistContainer.innerHTML = createPlaceholder(`Could not load album details. ${error.message}`);
         }
     }
@@ -5932,6 +5947,9 @@ export class UIRenderer {
 
         try {
             const artist = await this.api.getArtist(artistId, provider);
+            if (!artist) {
+                throw new Error('Artist not found');
+            }
 
             const currentId = this.currentArtistId;
             if (artist.localHeaderUrl && bannerContainer) {
@@ -7180,7 +7198,7 @@ export class UIRenderer {
 
         try {
             let track;
-            track = await this.api.getTrackMetadata(trackId);
+            track = await this.api.getTrackMetadata(trackId, provider);
             this.currentTrackPageId = track.id;
 
             if (_isBlockedCopyright(track.copyright)) {
@@ -7308,7 +7326,7 @@ export class UIRenderer {
             }
 
             if (track.album?.id) {
-                const { tracks } = await this.api.getAlbum(track.album.id);
+                const { tracks } = await this.api.getAlbum(track.album.id, provider);
                 if (tracks && tracks.length > 0) {
                     albumSection.style.display = 'block';
                     await this.renderListWithTracks(albumTracksContainer, tracks, false, false, false, true);

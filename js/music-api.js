@@ -71,8 +71,8 @@ export class MusicAPI {
     }
 
     // Get the appropriate API based on provider
-    getAPI() {
-        const provider = this.getCurrentProvider();
+    getAPI(providerOverride = null) {
+        const provider = providerOverride || this.getCurrentProvider();
         if (provider === 'subsonic' || provider === 'navidrome') {
             return this.subsonicAPI;
         }
@@ -155,32 +155,32 @@ export class MusicAPI {
     }
 
     // Get methods
-    async getTrack(id, quality) {
-        const api = this.getAPI();
+    async getTrack(id, quality, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         return api.getTrack(cleanId, quality);
     }
 
-    async getTrackMetadata(id) {
-        const api = this.getAPI();
+    async getTrackMetadata(id, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         return api.getTrackMetadata(cleanId);
     }
 
-    async getAlbum(id) {
-        const api = this.getAPI();
+    async getAlbum(id, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         return api.getAlbum(cleanId);
     }
 
-    async getArtist(id) {
-        const api = this.getAPI();
+    async getArtist(id, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         return api.getArtist(cleanId);
     }
 
-    async getArtistBiography(id) {
-        const api = this.getAPI();
+    async getArtistBiography(id, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         if (typeof api.getArtistBiography === 'function') {
             return api.getArtistBiography(cleanId);
@@ -210,8 +210,8 @@ export class MusicAPI {
         return [];
     }
 
-    async getPlaylist(id, _provider = null) {
-        const api = this.getAPI();
+    async getPlaylist(id, provider = null) {
+        const api = this.getAPI(provider);
         const cleanId = this.stripProviderPrefix(id);
         if (typeof api.getPlaylist === 'function') return api.getPlaylist(cleanId);
         return null;

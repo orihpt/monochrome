@@ -1,98 +1,210 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-test.describe('Monochrome E2E Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    // Go to the app
-    await page.goto('http://localhost:5173/');
-    
-    // Inject CSS to hide all modal overlays and error toasts to prevent click interception
-    await page.addStyleTag({
-      content: `
-        .modal-overlay,
-        #waves-music-auth-modal,
-        div:has(> text("Unhandled Promise Rejection")) {
-          display: none !important;
-          pointer-events: none !important;
-        }
-      `
-    });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(__dirname, '..');
+const backendEnvPath = path.resolve(appRoot, '../navidrome/.env');
+const hitMeHardAndSoftAlbumId = '4ZmbVLUy4kYrqwxgIGsYtk';
+
+function readEnvValue(filePath, key) {
+  if (!fs.existsSync(filePath)) return undefined;
+
+  const line = fs
+    .readFileSync(filePath, 'utf8')
+    .split(/\r?\n/)
+    .find((entry) => entry.trim().startsWith(`${key}=`));
+
+  if (!line) return undefined;
+
+  const rawValue = line.slice(line.indexOf('=') + 1).trim();
+  return rawValue.replace(/^['"]|['"]$/g, '');
+}
+
+const adminPassword = process.env.ADMIN_USER_STATIC_PASSWORD || readEnvValue(backendEnvPath, 'ADMIN_USER_STATIC_PASSWORD');
+
+async function expectNoRuntimeErrors(page, action) {
+  const runtimeErrors = [];
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') runtimeErrors.push(message.text());
   });
 
-  test('should show login modal when not logged in', async ({ page }) => {
-    // Check if the login modal is in the DOM
-    const modal = page.locator('#waves-music-auth-modal');
-    await expect(modal).toBeAttached();
-    await expect(page.locator('#waves-music-auth-username')).toBeAttached();
-    await expect(page.locator('#waves-music-auth-password')).toBeAttached();
+  await action();
+
+  expect(runtimeErrors, `Unexpected browser errors:\n${runtimeErrors.join('\n')}`).toEqual([]);
+}
+
+async function loginAsAdmin(page) {
+  expect(adminPassword, 'ADMIN_USER_STATIC_PASSWORD must be set in the backend .env').toBeTruthy();
+
+  await page.goto('/');
+  await expect(page.locator('#waves-music-auth-modal')).toBeVisible();
+
+  await page.locator('#waves-music-auth-username').fill('admin');
+  await page.locator('#waves-music-auth-password').fill(adminPassword);
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/rest/ping.view') && response.status() === 200),
+    page.locator('#waves-music-auth-form button').click(),
+  ]);
+
+  await expect(page.locator('#waves-music-auth-modal')).toBeHidden({ timeout: 15000 });
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('subsonic_user')))
+    .toBe('admin');
+}
+
+async function search(page, query) {
+  await page.goto(`/search/${encodeURIComponent(query)}`);
+  await expect(page).toHaveURL(new RegExp(`/search/${encodeURIComponent(query)}`), { timeout: 15000 });
+  await expect(page.locator('#search-results-title')).toContainText(query, { timeout: 15000 });
+}
+
+async function openHitMeHardAndSoft(page) {
+  await page.goto(`/album/${hitMeHardAndSoftAlbumId}`);
+  await expect(page.locator('#album-detail-title')).toContainText(/HIT ME HARD AND SOFT/i, { timeout: 20000 });
+  await expect.poll(() => page.locator('#album-detail-tracklist .track-item').count()).toBeGreaterThan(0);
+}
+
+function trackIn(page, container, title) {
+  return page
+    .locator(`${container} .track-item`)
+    .filter({ has: page.locator('.track-item-details .title', { hasText: new RegExp(`^\\s*${title}\\b`, 'i') }) })
+    .first();
+}
+
+function albumTrack(page, title) {
+  return trackIn(page, '#album-detail-tracklist', title);
+}
+
+function playlistTrack(page, title) {
+  return trackIn(page, '#playlist-detail-tracklist', title);
+}
+
+async function playAlbumTrack(page, title) {
+  const track = albumTrack(page, title);
+  await expect(track).toBeVisible({ timeout: 15000 });
+  await track.locator('.track-item-info').click();
+  await expect(page.locator('.now-playing-bar .title')).toContainText(new RegExp(title, 'i'), { timeout: 15000 });
+  await expect(page.locator('.now-playing-bar .play-pause-btn')).toBeVisible();
+  return track;
+}
+
+test.describe('Waves Music frontend E2E', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeEach(async ({ context }) => {
+    await context.clearCookies();
+  });
+
+  test('should show login modal when entering the website without credentials', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.locator('#waves-music-auth-modal')).toBeVisible();
+    await expect(page.locator('#waves-music-auth-username')).toBeVisible();
+    await expect(page.locator('#waves-music-auth-password')).toBeVisible();
+  });
+
+  test('should accept the admin credentials from the backend env', async ({ page }) => {
+    await loginAsAdmin(page);
+
+    await expect(page.locator('#waves-music-auth-modal')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('subsonic_user'))).toBe('admin');
+  });
+
+  test('should expose scanner controls to the admin user', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/settings');
+
+    await expect(page.locator('#settings-admin-tab')).toBeVisible({ timeout: 15000 });
+    await page.locator('#settings-admin-tab').click();
+    await expect(page.locator('#settings-tab-admin')).toHaveClass(/active/);
+    await expect(page.locator('#trigger-scan-btn')).toBeVisible();
+  });
+
+  test('should trigger a library scan through the frontend scanner control', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/settings');
+    await page.locator('#settings-admin-tab').click();
+
+    const [scanResponse] = await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/rest/startScan.view') && response.status() === 200),
+      page.locator('#trigger-scan-btn').click(),
+    ]);
+    const body = await scanResponse.json();
+
+    expect(body['subsonic-response']?.status).toBe('ok');
+    expect(body['subsonic-response']?.scanStatus).toBeTruthy();
+    await expect(page.locator('#admin-actions-status')).toContainText(/Library rescan started/i, { timeout: 15000 });
+  });
+
+  test("should show CHIHIRO and LUNCH in the HIT ME HARD AND SOFT songs list", async ({ page }) => {
+    await loginAsAdmin(page);
+    await openHitMeHardAndSoft(page);
+
+    await expect(albumTrack(page, 'CHIHIRO')).toBeVisible();
+    await expect(albumTrack(page, 'LUNCH')).toBeVisible();
   });
 
   test('should play a song', async ({ page }) => {
-    // Mock a logged in state with correct keys and navidrome provider
-    await page.evaluate(() => {
-        localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
-        localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
-        localStorage.setItem('music-provider', 'navidrome');
-    });
-    
-    // Go to an artist page with Navidrome ID
-    await page.goto('http://localhost:5173/artist/2s3tuz4Kd5Kf8WbutjNpaE');
-    
-    // Wait for content to load
-    await page.waitForSelector('.track-item-info', { timeout: 15000 });
-    
-    // Click on the first track to play it
-    const firstTrack = page.locator('.track-item-info').first();
-    await firstTrack.click({ force: true });
-    
-    // Check if the player bar shows something is playing
-    const playPauseBtn = page.locator('.now-playing-bar .play-pause-btn');
-    await expect(playPauseBtn).toBeVisible();
+    await loginAsAdmin(page);
+    await openHitMeHardAndSoft(page);
+
+    await playAlbumTrack(page, 'CHIHIRO');
   });
 
-  test('should create a playlist', async ({ page }) => {
-    // Mock a logged in state
-    await page.evaluate(() => {
-        localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
-        localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
-        localStorage.setItem('music-provider', 'navidrome');
+  test('should open the lyrics page for CHIHIRO without errors', async ({ page }) => {
+    await loginAsAdmin(page);
+    await openHitMeHardAndSoft(page);
+    await playAlbumTrack(page, 'CHIHIRO');
+
+    await expectNoRuntimeErrors(page, async () => {
+      await expect(page.locator('#now-playing-lyrics-page-btn')).toBeVisible({ timeout: 15000 });
+      await page.locator('#now-playing-lyrics-page-btn').click();
+      await expect(page).toHaveURL(/\/lyrics$/, { timeout: 15000 });
+      await expect(page.locator('#lyrics-page-track-info')).toContainText(/CHIHIRO/i, { timeout: 15000 });
     });
-    await page.goto('http://localhost:5173/library');
-    
-    // Wait for Library content to load
-    await page.waitForSelector('#library-create-playlist-card', { timeout: 10000 });
-    
-    // Click "Create Playlist" card
-    const createPlaylistBtn = page.locator('#library-create-playlist-card');
-    await expect(createPlaylistBtn).toBeAttached();
-    await createPlaylistBtn.click({ force: true });
-    
-    // Wait for any modal or input (simulating the interaction)
-    await page.waitForTimeout(1000); 
+
+    await expect(page.locator('#lyrics-page-content')).not.toContainText(/Failed to load lyrics/i);
   });
 
-  test('should load artist page without errors', async ({ page }) => {
-    // Mock a logged in state
-    await page.evaluate(() => {
-        localStorage.setItem('subsonic_user', 'admin');
-        localStorage.setItem('subsonic_pass', 'admin');
-        localStorage.setItem('monochrome-user', JSON.stringify({ username: 'admin' }));
-        localStorage.setItem('music-provider', 'navidrome');
+  test('should add a song to a playlist from the plus button next to the song', async ({ page }) => {
+    await loginAsAdmin(page);
+    await openHitMeHardAndSoft(page);
+
+    const playlistName = `E2E Playlist ${Date.now()}`;
+    const chihiro = albumTrack(page, 'CHIHIRO');
+    const plusButton = chihiro.locator('.track-library-btn');
+
+    await plusButton.click();
+    await expect(plusButton).toHaveClass(/in-library/, { timeout: 15000 });
+
+    await plusButton.click();
+    await expect(page.locator('.track-library-menu')).toBeVisible();
+    await page.locator('.track-library-menu-add').click();
+
+    await expect(page.locator('#playlist-modal')).toHaveClass(/active/);
+    await page.locator('#playlist-name-input').fill(playlistName);
+    await page.locator('#playlist-modal-save').click();
+    await expect(page.locator('#playlist-modal')).not.toHaveClass(/active/, { timeout: 15000 });
+
+    await page.goto('/library');
+    const playlistCard = page.locator('[data-user-playlist-id]').filter({ hasText: playlistName }).first();
+    await expect(playlistCard).toBeVisible({ timeout: 15000 });
+    await playlistCard.click();
+    await expect(page).toHaveURL(/\/userplaylist\//, { timeout: 15000 });
+    await expect(playlistTrack(page, 'CHIHIRO')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('should find Billie Eilish and HIT ME HARD AND SOFT from search', async ({ page }) => {
+    await loginAsAdmin(page);
+    await search(page, 'Billie Eilish');
+
+    await expect(page.locator('[data-artist-id]').filter({ hasText: /Billie Eilish/i }).first()).toBeVisible({
+      timeout: 20000,
     });
-
-    // Go to an artist page
-    await page.goto('http://localhost:5173/artist/2s3tuz4Kd5Kf8WbutjNpaE');
-
-    // Wait for artist name to load
-    await expect(page.locator('#artist-detail-name')).toBeAttached({ timeout: 15000 });
-
-    // Wait for the tracks container to load
-    const tracksContainer = page.locator('#artist-detail-tracks');
-    await expect(tracksContainer).toBeAttached();
-
-    // Ensure it doesn't say "Could not load artist details"
-    const tracksHtml = await tracksContainer.innerHTML();
-    expect(tracksHtml).not.toContain('Could not load artist details');
+    await expect(page.locator('[data-album-id]').filter({ hasText: /HIT ME HARD AND SOFT/i }).first()).toBeVisible();
   });
 });

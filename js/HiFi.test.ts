@@ -11,8 +11,12 @@ const TRACK_VIDEO = 466464180; // Taylow Swift - The Fate of Ophelia
 const TRACK_LOSSLESS = 31097949; // deadmau5 - Avaritia
 const PLAYLIST_ID = '36ea71a8-445e-41a4-82ab-6628c581535d'; // Pop Hits
 
+const onlineMode = !__OFFLINE_MODE__ && __ENABLE_TIDAL_API__;
+const onlineTest = onlineMode ? test : test.skip;
 const instance = new HiFiClient();
-await instance.fetchToken();
+if (onlineMode) {
+    await instance.fetchToken();
+}
 
 function checkVersion({ version }: { version?: string }) {
     expect(version).toBeTypeOf('string');
@@ -49,7 +53,7 @@ async function checkRoute(
     await checks(json);
 }
 
-test('Get token', async () => {
+onlineTest('Get token', async () => {
     const instance = new HiFiClient();
 
     const token = await instance.fetchToken();
@@ -68,7 +72,7 @@ test('Get token', async () => {
     expect(instance.appTokenExpiry).toBeGreaterThan(Date.now());
 });
 
-test('Fetch atmos track info', async () => {
+onlineTest('Fetch atmos track info', async () => {
     await checkRoute(
         `/info/?id=${TRACK_ATMOS}`,
         () => instance.getInfo(TRACK_ATMOS),
@@ -78,7 +82,7 @@ test('Fetch atmos track info', async () => {
     );
 });
 
-test('Fetch track', async () => {
+onlineTest('Fetch track', async () => {
     await checkRoute(
         `/track/?id=${TRACK_LOSSLESS}`,
         () => instance.getTrack(TRACK_LOSSLESS),
@@ -99,7 +103,7 @@ test('Fetch track', async () => {
     );
 });
 
-test.skipIf(!instance.refreshToken)('Fetch recommendations', async () => {
+onlineTest.skipIf(!instance.refreshToken)('Fetch recommendations', async () => {
     await checkRoute(
         `/recommendations/?id=${ARTIST_ID}`,
         () => instance.getRecommendations(ARTIST_ID),
@@ -107,7 +111,7 @@ test.skipIf(!instance.refreshToken)('Fetch recommendations', async () => {
     );
 });
 
-test('Fetch similar artists', async () => {
+onlineTest('Fetch similar artists', async () => {
     await checkRoute(
         `/artist/similar/?id=${ARTIST_ID}`,
         () => instance.getSimilarArtists(ARTIST_ID),
@@ -116,7 +120,7 @@ test('Fetch similar artists', async () => {
     );
 });
 
-test('Fetch similar albums', async () => {
+onlineTest('Fetch similar albums', async () => {
     await checkRoute(
         `/album/similar/?id=${ALBUM_ID}`,
         () => instance.getSimilarAlbums(ALBUM_ID),
@@ -125,7 +129,7 @@ test('Fetch similar albums', async () => {
     );
 });
 
-test('Fetch artist info', async () => {
+onlineTest('Fetch artist info', async () => {
     await checkRoute(
         `/artist/?id=${ARTIST_ID}`,
         () => instance.getArtist(ARTIST_ID),
@@ -137,7 +141,7 @@ test('Fetch artist info', async () => {
     );
 });
 
-test('Search', async () => {
+onlineTest('Search', async () => {
     const query = 'deadmau5';
     await checkRoute(
         `/search/?q=${encodeURIComponent(query)}`,
@@ -149,7 +153,7 @@ test('Search', async () => {
     );
 });
 
-test('Fetch album info', async () => {
+onlineTest('Fetch album info', async () => {
     await checkRoute(
         `/album/?id=${ALBUM_ID}`,
         () => instance.getAlbum(ALBUM_ID),
@@ -160,7 +164,7 @@ test('Fetch album info', async () => {
     );
 });
 
-test('Fetch playlist info', async () => {
+onlineTest('Fetch playlist info', async () => {
     await checkRoute(
         `/playlist/?id=${PLAYLIST_ID}`,
         () => instance.getPlaylist(PLAYLIST_ID),
@@ -172,7 +176,7 @@ test('Fetch playlist info', async () => {
     );
 });
 
-test.skipIf(!instance.refreshToken)('Fetch lyrics ', async () => {
+onlineTest.skipIf(!instance.refreshToken)('Fetch lyrics ', async () => {
     await checkRoute(
         `/lyrics/?id=${TRACK_ATMOS}`,
         () => instance.getLyrics(TRACK_ATMOS),
@@ -181,7 +185,7 @@ test.skipIf(!instance.refreshToken)('Fetch lyrics ', async () => {
     );
 });
 
-test('Fetch video ', async () => {
+onlineTest('Fetch video ', async () => {
     await checkRoute(
         `/video/?id=${TRACK_VIDEO}`,
         () => instance.getVideo(TRACK_VIDEO),
@@ -190,7 +194,7 @@ test('Fetch video ', async () => {
     );
 });
 
-test('Fetch track manifests ', async () => {
+onlineTest('Fetch track manifests ', async () => {
     await checkRoute(
         `/trackManifests/?id=${TRACK_LOSSLESS}`,
         () => instance.getTrackManifest(TRACK_LOSSLESS),

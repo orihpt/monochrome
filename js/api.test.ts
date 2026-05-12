@@ -93,7 +93,7 @@ enum Detection {
     OGG_128,
 }
 
-suite('Track Downloads', async () => {
+suite.skipIf(__OFFLINE_MODE__ || !__ENABLE_TIDAL_API__)('Track Downloads', async () => {
     const SILENCE_TRACK = 46022548;
     const TRACK_ATMOS = 463900720; // Taylor Swift - The Fate of Ophelia
     const TRACK_NO_LOSSLESS = 31097959; // deadmau5 - while(1<2)

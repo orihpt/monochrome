@@ -40,6 +40,7 @@ export default defineConfig((_options) => {
 
     return {
         test: {
+            exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
             // https://vitest.dev/guide/browser/
             browser: {
                 enabled: true,
@@ -85,13 +86,13 @@ export default defineConfig((_options) => {
                 '!simpleicons': '/node_modules/simple-icons/icons',
                 '!': '/node_modules',
 
-                events: '/node_modules/events/events.js',
-                pocketbase: '/node_modules/pocketbase/dist/pocketbase.es.js',
+                events: path.resolve(__dirname, 'node_modules/events/events.js'),
+                pocketbase: path.resolve(__dirname, 'node_modules/pocketbase/dist/pocketbase.es.js'),
                 stream: path.resolve(__dirname, 'stream-stub.js'), // Stub for stream module
             },
         },
         optimizeDeps: {
-            exclude: ['pocketbase', '@ffmpeg/ffmpeg', '@ffmpeg/util'],
+            exclude: ['pocketbase', '@ffmpeg/ffmpeg', '@ffmpeg/util', '@vitest/browser-playwright', 'playwright', 'playwright-core'],
         },
         server: {
             fs: {

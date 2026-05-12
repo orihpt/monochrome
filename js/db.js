@@ -406,7 +406,8 @@ export class MusicDatabase {
                 const oldest = allPinned.sort((a, b) => a.pinnedAt - b.pinnedAt)[0];
                 await this.performTransaction(storeName, 'readwrite', (store) => store.delete(oldest.id));
             }
-            const entry = { ...minifiedItem, pinnedAt: Date.now() };
+            const lastPinnedAt = allPinned.reduce((latest, pinned) => Math.max(latest, pinned.pinnedAt || 0), 0);
+            const entry = { ...minifiedItem, pinnedAt: Math.max(Date.now(), lastPinnedAt + 1) };
             await this.performTransaction(storeName, 'readwrite', (store) => store.put(entry));
             return true;
         }

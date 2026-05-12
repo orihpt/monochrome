@@ -64,6 +64,9 @@ export function createRouter(ui) {
                 await ui.renderPlaylistPage(id, 'api', provider);
                 break;
             }
+            case 'liked-songs':
+                await ui.renderLikedSongsPage();
+                break;
             case 'userplaylist':
                 await ui.renderPlaylistPage(param, 'user');
                 break;
@@ -75,6 +78,15 @@ export function createRouter(ui) {
                 await ui.renderMixPage(id, provider);
                 break;
             }
+            case 'radio': {
+                const [kind, ...idParts] = param.split('/');
+                if (kind === 'track' && idParts.length > 0) {
+                    await ui.renderTrackRadioPage(decodeURIComponent(idParts.join('/')));
+                } else {
+                    await ui.renderHomePage();
+                }
+                break;
+            }
             case 'track': {
                 const { provider, id } = extractProviderAndId(param);
                 if (id.startsWith('tracker-')) {
@@ -84,6 +96,9 @@ export function createRouter(ui) {
                 }
                 break;
             }
+            case 'lyrics':
+                await ui.renderLyricsPage();
+                break;
             case 'library':
                 await ui.renderLibraryPage();
                 break;
@@ -104,13 +119,6 @@ export function createRouter(ui) {
                     await ui.renderUnreleasedPage();
                 }
                 break;
-            case 'podcasts':
-                if (param) {
-                    await ui.renderPodcastPage(param);
-                } else {
-                    await ui.renderPodcastsBrowsePage();
-                }
-                break;
             case 'home':
                 await ui.renderHomePage();
                 break;
@@ -119,6 +127,9 @@ export function createRouter(ui) {
                 break;
             case 'donate':
                 ui.showPage('donate');
+                break;
+            case 'about':
+                await ui.renderAboutPage();
                 break;
             case 'user':
                 if (param && param.startsWith('@') && !param.includes('/')) {
@@ -143,6 +154,6 @@ export function updateTabTitle(player) {
         if (path.startsWith('/album/') || path.startsWith('/playlist/') || path.startsWith('/track/')) {
             return;
         }
-        document.title = 'Monochrome Music';
+        document.title = 'Waves Music';
     }
 }

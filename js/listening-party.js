@@ -217,7 +217,7 @@ export class ListeningPartyManager {
                                 const name = modal.querySelector('#guest-name-input').value.trim() || 'Guest';
                                 const profile = {
                                     name,
-                                    avatar_url: `https://api.dicebear.com/9.x/identicon/svg?seed=${name}`,
+                                    avatar_url: '/assets/appicon.png',
                                 };
                                 localStorage.setItem('party_guest_profile', JSON.stringify(profile));
                                 return { profile };
@@ -247,13 +247,13 @@ export class ListeningPartyManager {
             const name =
                 pbUser?.display_name || pbUser?.username || user.displayName || user.email?.split('@')[0] || 'Member';
             const avatar =
-                pbUser?.avatar_url || user.photoURL || `https://api.dicebear.com/9.x/identicon/svg?seed=${name}`;
+                pbUser?.avatar_url || user.photoURL || '/assets/appicon.png';
             return { name, avatar_url: avatar };
         }
         const cached = localStorage.getItem('party_guest_profile');
         return cached
             ? JSON.parse(cached)
-            : { name: 'Guest', avatar_url: 'https://api.dicebear.com/9.x/identicon/svg?seed=Guest' };
+            : { name: 'Guest', avatar_url: '/assets/appicon.png' };
     }
 
     setupSubscriptions(partyId) {
@@ -477,21 +477,6 @@ export class ListeningPartyManager {
         let content = escapeHtml(msg.content);
 
         content = content.replace(urlRegex, (url) => {
-            if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i)) {
-                return `<a href="${url}" target="_blank" class="chat-link">${url}</a><img src="${url}" style="max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; cursor: pointer" onclick="window.open('${url}')">`;
-            }
-            const ytMatch = url.match(
-                /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i
-            );
-            if (ytMatch) {
-                return `<a href="${url}" target="_blank" class="chat-link">${url}</a><iframe style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-top: 8px; border: none" src="https://www.youtube.com/embed/${ytMatch[1]}" allowfullscreen></iframe>`;
-            }
-            if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
-                return `<a href="${url}" target="_blank" class="chat-link">${url}</a><video controls style="max-width: 100%; border-radius: 8px; margin-top: 8px; display: block"><source src="${url}"></video>`;
-            }
-            if (url.includes('tenor.com/view/')) {
-                return `<a href="${url}" target="_blank" class="chat-link">${url}</a><div class="tenor-embed" data-postid="${url.split('-').pop()}" data-share-method="host" data-aspect-ratio="1" data-width="100%"><script type="text/javascript" async src="https://tenor.com/embed.js"></script></div>`;
-            }
             return `<a href="${url}" target="_blank" class="chat-link" style="color: var(--primary); text-decoration: underline;">${url}</a>`;
         });
 

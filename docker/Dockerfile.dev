@@ -4,13 +4,15 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
+RUN corepack enable
+
 # Copy package files first for caching
-COPY package.json ./
+COPY package.json yarn.lock ./
 
 # Install dependencies
-RUN npm install
+RUN yarn install --frozen-lockfile
 
 # Expose Vite dev server port
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["yarn", "dev", "--host", "0.0.0.0"]

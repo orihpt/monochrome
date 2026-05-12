@@ -16,16 +16,18 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: '20'
-                  cache: 'npm'
+                  cache: 'yarn'
 
             - name: Install dependencies
-              run: npm install
+              run: |
+                  corepack enable
+                  yarn install --immutable
 
             - name: Build
-              run: npm run build
+              run: yarn build
 
             - name: Preview build
-              run: npm run preview &
+              run: yarn preview &
               continue-on-error: true
 
             - name: Wait for preview server
@@ -33,7 +35,7 @@ jobs:
 
             - name: Run Lighthouse
               run: |
-                  npx lhci autorun --config=.lhci.yml || true
+                  yarn lhci autorun --config=.lhci.yml || true
 
             - name: Upload results
               if: always()

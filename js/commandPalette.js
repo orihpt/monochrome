@@ -311,17 +311,6 @@ class CommandPalette {
                 },
             },
             {
-                id: 'download-current',
-                group: 'Now Playing',
-                icon: 'download',
-                label: 'Download Current Track',
-                keywords: ['download', 'save', 'current'],
-                action: () => {
-                    document.querySelector('.now-playing-bar .download-btn')?.click();
-                },
-            },
-
-            {
                 id: 'queue-open',
                 group: 'Queue',
                 icon: 'list',
@@ -351,15 +340,6 @@ class CommandPalette {
                 keywords: ['like', 'all', 'queue', 'heart', 'favorite'],
                 action: () => this.likeAllInQueue(),
             },
-            {
-                id: 'queue-download',
-                group: 'Queue',
-                icon: 'download',
-                label: 'Download Queue',
-                keywords: ['download', 'queue', 'save', 'all'],
-                action: () => this.downloadQueue(),
-            },
-
             {
                 id: 'lyrics-toggle',
                 group: 'View',
@@ -570,39 +550,6 @@ class CommandPalette {
                 keywords: ['quality', 'lossless', 'flac', 'streaming'],
                 action: () => this.setQuality('LOSSLESS'),
             },
-            {
-                id: 'sleep-15',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 15 min',
-                keywords: ['sleep', 'timer', '15', 'minutes'],
-                action: () => this.setSleepTimer(15),
-            },
-            {
-                id: 'sleep-30',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 30 min',
-                keywords: ['sleep', 'timer', '30', 'minutes'],
-                action: () => this.setSleepTimer(30),
-            },
-            {
-                id: 'sleep-60',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 60 min',
-                keywords: ['sleep', 'timer', '60', 'minutes', 'hour'],
-                action: () => this.setSleepTimer(60),
-            },
-            {
-                id: 'sleep-120',
-                group: 'Audio',
-                icon: 'clock',
-                label: 'Sleep Timer: 120 min',
-                keywords: ['sleep', 'timer', '120', 'minutes', 'hours'],
-                action: () => this.setSleepTimer(120),
-            },
-
             {
                 id: 'lib-create-playlist',
                 group: 'Library',
@@ -1228,13 +1175,6 @@ class CommandPalette {
         await this.notify(`Quality set to ${qualityNames[quality] || quality}`);
     }
 
-    async setSleepTimer(minutes) {
-        if (Player.instance) {
-            Player.instance.setSleepTimer(minutes);
-            await this.notify(`Sleep timer: ${minutes} minutes`);
-        }
-    }
-
     async likeAllInQueue() {
         const player = Player.instance;
         const ui = UIRenderer.instance;
@@ -1259,22 +1199,6 @@ class CommandPalette {
             }
         }
         await this.notify(`Liked ${likedCount} new track(s)`);
-    }
-
-    async downloadQueue() {
-        const player = Player.instance;
-        const ui = UIRenderer.instance;
-        if (!player || !ui) return;
-
-        const queue = player.getCurrentQueue();
-        if (queue.length === 0) {
-            await this.notify('Queue is empty');
-            return;
-        }
-
-        const { downloadTracks } = await import('./downloads.js');
-        const { downloadQualitySettings } = await import('./storage.js');
-        await downloadTracks(queue, ui.api, downloadQualitySettings.getQuality(), ui.lyricsManager);
     }
 
     async createPlaylist() {

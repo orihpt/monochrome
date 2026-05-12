@@ -1232,6 +1232,12 @@ class HiFiClient {
             signal?: AbortSignal;
             force?: boolean;
         }): Promise<string | null> {
+        if (__OFFLINE_MODE__ || !__ENABLE_TIDAL_API__) {
+            // Offline-first mode: leave the TIDAL token flow recoverable, but
+            // never contact auth.tidal.com unless the build explicitly opts in.
+            return null;
+        }
+
         if (!force && this.token && (this.appTokenExpiry < 0 || Date.now() < this.appTokenExpiry)) return this.token;
 
         return await (this.#tokenPromise ??= (async (): Promise<string | null> => {
@@ -1326,6 +1332,10 @@ class HiFiClient {
         params?: Params | URLSearchParams,
         signal: AbortSignal = new AbortController().signal
     ): Promise<Response> {
+        if (__OFFLINE_MODE__ || !__ENABLE_TIDAL_API__) {
+            throw new Error(`External API calls disabled in offline mode: ${url}`);
+        }
+
         const final = HiFiClient.#buildUrl(url, params);
         let res: Response | undefined;
 
@@ -1340,12 +1350,9 @@ class HiFiClient {
                 force: unauthorized,
             });
 
-            const headers: Record<string, string> = {
-                authorization: `Bearer ${token}`,
-            };
+            const headers: Record<string, string> = {};
+            if (token) headers.authorization = `Bearer ${token}`;
             if (final.includes('openapi.tidal.com')) {
-                // Prefer JSON:API for OpenAPI endpoints, but do not require it exclusively.
-                // Some endpoints/proxies can still return compatible JSON.
                 headers['Accept'] = 'application/vnd.api+json, application/json;q=0.9, */*;q=0.8';
             }
 
@@ -1417,10 +1424,12 @@ class HiFiClient {
         const instance = (HiFiClient.#instance = new HiFiClient(options));
 
         if (!options.token && !options.clientId && !options.clientSecret) {
-            await instance.#fetchAppToken({
-                ...options,
-                signal: options.signal || new AbortController().signal,
-            });
+            if (!__OFFLINE_MODE__ && __ENABLE_TIDAL_API__) {
+                await instance.#fetchAppToken({
+                    ...options,
+                    signal: options.signal || new AbortController().signal,
+                });
+            }
         }
 
         return (HiFiClient.#instance = instance);
@@ -1775,7 +1784,7 @@ class HiFiClient {
                 cover = {
                     id: artist_data.id,
                     name: artist_data.name,
-                    '750': `https://resources.tidal.com/images/${slug}/750x750.jpg`,
+                    '750': 'assets/1024w_new.png',
                 };
             }
 
@@ -1945,9 +1954,9 @@ class HiFiClient {
         return {
             id: track_id ?? 0,
             name: name ?? '',
-            '1280': `https://resources.tidal.com/images/${slug}/1280x1280.jpg`,
-            '640': `https://resources.tidal.com/images/${slug}/640x640.jpg`,
-            '80': `https://resources.tidal.com/images/${slug}/80x80.jpg`,
+            '1280': 'assets/1024w_new.png',
+            '640': 'assets/1024w_new.png',
+            '80': 'assets/1024w_new.png',
         };
     }
 

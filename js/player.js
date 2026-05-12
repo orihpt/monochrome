@@ -24,7 +24,7 @@ import { isIos, isSafari } from './platform-detection.js';
 import { db } from './db.js';
 import { getProxyUrl } from './proxy-utils.js';
 
-import { SVG_CLOCK, SVG_ATMOS } from './icons.js';
+import { SVG_ATMOS } from './icons.js';
 import { UIRenderer } from './ui.js';
 import { MediaSession } from '@capgo/capacitor-media-session';
 
@@ -36,6 +36,10 @@ export class Player {
             throw new Error('Player is not initialized. Call Player.initialize(audioElement, api) first.');
         }
         return Player.#instance;
+    }
+
+    static resetInstance() {
+        Player.#instance = null;
     }
 
     /** @private */
@@ -66,10 +70,6 @@ export class Player {
             (window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true);
 
         this.hls = null;
-        // Sleep timer properties
-        this.sleepTimer = null;
-        this.sleepTimerEndTime = null;
-        this.sleepTimerInterval = null;
         // Artist popular tracks state
         this.artistPopularTracksState = {
             artistId: null,
@@ -78,6 +78,18 @@ export class Player {
             isFetching: false,
             hasMore: true,
         };
+
+        this.radioEnabled = radioSettings.isEnabled();
+        this.radioSeeds = [];
+        this.isFetchingRadio = false;
+        this.radioFetchPromise = null;
+
+        this.autoplayEnabled = autoplaySettings.isEnabled();
+        this.autoplaySeeds = [];
+        this.isFetchingAutoplay = false;
+        this.autoplayFetchPromise = null;
+        this._recentlyPlayedIds = [];
+        this._maxRecentlyPlayed = 100;
     }
 
     static async initialize(audioElement, api, quality) {
@@ -130,7 +142,6 @@ export class Player {
                     bufferingGoal: 30,
                     rebufferingGoal: 2,
                     bufferBehind: 30,
-                    jumpLargeGaps: true,
                 },
                 abr: {
                     enabled: true,
@@ -144,14 +155,7 @@ export class Player {
                 },
             });
             this.shakaPlayer.getNetworkingEngine().registerRequestFilter((type, request) => {
-                if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
-                    const uris = request.uris;
-                    for (let i = 0; i < uris.length; i++) {
-                        if (uris[i].includes('tidal.com')) {
-                            uris[i] = getProxyUrl(uris[i]);
-                        }
-                    }
-                }
+                // Networking filters disabled for offline-first mode
             });
             this.shakaPlayer.addEventListener('adaptation', this.updateAdaptiveQualityBadge.bind(this));
             this.shakaPlayer.addEventListener('variantchanged', this.updateAdaptiveQualityBadge.bind(this));
@@ -166,18 +170,6 @@ export class Player {
 
         this.loadQueueState();
         await this.setupMediaSession();
-
-        this.radioEnabled = radioSettings.isEnabled();
-        this.radioSeeds = [];
-        this.isFetchingRadio = false;
-        this.radioFetchPromise = null;
-
-        this.autoplayEnabled = autoplaySettings.isEnabled();
-        this.autoplaySeeds = [];
-        this.isFetchingAutoplay = false;
-        this.autoplayFetchPromise = null;
-        this._recentlyPlayedIds = [];
-        this._maxRecentlyPlayed = 100;
 
         this.playbackSequence = 0;
 
@@ -428,7 +420,11 @@ export class Player {
 
                 const mixBtn = document.getElementById('now-playing-mix-btn');
                 if (mixBtn) {
-                    mixBtn.style.display = track.mixes && track.mixes.TRACK_MIX ? 'flex' : 'none';
+                    mixBtn.style.display = track.id ? 'flex' : 'none';
+                }
+                const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+                if (lyricsPageBtn) {
+                    lyricsPageBtn.style.display = track.id && track.type !== 'video' ? 'flex' : 'none';
                 }
                 const totalDurationEl = document.getElementById('total-duration');
                 if (totalDurationEl) totalDurationEl.textContent = formatTime(track.duration);
@@ -1046,7 +1042,11 @@ export class Player {
 
         const mixBtn = document.getElementById('now-playing-mix-btn');
         if (mixBtn) {
-            mixBtn.style.display = track.mixes && track.mixes.TRACK_MIX ? 'flex' : 'none';
+            mixBtn.style.display = track.id ? 'flex' : 'none';
+        }
+        const lyricsPageBtn = document.getElementById('now-playing-lyrics-page-btn');
+        if (lyricsPageBtn) {
+            lyricsPageBtn.style.display = track.id && track.type !== 'video' ? 'flex' : 'none';
         }
         document.title = `${trackTitle} • ${getTrackArtists(track)}`;
 
@@ -1356,6 +1356,15 @@ export class Player {
                 });
                 return;
             }
+            if (this.repeatMode === REPEAT_MODE.OFF && isLastTrack) {
+                this.fetchAutoplayRecommendations().then(async () => {
+                    const updatedQueue = this.getCurrentQueue();
+                    if (this.currentQueueIndex < updatedQueue.length - 1) {
+                        await this.playNext(0);
+                    }
+                });
+                return;
+            }
             if (this.artistPopularTracksState.artistId && this.artistPopularTracksState.hasMore) {
                 await this.fetchMoreArtistPopularTracks().then(async (newTracks) => {
                     if (newTracks && newTracks.length > 0) {
@@ -1397,6 +1406,14 @@ export class Player {
                     });
                     return;
                 } else if (this.autoplayEnabled) {
+                    this.fetchAutoplayRecommendations().then(async () => {
+                        const updatedQueue = this.getCurrentQueue();
+                        if (this.currentQueueIndex < updatedQueue.length - 1) {
+                            await this.playNext(0);
+                        }
+                    });
+                    return;
+                } else if (this.repeatMode === REPEAT_MODE.OFF) {
                     this.fetchAutoplayRecommendations().then(async () => {
                         const updatedQueue = this.getCurrentQueue();
                         if (this.currentQueueIndex < updatedQueue.length - 1) {
@@ -2027,8 +2044,14 @@ export class Player {
             .then(({ album }) => {
                 if (album?.releaseDate && this.currentTrack?.id === track.id) {
                     track.album.releaseDate = album.releaseDate;
-                    const year = new Date(album.releaseDate).getFullYear();
-                    if (!isNaN(year) && artistEl) {
+                    const releaseDate = new Date(album.releaseDate);
+                    const year = releaseDate.getFullYear();
+                    const is1970 =
+                        year === 1970 &&
+                        releaseDate.getUTCMonth() === 0 &&
+                        releaseDate.getUTCDate() === 1;
+
+                    if (!isNaN(year) && !is1970 && artistEl) {
                         artistEl.innerHTML = `${trackArtistsHTML} • ${year}`;
                     }
                 }
@@ -2453,82 +2476,4 @@ export class Player {
         });
     }
 
-    // Sleep Timer Methods
-    setSleepTimer(minutes) {
-        this.clearSleepTimer(); // Clear any existing timer
-
-        this.sleepTimerEndTime = Date.now() + minutes * 60 * 1000;
-
-        this.sleepTimer = setTimeout(
-            () => {
-                this.activeElement.pause();
-                this.clearSleepTimer();
-                this.updateSleepTimerUI();
-            },
-            minutes * 60 * 1000
-        );
-
-        // Update UI every second
-        this.sleepTimerInterval = setInterval(() => {
-            this.updateSleepTimerUI();
-        }, 1000);
-
-        this.updateSleepTimerUI();
-    }
-
-    clearSleepTimer() {
-        if (this.sleepTimer) {
-            clearTimeout(this.sleepTimer);
-            this.sleepTimer = null;
-        }
-        if (this.sleepTimerInterval) {
-            clearInterval(this.sleepTimerInterval);
-            this.sleepTimerInterval = null;
-        }
-        this.sleepTimerEndTime = null;
-        this.updateSleepTimerUI();
-    }
-
-    getSleepTimerRemaining() {
-        if (!this.sleepTimerEndTime) return null;
-        const remaining = Math.max(0, this.sleepTimerEndTime - Date.now());
-        return Math.ceil(remaining / 1000); // Return seconds remaining
-    }
-
-    isSleepTimerActive() {
-        return this.sleepTimer !== null;
-    }
-
-    updateSleepTimerUI() {
-        const timerBtn = document.getElementById('sleep-timer-btn');
-        const timerBtnDesktop = document.getElementById('sleep-timer-btn-desktop');
-
-        const updateBtn = (btn) => {
-            if (!btn) return;
-            if (this.isSleepTimerActive()) {
-                const remaining = this.getSleepTimerRemaining();
-                if (remaining > 0) {
-                    const minutes = Math.floor(remaining / 60);
-                    const seconds = remaining % 60;
-                    btn.innerHTML = `<span style="font-size: 12px; font-weight: bold;">${minutes}:${seconds.toString().padStart(2, '0')}</span>`;
-                    btn.title = `Sleep Timer: ${minutes}:${seconds.toString().padStart(2, '0')} remaining`;
-                    btn.classList.add('active');
-                    btn.style.color = 'var(--primary)';
-                } else {
-                    btn.innerHTML = SVG_CLOCK(20);
-                    btn.title = 'Sleep Timer';
-                    btn.classList.remove('active');
-                    btn.style.color = '';
-                }
-            } else {
-                btn.innerHTML = SVG_CLOCK(20);
-                btn.title = 'Sleep Timer';
-                btn.classList.remove('active');
-                btn.style.color = '';
-            }
-        };
-
-        updateBtn(timerBtn);
-        updateBtn(timerBtnDesktop);
-    }
 }

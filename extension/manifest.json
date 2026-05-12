@@ -1,33 +1,28 @@
 {
     "manifest_version": 3,
-    "name": "Monochrome Tidal Origin",
+    "name": "Monochrome Tidal Origin (offline-disabled)",
     "version": "1.0.0",
-    "description": "Adds Origin: https://listen.tidal.com to Tidal CDN requests so audio plays without a proxy",
+    "description": "Disabled by default for offline-first builds. Re-enable only when restoring TIDAL support.",
     "permissions": ["declarativeNetRequest", "scripting", "declarativeNetRequestWithHostAccess"],
-    "host_permissions": [
+    "host_permissions": ["*://localhost:*/*"],
+    "offline_disabled_original_hosts": [
         "*://*.tidal.com/*",
         "*://monochrome.tf/*",
         "*://monochrome.samidy.com/*",
-        "*://lossless.wtf/*",
-        "*://localhost:*/*"
+        "*://lossless.wtf/*"
     ],
     "declarative_net_request": {
         "rule_resources": [
             {
                 "id": "rules",
-                "enabled": true,
+                "enabled": false,
                 "path": "rules.json"
             }
         ]
     },
     "content_scripts": [
         {
-            "matches": [
-                "*://monochrome.samidy.com/*",
-                "*://monochrome.tf/*",
-                "*://lossless.wtf/*",
-                "*://localhost:*/*"
-            ],
+            "matches": ["*://localhost:*/*"],
             "js": ["content.js"],
             "run_at": "document_start",
             "all_frames": true
@@ -41,7 +36,7 @@
     "web_accessible_resources": [
         {
             "resources": ["inject.js"],
-            "matches": ["*://monochrome.samidy.com/*", "*://monochrome.tf/*", "*://lossless.wtf/*", "*://localhost:*/*"]
+            "matches": ["*://localhost:*/*"]
         }
     ]
 }

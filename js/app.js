@@ -1,61 +1,51 @@
 //js/app.js
-import discordSvg from '../images/discord.svg?svg&size=22';
-import googleSvg from '../images/google.svg?svg&size=22';
-import githubSvg from '../images/github.svg?svg&size=22';
-import spotifySvg from '../images/spotify.svg?svg&size=22';
-import { isIos, isSafari } from './platform-detection.js';
-import { hapticLight } from './haptics.js';
-import { MusicAPI } from './music-api.js';
-import {
-    apiSettings,
-    themeManager,
-    nowPlayingSettings,
-    fullscreenCoverClickSettings,
-    downloadQualitySettings,
-    sidebarSettings,
-    pwaUpdateSettings,
-    modalSettings,
-    keyboardShortcuts,
-} from './storage.js';
-import { UIRenderer } from './ui.js';
-import { Player } from './player.js';
-import { MultiScrobbler } from './multi-scrobbler.js';
-import { LyricsManager, openLyricsPanel, clearLyricsPanelSync } from './lyrics.js';
-import { createRouter, updateTabTitle, navigate } from './router.js';
-import { initializePlayerEvents, initializeTrackInteractions, handleTrackAction } from './events.js';
-import { initializeUIInteractions } from './ui-interactions.js';
-import { debounce, getShareUrl } from './utils.js';
-import { sidePanelManager } from './side-panel.js';
+import { registerSW } from 'virtual:pwa-register';
+import { HiFiClient } from './HiFi.js';
+import { modernSettings } from './ModernSettings.js';
+import { syncManager } from './navidrome-sync.js';
+import { initAnalytics } from './analytics.js';
+import './commandPalette.js';
 import { db } from './db.js';
 import { showNotification } from './downloads.js';
-import { syncManager } from './accounts/pocketbase.js';
-import { authManager } from './accounts/auth.js';
-import { registerSW } from 'virtual:pwa-register';
-import { openEditProfile } from './profile.js';
-import { ThemeStore } from './themeStore.js';
-import './commandPalette.js';
-import { initTracker } from './tracker.js';
-import { initAnalytics } from './analytics.js';
+import { handleTrackAction, initializePlayerEvents, initializeTrackInteractions } from './events.js';
+import { hapticLight } from './haptics.js';
 import {
-    parseCSV,
-    parseJSPF,
-    parseXSPF,
-    parseXML,
-    parseM3U,
-    parseDynamicCSV,
-    importToLibrary,
-} from './playlist-importer.js';
-import { modernSettings } from './ModernSettings.js';
-import {
-    SVG_OFFLINE,
-    SVG_RIGHT_ARROW,
-    SVG_LEFT_ARROW,
     SVG_ANIMATE_SPIN,
-    SVG_PLAY,
     SVG_CLOSE,
-    SVG_RESET,
+    SVG_OFFLINE,
+    SVG_PLAY,
+    SVG_RESET
 } from './icons.js';
-import { HiFiClient } from './HiFi.js';
+import { clearLyricsPanelSync, LyricsManager, openLyricsPanel } from './lyrics.js';
+import { MultiScrobbler } from './multi-scrobbler.js';
+import { MusicAPI } from './music-api.js';
+import { Player } from './player.js';
+import {
+    importToLibrary,
+    parseCSV,
+    parseDynamicCSV,
+    parseJSPF,
+    parseM3U,
+    parseXML,
+    parseXSPF,
+} from './playlist-importer.js';
+import { createRouter, navigate, updateTabTitle } from './router.js';
+import { sidePanelManager } from './side-panel.js';
+import {
+    apiSettings,
+    downloadQualitySettings,
+    fullscreenCoverClickSettings,
+    keyboardShortcuts,
+    modalSettings,
+    pwaUpdateSettings,
+    sidebarSettings,
+    themeManager,
+} from './storage.js';
+import { ThemeStore } from './themeStore.js';
+import { initTracker } from './tracker.js';
+import { initializeUIInteractions } from './ui-interactions.js';
+import { UIRenderer } from './ui.js';
+import { debounce, getShareUrl, trackDataStore } from './utils.js';
 
 // Capture real iOS state before spoofing (needed for background audio)
 if (typeof window !== 'undefined') {
@@ -68,11 +58,6 @@ if (typeof window !== 'undefined') {
     });
 
     // analytics
-    const plausibleScript = document.createElement('script');
-    plausibleScript.async = true;
-    plausibleScript.src = 'https://plausible.canine.tools/js/pa-dCMvQpiD1-AJmi8o3xviO.js';
-    document.head.appendChild(plausibleScript);
-
     window.plausible =
         window.plausible ||
         function () {
@@ -91,6 +76,45 @@ let settingsModule = null;
 let downloadsModule = null;
 let metadataModule = null;
 
+function normalizeImportRows(group) {
+    const rows = group?.row || group?.Rows || group?.rows || [];
+    return Array.isArray(rows) ? rows : [rows].filter(Boolean);
+}
+
+function showCuratorImportResults(result) {
+    const modal = document.getElementById('curator-import-results-modal');
+    const content = document.getElementById('curator-import-results-content');
+    if (!modal || !content || !result) return;
+
+    const sections = [
+        ['התאמה מושלמת', normalizeImportRows(result.exactMatches)],
+        ['התאמה לפי שם', normalizeImportRows(result.nameMatches)],
+        ['לא נמצאה התאמה', normalizeImportRows(result.missingTracks)],
+    ];
+
+    content.innerHTML = sections
+        .map(([title, rows]) => {
+            const body = rows.length
+                ? rows
+                      .map(
+                          (row) => `
+                            <div class="modal-list-item" style="display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center">
+                                <span>${escapeHtml(row.artist || '')} - ${escapeHtml(row.name || '')}${row.album ? ` (${escapeHtml(row.album)})` : ''}</span>
+                                <span style="opacity: 0.65">${escapeHtml(row.isrc || '')}</span>
+                            </div>`
+                      )
+                      .join('')
+                : '<div class="modal-list-item" style="opacity: 0.65">אין שירים</div>';
+            return `
+                <section style="margin: 1rem 0">
+                    <h4 style="margin: 0 0 0.5rem 0">${title} (${rows.length})</h4>
+                    <div class="modal-list">${body}</div>
+                </section>`;
+        })
+        .join('');
+    modal.classList.add('active');
+}
+
 async function loadSettingsModule() {
     if (!settingsModule) {
         settingsModule = await import('./settings.js');
@@ -106,47 +130,8 @@ async function loadDownloadsModule() {
 }
 
 async function fetchcontributors() {
-    try {
-        const response = await fetch('https://api.samidy.com/api/contributors');
-        if (!response.ok) return;
-        const data1 = await response.json();
-        if (!Array.isArray(data1)) return;
-
-        let data = data1.filter(
-            (user) => user.type !== 'Bot' && user.login !== 'edidealt' && user.login !== 'satanyahoo'
-        );
-
-        const edideaur = data.find((user) => user.login === 'edideaur');
-        if (edideaur) {
-            edideaur.contributions += data1.find((u) => u.login === 'edidealt')?.contributions || 0;
-            edideaur.contributions += data1.find((u) => u.login === 'satanyahoo')?.contributions || 0;
-        }
-
-        data.sort((a, b) => b.contributions - a.contributions);
-
-        const con = document.querySelector('.about-contributors');
-        if (!con) return;
-
-        data.forEach((user) => {
-            const userDIV = document.createElement('div');
-            userDIV.innerHTML = `
-            <a href="${user.html_url}" target="_blank">
-            <img src="${user.avatar_url}&s=50" alt="${user.login}" width="50" height="50" style="border-radius: 50%;" loading="lazy">
-            <span>${user.login}</span>
-            <span class="contrib">Contributions: ${user.contributions}</span>
-            </a>
-            `;
-            con.appendChild(userDIV);
-        });
-    } catch (e) {
-        const con = document.querySelector('.about-contributors-failed');
-        if (!con) return;
-        const userDIV = document.createElement('div');
-        userDIV.innerHTML = `
-        <h4 style="text-align: center; color: var(--muted-foreground);">Failed to Fetch Contributor List</h4>
-        `;
-        con.appendChild(userDIV);
-    }
+    // Contributors disabled for offline-first mode
+    return [];
 }
 
 async function loadMetadataModule() {
@@ -156,78 +141,6 @@ async function loadMetadataModule() {
     return metadataModule;
 }
 
-function initializeCasting(audioPlayer, castBtn) {
-    if (!castBtn) return;
-
-    if ('remote' in audioPlayer) {
-        audioPlayer.remote
-            .watchAvailability((available) => {
-                if (available) {
-                    castBtn.style.display = 'flex';
-                    castBtn.classList.add('available');
-                }
-            })
-            .catch((err) => {
-                console.log('Remote playback not available:', err);
-                if (window.innerWidth > 768) {
-                    castBtn.style.display = 'flex';
-                }
-            });
-
-        castBtn.addEventListener('click', () => {
-            if (!audioPlayer.src) {
-                alert('Please play a track first to enable casting.');
-                return;
-            }
-            audioPlayer.remote.prompt().catch((err) => {
-                if (err.name === 'NotAllowedError') return;
-                if (err.name === 'NotFoundError') {
-                    alert('No remote playback devices (Chromecast/AirPlay) were found on your network.');
-                    return;
-                }
-                console.log('Cast prompt error:', err);
-            });
-        });
-
-        audioPlayer.addEventListener('playing', () => {
-            if (audioPlayer.remote && audioPlayer.remote.state === 'connected') {
-                castBtn.classList.add('connected');
-            }
-        });
-
-        audioPlayer.addEventListener('pause', () => {
-            if (audioPlayer.remote && audioPlayer.remote.state === 'disconnected') {
-                castBtn.classList.remove('connected');
-            }
-        });
-    } else if (audioPlayer.webkitShowPlaybackTargetPicker) {
-        castBtn.style.display = 'flex';
-        castBtn.classList.add('available');
-
-        castBtn.addEventListener('click', () => {
-            audioPlayer.webkitShowPlaybackTargetPicker();
-        });
-
-        audioPlayer.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
-            if (e.availability === 'available') {
-                castBtn.classList.add('available');
-            }
-        });
-
-        audioPlayer.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
-            if (audioPlayer.webkitCurrentPlaybackTargetIsWireless) {
-                castBtn.classList.add('connected');
-            } else {
-                castBtn.classList.remove('connected');
-            }
-        });
-    } else if (window.innerWidth > 768) {
-        castBtn.style.display = 'flex';
-        castBtn.addEventListener('click', () => {
-            alert('Casting is not supported in this browser. Try Chrome for Chromecast or Safari for AirPlay.');
-        });
-    }
-}
 
 function initializeKeyboardShortcuts(player, _audioPlayer) {
     const keyActionMap = {
@@ -273,7 +186,7 @@ function initializeKeyboardShortcuts(player, _audioPlayer) {
                 return;
             }
 
-            document.getElementById('toggle-lyrics-btn')?.click();
+            navigate('/lyrics');
         },
         search: () => {
             document.getElementById('search-input')?.focus();
@@ -387,27 +300,11 @@ async function disablePwaForAuthGate() {
 }
 
 async function uploadCoverImage(file) {
-    try {
-        const response = await fetch(`https://worker.uploads.monochrome.qzz.io/${file.name}`, {
-            method: 'PUT',
-            headers: {
-                'x-api-key': 'if_youre_reading_this_fuck_off',
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-        });
-
-        if (!response.ok) {
-            if (response.status === 413) throw new Error('File exceeds 10MB');
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        return `https://images.monochrome.qzz.io/${await response.text()}`;
-    } catch (error) {
-        console.error('Cover upload error:', error);
-        throw error;
-    }
+    console.log('Local-only: Upload disabled', file);
+    return '/assets/appicon.png';
 }
+
+import { initAuthModal } from './auth-modal.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await modernSettings.waitPending();
@@ -451,11 +348,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage,
             ...(import.meta.env.DEV
                 ? [
-                      {
-                          setItem: (key, value) => console.debug(`HiFiClient storage set: ${key} = ${value}`),
-                          removeItem: (key) => console.debug(`HiFiClient storage remove: ${key}`),
-                      },
-                  ]
+                    {
+                        setItem: (key, value) => console.debug(`HiFiClient storage set: ${key} = ${value}`),
+                        removeItem: (key) => console.debug(`HiFiClient storage remove: ${key}`),
+                    },
+                ]
                 : []),
         ],
         token: localStorage.getItem('hifi_token') || undefined,
@@ -463,6 +360,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await MusicAPI.initialize(apiSettings);
+    syncManager.initialize();
+    initAuthModal();
 
     const audioPlayer = document.getElementById('audio-player');
 
@@ -474,8 +373,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTracker().catch(console.error);
 
     await fetchcontributors();
-    const castBtn = document.getElementById('cast-btn');
-    initializeCasting(audioPlayer, castBtn);
 
     await UIRenderer.initialize(MusicAPI.instance, Player.instance);
 
@@ -619,22 +516,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore sidebar state
     sidebarSettings.restoreState();
 
-    // Render pinned items
-    await UIRenderer.instance.renderPinnedItems();
+    const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+    const updateSidebarCollapseButton = () => {
+        if (!sidebarCollapseBtn) return;
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        sidebarCollapseBtn.setAttribute('aria-pressed', String(isCollapsed));
+        sidebarCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        sidebarCollapseBtn.setAttribute('title', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        if (!isCollapsed) {
+            document.querySelector('.sidebar-library-tooltip')?.classList.remove('visible');
+        }
+    };
+
+    if (sidebarCollapseBtn) {
+        sidebarCollapseBtn.addEventListener('click', () => {
+            const shouldCollapse = !document.body.classList.contains('sidebar-collapsed');
+            document.body.classList.toggle('sidebar-collapsed', shouldCollapse);
+            sidebarSettings.setCollapsed(shouldCollapse);
+            updateSidebarCollapseButton();
+        });
+        new MutationObserver(updateSidebarCollapseButton).observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+        });
+        updateSidebarCollapseButton();
+    }
+
+    // (pinned items removed - sidebar is now a library panel)
 
     // Load settings module and initialize
     const { initializeSettings } = await loadSettingsModule();
     await initializeSettings(scrobbler, Player.instance, MusicAPI.instance, UIRenderer.instance);
 
-    // Track sidebar navigation clicks
-    document.querySelectorAll('.sidebar-nav a').forEach((link) => {
-        link.addEventListener('click', () => {
-            const href = link.getAttribute('href');
-            if (href && !href.startsWith('http')) {
-                const item = link.querySelector('span')?.textContent || href;
-            }
-        });
-    });
+    // (sidebar-nav click tracking removed - sidebar is now a library panel)
 
     await initializePlayerEvents(Player.instance, audioPlayer, scrobbler, UIRenderer.instance);
     initializeTrackInteractions(
@@ -662,51 +576,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const mode = nowPlayingSettings.getMode();
+        if (Player.instance.currentTrack.album?.id) {
+            navigate(`/album/${Player.instance.currentTrack.album.id}`);
+        }
+    });
 
-        if (mode === 'lyrics') {
-            const isActive = sidePanelManager.isActive('lyrics');
-        } else if (mode === 'cover') {
-            const overlay = document.getElementById('fullscreen-cover-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-            } else {
-            }
+    document.getElementById('now-playing-fullscreen-btn')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!Player.instance.currentTrack) {
+            alert('No track is currently playing');
+            return;
         }
 
-        if (mode === 'lyrics') {
-            const isActive = sidePanelManager.isActive('lyrics');
-
-            if (isActive) {
-                sidePanelManager.close();
-                clearLyricsPanelSync(Player.instance.activeElement, sidePanelManager.panel);
-            } else {
-                openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager);
-            }
-        } else if (mode === 'cover') {
-            const overlay = document.getElementById('fullscreen-cover-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-                await closeFullscreenOverlay();
-            } else {
-                const nextTrack = Player.instance.getNextTrack();
-                UIRenderer.instance.showFullscreenCover(
-                    Player.instance.currentTrack,
-                    nextTrack,
-                    lyricsManager,
-                    Player.instance.activeElement
-                );
-            }
-        } else {
-            // Default to 'album' mode - navigate to album
-            if (Player.instance.currentTrack.album?.id) {
-                navigate(`/album/${Player.instance.currentTrack.album.id}`);
-            }
+        const overlay = document.getElementById('fullscreen-cover-overlay');
+        if (overlay && overlay.style.display === 'flex') {
+            await closeFullscreenOverlay();
+            return;
         }
+
+        UIRenderer.instance.showFullscreenCover(
+            Player.instance.currentTrack,
+            Player.instance.getNextTrack(),
+            lyricsManager,
+            Player.instance.activeElement
+        );
     });
 
     // Toggle Share Button visibility on switch change
     document.getElementById('playlist-public-toggle')?.addEventListener('change', (e) => {
         const shareBtn = document.getElementById('playlist-share-btn');
         if (shareBtn) shareBtn.style.display = e.target.checked ? 'flex' : 'none';
+    });
+
+    document.getElementById('curator-import-results-close')?.addEventListener('click', () => {
+        document.getElementById('curator-import-results-modal')?.classList.remove('active');
     });
 
     document.getElementById('close-fullscreen-cover-btn')?.addEventListener('click', async () => {
@@ -771,16 +674,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-        document.body.classList.toggle('sidebar-collapsed');
-        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
-        const toggleBtn = document.getElementById('sidebar-toggle');
-        if (toggleBtn) {
-            toggleBtn.innerHTML = isCollapsed ? SVG_RIGHT_ARROW(20) : SVG_LEFT_ARROW(20);
-        }
-        // Save sidebar state to localStorage
-        sidebarSettings.setCollapsed(isCollapsed);
-    });
+    // (sidebar-toggle removed - sidebar is now a library panel)
 
     // Import tab switching in playlist modal
     document.querySelectorAll('.import-tab').forEach((tab) => {
@@ -955,23 +849,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.history.forward();
     });
 
-    document.getElementById('toggle-lyrics-btn')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!Player.instance.currentTrack) {
-            alert('No track is currently playing');
-            return;
-        }
-
-        const isActive = sidePanelManager.isActive('lyrics');
-
-        if (isActive) {
-            sidePanelManager.close();
-            clearLyricsPanelSync(Player.instance.activeElement, sidePanelManager.panel);
-        } else {
-            openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager);
-        }
-    });
-
     document.getElementById('download-current-btn')?.addEventListener('click', async () => {
         if (Player.instance.currentTrack) {
             await handleTrackAction(
@@ -1005,6 +882,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sidePanelManager.isActive('lyrics')) {
             // Re-open forces update/refresh of content and sync
             openLyricsPanel(Player.instance.currentTrack, Player.instance.activeElement, lyricsManager, true);
+        }
+
+        if (UIRenderer.instance.currentPage === 'lyrics') {
+            await UIRenderer.instance.renderLyricsPage();
         }
 
         // Update Fullscreen if it's open
@@ -1264,13 +1145,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (e.target.closest('#create-playlist-btn') || e.target.closest('#library-create-playlist-card')) {
             const modal = document.getElementById('playlist-modal');
+            const isCuratorUser = (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator';
             document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
             document.getElementById('playlist-name-input').value = '';
             document.getElementById('playlist-cover-input').value = '';
             document.getElementById('playlist-cover-file-input').value = '';
             document.getElementById('playlist-description-input').value = '';
             modal.dataset.editingId = '';
-            document.getElementById('import-section').style.display = 'block';
+            document.getElementById('import-section').style.display = isCuratorUser ? 'none' : 'block';
+            document.getElementById('curator-import-section').style.display = isCuratorUser ? 'block' : 'none';
+            document.getElementById('playlist-public-setting').style.display = isCuratorUser ? 'flex' : 'none';
+            document.getElementById('curator-import-file-input').value = '';
             document.getElementById('csv-file-input').value = '';
             document.getElementById('ytm-url-input').value = '';
             document.getElementById('ytm-status').textContent = '';
@@ -1373,6 +1258,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (name) {
                 const modal = document.getElementById('playlist-modal');
                 const editingId = modal.dataset.editingId;
+                const isCuratorUser = (localStorage.getItem('subsonic_user') || '') === 'wavesmusic_curator';
+
+                if (!editingId && isCuratorUser) {
+                    const fileInput = document.getElementById('curator-import-file-input');
+                    const saveBtn = document.getElementById('playlist-modal-save');
+                    saveBtn.disabled = true;
+                    try {
+                        let playlist = null;
+                        if (fileInput.files.length > 0) {
+                            const result = await MusicAPI.instance.importCuratorPlaylist({
+                                name,
+                                description,
+                                file: fileInput.files[0],
+                            });
+                            playlist = { id: result.playlistId };
+                            showCuratorImportResults(result);
+                        } else {
+                            playlist = await MusicAPI.instance.createSubsonicPlaylist(name, [], description);
+                        }
+                        if (isPublic && playlist?.id) {
+                            await MusicAPI.instance.setCuratorPlaylistPublished(playlist.id, true);
+                        }
+                        modal.classList.remove('active');
+                        UIRenderer.instance.renderLibraryPage();
+                        await UIRenderer.instance.renderHomeCuratorMixes?.();
+                    } catch (error) {
+                        console.error('Curator playlist import failed:', error);
+                        alert(error.message || 'Failed to create curator playlist.');
+                    } finally {
+                        saveBtn.disabled = false;
+                    }
+                    return;
+                }
 
                 const handlePublicStatus = async (playlist) => {
                     playlist.isPublic = isPublic;
@@ -1453,12 +1371,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const url = ytmUrlInput.value.trim();
                         const playlistId = url.split('list=')[1]?.split('&')[0];
 
-                        const workerUrl = `https://ytmimport.samidy.workers.dev?playlistId=${playlistId}`;
-
                         if (!playlistId) {
                             alert("Invalid URL. Make sure it has 'list=' in it.");
                             return;
                         }
+
+                        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+                            // Offline-first mode: keep the YouTube Music importer
+                            // recoverable, but do not call the public worker.
+                            alert('YouTube Music import is disabled in offline mode.');
+                            return;
+                        }
+
+                        const workerUrl = `https://ytmimport.samidy.workers.dev?playlistId=${playlistId}`;
 
                         const {
                             progressElement,
@@ -1693,10 +1618,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     summary.push(`${importResults.playlists.created} playlists`);
 
                                 alert(
-                                    `Imported to library:\n${summary.join(', ')}\n\n${
-                                        result.missingItems.length > 0
-                                            ? `${result.missingItems.length} items could not be found.`
-                                            : ''
+                                    `Imported to library:\n${summary.join(', ')}\n\n${result.missingItems.length > 0
+                                        ? `${result.missingItems.length} items could not be found.`
+                                        : ''
                                     }`
                                 );
                                 progressElement.style.display = 'none';
@@ -1937,6 +1861,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('playlist-name-input').value = playlist.name;
                     document.getElementById('playlist-cover-input').value = playlist.cover || '';
                     document.getElementById('playlist-description-input').value = playlist.description || '';
+                    document.getElementById('curator-import-section').style.display = 'none';
+                    document.getElementById('import-section').style.display = 'none';
+                    document.getElementById('playlist-public-setting').style.display = 'none';
 
                     // Set Public Toggle
                     const publicToggle = document.getElementById('playlist-public-toggle');
@@ -2009,6 +1936,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('playlist-name-input').value = playlist.name;
                         document.getElementById('playlist-cover-input').value = playlist.cover || '';
                         document.getElementById('playlist-description-input').value = playlist.description || '';
+                        document.getElementById('curator-import-section').style.display = 'none';
+                        document.getElementById('import-section').style.display = 'none';
+                        document.getElementById('playlist-public-setting').style.display = 'none';
 
                         const publicToggle = document.getElementById('playlist-public-toggle');
                         const shareBtn = document.getElementById('playlist-share-btn');
@@ -2463,8 +2393,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const handleExternalLink = (query) => {
         const isExternalLink =
-            query.includes('monochrome.tf/') ||
-            query.includes('monochrome.samidy.com/') ||
             query.includes('tidal.com/');
 
         if (isExternalLink) {
@@ -2486,47 +2414,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         return false;
     };
 
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.trim();
-        if (!query) return;
+    if (searchForm && searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (!query) return;
 
-        if (handleExternalLink(query)) {
-            return;
-        }
+            if (handleExternalLink(query)) {
+                return;
+            }
 
-        debouncedSearch(query);
-    });
+            debouncedSearch(query);
+        });
 
-    searchInput.addEventListener('change', (e) => {
-        const query = e.target.value.trim();
-        if (query) {
-            UIRenderer.instance.addToSearchHistory(query);
-        }
-    });
+        searchInput.addEventListener('change', (e) => {
+            const query = e.target.value.trim();
+            if (query) {
+                UIRenderer.instance.addToSearchHistory(query);
+            }
+        });
 
-    searchInput.addEventListener('focus', () => {
-        UIRenderer.instance.renderSearchHistory();
-    });
+        searchInput.addEventListener('focus', () => {
+            UIRenderer.instance.renderSearchHistory();
+        });
 
-    searchInput.addEventListener('click', () => {
-        UIRenderer.instance.renderSearchHistory();
-    });
+        searchInput.addEventListener('click', () => {
+            UIRenderer.instance.renderSearchHistory();
+        });
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            if (!handleExternalLink(query)) {
+                UIRenderer.instance.addToSearchHistory(query);
+                performSearch(query);
+                const historyEl = document.getElementById('search-history');
+                if (historyEl) historyEl.style.display = 'none';
+            }
+        });
+    }
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.search-bar')) {
-            const historyEl = document.getElementById('search-history');
-            if (historyEl) historyEl.style.display = 'none';
-        }
-    });
-
-    searchForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const query = searchInput.value.trim();
-        if (!query) return;
-
-        if (!handleExternalLink(query)) {
-            UIRenderer.instance.addToSearchHistory(query);
-            performSearch(query);
             const historyEl = document.getElementById('search-history');
             if (historyEl) historyEl.style.display = 'none';
         }
@@ -2703,125 +2633,513 @@ document.addEventListener('DOMContentLoaded', async () => {
         observer.observe(contextMenu, { attributes: true });
     }
 
-    const headerAccountBtn = document.getElementById('header-account-btn');
-    const headerAccountDropdown = document.getElementById('header-account-dropdown');
-    const headerAccountImg = document.getElementById('header-account-img');
-    const headerAccountIcon = document.getElementById('header-account-icon');
+    // Local-only account display
+    {
+        const headerAccountBtn = document.getElementById('header-account-btn');
+        const headerAccountDropdown = document.getElementById('header-account-dropdown');
+        const headerAccountImg = document.getElementById('header-account-img');
+        const headerAccountIcon = document.getElementById('header-account-icon');
 
-    // Temporarily disable accounts - show popup
-    const isAccountsDisabled = false;
-
-    if (headerAccountBtn && headerAccountDropdown) {
-        if (isAccountsDisabled) {
-            headerAccountBtn.style.opacity = '0.5';
-            headerAccountBtn.style.cursor = 'not-allowed';
-            headerAccountBtn.title = 'Accounts temporarily unavailable';
-            headerAccountBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                alert('.');
-            });
-        } else {
-            headerAccountBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                headerAccountDropdown.classList.toggle('active');
-                await updateAccountDropdown();
-            });
-        }
-
-        document.addEventListener('click', (e) => {
-            if (!headerAccountBtn.contains(e.target) && !headerAccountDropdown.contains(e.target)) {
-                headerAccountDropdown.classList.remove('active');
-            }
-        });
-
-        async function updateAccountDropdown() {
-            const user = authManager?.user;
-            headerAccountDropdown.innerHTML = '';
-
-            if (!user) {
-                const iconBtnStyle =
-                    'background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;display:flex;align-items:center;transition:opacity 0.15s';
+        if (headerAccountBtn && headerAccountDropdown) {
+            const updateAccountDropdown = () => {
+                const username = localStorage.getItem('subsonic_user') || 'Admin';
                 headerAccountDropdown.innerHTML = `
-                    <span style="font-size:0.75rem;color:var(--muted-foreground);padding:0.25rem 0.5rem">Connect with</span>
-                    <div style="display:flex;gap:0.5rem;padding:0.25rem 0.5rem;align-items:center">
-                        <button id="header-discord-auth" title="Discord" style="${iconBtnStyle}">${discordSvg}</button>
-                        <button id="header-google-auth" title="Google" style="${iconBtnStyle}">${googleSvg}</button>
-                        <button id="header-github-auth" title="GitHub" style="${iconBtnStyle}">${githubSvg}</button>
-                        <button id="header-spotify-auth" title="Spotify" style="${iconBtnStyle}">${spotifySvg}</button>
+                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border)">
+                        <div style="font-size: 0.85rem; color: var(--muted-foreground)">מחובר בתור</div>
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--foreground)">${username}</div>
                     </div>
-                    <hr style="border:none;border-top:1px solid var(--border);margin:0.25rem 0">
-                    <button class="btn-secondary" id="header-email-auth">Connect with Email</button>
+                    <div style="padding: 0.5rem">
+                        <button class="btn-secondary" id="header-nav-settings" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>הגדרות</span>
+                        </button>
+                        <button class="btn-secondary" id="header-nav-library" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+                            <span>ספרייה</span>
+                        </button>
+                        <button class="btn-secondary" id="header-nav-about" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                            <span>אודות</span>
+                        </button>
+                        <div style="border-top: 1px solid var(--border); margin: 0.25rem 0;"></div>
+                        <button class="btn-secondary" id="header-sign-out" style="width: 100%; text-align: right; padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--foreground);">
+                            <span>התנתקות</span>
+                        </button>
+                    </div>
                 `;
 
-                for (const id of [
-                    'header-discord-auth',
-                    'header-google-auth',
-                    'header-github-auth',
-                    'header-spotify-auth',
-                ]) {
-                    const btn = document.getElementById(id);
-                    const svg = btn.querySelector('svg');
-                    svg.style.filter = 'brightness(0) invert(1)';
-                    svg.style.transition = 'filter 0.15s';
-                    btn.addEventListener('mouseenter', () => {
-                        svg.style.filter = 'brightness(0) invert(0.5)';
-                    });
-                    btn.addEventListener('mouseleave', () => {
-                        svg.style.filter = 'brightness(0) invert(1)';
-                    });
-                }
-
-                document.getElementById('header-google-auth').onclick = () => authManager.signInWithGoogle();
-                document.getElementById('header-github-auth').onclick = () => authManager.signInWithGitHub();
-                document.getElementById('header-discord-auth').onclick = () => authManager.signInWithDiscord();
-                document.getElementById('header-spotify-auth').onclick = () => authManager.signInWithSpotify();
-                document.getElementById('header-email-auth').onclick = () => {
-                    document.getElementById('email-auth-modal').classList.add('active');
+                document.getElementById('header-nav-settings')?.addEventListener('click', () => {
                     headerAccountDropdown.classList.remove('active');
-                };
-            } else {
-                const data = await syncManager.getUserData();
-                const hasProfile = data && data.profile && data.profile.username;
+                    navigate('/settings');
+                });
 
-                if (hasProfile) {
-                    headerAccountDropdown.innerHTML = `
-                        <button class="btn-secondary" id="header-view-profile">My Profile</button>
-                        <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
-                    `;
-                    document.getElementById('header-view-profile').onclick = () => {
-                        navigate(`/user/@${data.profile.username}`);
-                        headerAccountDropdown.classList.remove('active');
-                    };
-                } else {
-                    headerAccountDropdown.innerHTML = `
-                        <button class="btn-primary" id="header-create-profile">Create Profile</button>
-                        <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
-                    `;
-                    document.getElementById('header-create-profile').onclick = async () => {
-                        openEditProfile().catch(console.error);
-                        headerAccountDropdown.classList.remove('active');
+                document.getElementById('header-nav-library')?.addEventListener('click', () => {
+                    headerAccountDropdown.classList.remove('active');
+                    navigate('/library');
+                });
+
+                document.getElementById('header-nav-about')?.addEventListener('click', () => {
+                    headerAccountDropdown.classList.remove('active');
+                    navigate('/about');
+                });
+
+                const signOutBtn = document.getElementById('header-sign-out');
+                if (signOutBtn) {
+                    signOutBtn.onclick = () => {
+                        localStorage.removeItem('subsonic_user');
+                        localStorage.removeItem('subsonic_pass');
+                        window.location.reload();
                     };
                 }
+            };
 
-                document.getElementById('header-sign-out').onclick = () => authManager.signOut();
+            headerAccountBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                headerAccountDropdown.classList.toggle('active');
+                updateAccountDropdown();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!headerAccountBtn.contains(e.target) && !headerAccountDropdown.contains(e.target)) {
+                    headerAccountDropdown.classList.remove('active');
+                }
+            });
+        }
+
+        // Force local state display
+        if (headerAccountImg) headerAccountImg.style.display = 'none';
+        if (headerAccountIcon) headerAccountIcon.style.display = 'flex';
+    }
+
+    // ========== SIDEBAR LIBRARY ==========
+    const sidebarLibraryList = document.getElementById('sidebar-library-list');
+    const sidebarFilterChips = document.getElementById('sidebar-filter-chips');
+    let sidebarLibraryTooltip = null;
+
+    const hideSidebarLibraryTooltip = () => {
+        if (sidebarLibraryTooltip) {
+            sidebarLibraryTooltip.classList.remove('visible');
+        }
+    };
+
+    const showSidebarLibraryTooltip = (item) => {
+        if (!item || !document.body.classList.contains('sidebar-collapsed')) {
+            hideSidebarLibraryTooltip();
+            return;
+        }
+
+        if (!sidebarLibraryTooltip) {
+            sidebarLibraryTooltip = document.createElement('div');
+            sidebarLibraryTooltip.className = 'sidebar-library-tooltip';
+            document.body.appendChild(sidebarLibraryTooltip);
+        }
+
+        sidebarLibraryTooltip.textContent = item.dataset.sidebarTooltip || item.getAttribute('aria-label') || '';
+        const rect = item.getBoundingClientRect();
+        sidebarLibraryTooltip.style.left = `${rect.right + 10}px`;
+        sidebarLibraryTooltip.style.top = `${rect.top + rect.height / 2}px`;
+        sidebarLibraryTooltip.classList.add('visible');
+    };
+
+    if (sidebarLibraryList) {
+        sidebarLibraryList.addEventListener('mouseover', (e) => {
+            showSidebarLibraryTooltip(e.target.closest('.sidebar-library-item'));
+        });
+        sidebarLibraryList.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.sidebar-library-item');
+            if (item && !item.contains(e.relatedTarget)) hideSidebarLibraryTooltip();
+        });
+        sidebarLibraryList.addEventListener('focusin', (e) => {
+            showSidebarLibraryTooltip(e.target.closest('.sidebar-library-item'));
+        });
+        sidebarLibraryList.addEventListener('focusout', hideSidebarLibraryTooltip);
+    }
+
+    // Restore persisted filter from localStorage
+    let currentSidebarFilter = localStorage.getItem('sidebar-library-filter') || null;
+
+    async function renderSidebarLibrary(filter = null, searchQuery = '') {
+        if (!sidebarLibraryList) return;
+
+        const [playlists, favArtists, favAlbums, likedTracks, pinnedItems] = await Promise.all([
+            db.getPlaylists(true),
+            db.getFavorites('artist'),
+            db.getFavorites('album'),
+            db.getFavorites('track'),
+            db.getPinned(),
+        ]);
+        const pinnedIds = new Set(pinnedItems.map((item) => String(item.id)));
+
+        let items = [];
+
+        // Add user playlists
+        if (!filter || filter === 'playlists') {
+            if (likedTracks.length > 0) {
+                items.push({
+                    type: 'playlist',
+                    name: 'שירים שאהבתם',
+                    cover: '/assets/liked_cover_512w.png',
+                    images: [],
+                    id: 'liked-songs',
+                    href: '/liked-songs',
+                    lastActivityAt: Math.max(...likedTracks.map((track) => track.updatedAt || track.addedAt || 0), 0),
+                    trackCount: likedTracks.length,
+                    isPinned: pinnedIds.has('liked-songs'),
+                    item: {
+                        id: 'liked-songs',
+                        uuid: 'liked-songs',
+                        title: 'שירים שאהבתם',
+                        name: 'שירים שאהבתם',
+                        tracks: likedTracks,
+                        cover: '/assets/liked_cover_512w.png',
+                        href: '/liked-songs',
+                    },
+                });
+            }
+
+            for (const p of playlists) {
+                items.push({
+                    type: 'playlist',
+                    name: p.name || p.title || 'Untitled',
+                    cover: p.cover || null,
+                    images: p.images || [],
+                    id: p.id,
+                    href: `/userplaylist/${p.id}`,
+                    addedAt: p.updatedAt || p.createdAt || 0,
+                    lastActivityAt: p.updatedAt || p.lastPlayedAt || p.createdAt || 0,
+                    trackCount: p.tracks?.length || p.numberOfTracks || 0,
+                    isPinned: pinnedIds.has(String(p.id)),
+                    item: { ...p, id: p.id, uuid: p.id, title: p.name || p.title, href: `/userplaylist/${p.id}` },
+                });
             }
         }
 
-        authManager.onAuthStateChanged(async (user) => {
-            if (user) {
-                const data = await syncManager.getUserData();
-                if (data && data.profile && data.profile.avatar_url) {
-                    headerAccountImg.src = data.profile.avatar_url + '&s=100';
-                    headerAccountImg.style.display = 'block';
-                    headerAccountIcon.style.display = 'none';
-                    return;
-                }
+        // Add favorite artists
+        if (!filter || filter === 'artists') {
+            for (const a of favArtists) {
+                items.push({
+                    type: 'artist',
+                    name: a.name || 'Unknown Artist',
+                    artistId: a.id,
+                    id: a.id,
+                    href: `/artist/${a.id}`,
+                    addedAt: a.addedAt || 0,
+                    lastActivityAt: a.updatedAt || a.lastPlayedAt || a.addedAt || 0,
+                    isPinned: pinnedIds.has(String(a.id)),
+                    item: a,
+                });
             }
-            headerAccountImg.style.display = 'none';
-            headerAccountIcon.style.display = 'flex';
+        }
+
+        // Add favorite albums
+        if (!filter || filter === 'albums') {
+            for (const a of favAlbums) {
+                items.push({
+                    type: 'album',
+                    name: a.title || 'Unknown Album',
+                    cover: a.cover ? MusicAPI.instance.getCoverUrl(a.cover, '160') : null,
+                    artist: a.artist?.name || '',
+                    id: a.id,
+                    href: `/album/${a.id}`,
+                    addedAt: a.addedAt || 0,
+                    lastActivityAt: a.updatedAt || a.lastPlayedAt || a.addedAt || 0,
+                    isPinned: pinnedIds.has(String(a.id)),
+                    item: a,
+                });
+            }
+        }
+
+        // Sort by last activity time so the newest library change stays at the top.
+        items.sort((a, b) => {
+            return (b.lastActivityAt || b.addedAt || 0) - (a.lastActivityAt || a.addedAt || 0);
+        });
+
+        // Apply search filter
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            items = items.filter(item =>
+                item.name.toLowerCase().includes(q) ||
+                (item.artist && item.artist.toLowerCase().includes(q))
+            );
+        }
+
+        // Render
+        if (items.length === 0) {
+            sidebarLibraryList.innerHTML = `
+                <div style="padding: 2rem 1rem; text-align: center; color: var(--muted-foreground); font-size: 0.8rem;">
+                    ${searchQuery ? 'לא נמצאו תוצאות' : 'הספרייה שלך ריקה'}
+                </div>
+            `;
+            return;
+        }
+
+        const currentPath = window.location.pathname;
+
+        sidebarLibraryList.innerHTML = items.map(item => {
+            const isActive = currentPath === item.href;
+            const typeLabel =
+                item.type === 'playlist' ? 'פלייליסט' : item.type === 'artist' ? 'אמן' : 'אלבום';
+            const metaText = item.type === 'album' && item.artist
+                ? `${typeLabel} · ${item.artist}`
+                : item.type === 'playlist' && item.trackCount != null
+                    ? `${typeLabel} · ${item.trackCount} שירים`
+                    : typeLabel;
+
+            let coverHTML = '';
+            if (item.type === 'artist') {
+                // Use getArtistPictureUrl (which uses getArtistRichImage endpoint)
+                // with onerror fallback to getCoverUrl (same pattern as home page cards)
+                const artistImgUrl = MusicAPI.instance.getArtistPictureUrl(item.artistId, '160');
+                const fallbackId = (typeof item.artistId === 'string' && item.artistId.startsWith('ar-')) ? item.artistId : `ar-${item.artistId}`;
+                const fallbackUrl = MusicAPI.instance.getCoverUrl(fallbackId, '160');
+                coverHTML = `<img class="sidebar-library-item-cover artist" src="${artistImgUrl}" alt="" loading="lazy" onerror="this.src='${fallbackUrl}'; this.onerror=null;" />`;
+            } else if (item.cover) {
+                coverHTML = `<img class="sidebar-library-item-cover" src="${item.cover}" alt="" loading="lazy" />`;
+            } else if (item.images && item.images.length > 0) {
+                // Playlist collage
+                const imgs = item.images.slice(0, 4);
+                if (imgs.length >= 4) {
+                    coverHTML = `<div class="sidebar-library-item-cover" style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; overflow: hidden;">
+                        ${imgs.map(src => `<img src="${MusicAPI.instance.getCoverUrl(src, '80')}" style="width: 100%; height: 100%; object-fit: cover;" alt="" loading="lazy" />`).join('')}
+                    </div>`;
+                } else {
+                    coverHTML = `<img class="sidebar-library-item-cover" src="${MusicAPI.instance.getCoverUrl(imgs[0], '160')}" alt="" loading="lazy" />`;
+                }
+            } else {
+                const icon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+                coverHTML = `<div class="sidebar-library-item-cover" style="display: flex; align-items: center; justify-content: center; color: var(--muted-foreground);">${icon}</div>`;
+            }
+
+            const itemName = escapeHtml(item.name);
+            const tooltipName = itemName.replace(/"/g, '&quot;');
+            const pinHTML = item.isPinned
+                ? '<span class="sidebar-library-pin" aria-label="Pinned"><use svg="!lucide/pin.svg" size="13" /></span>'
+                : '';
+
+            return `
+                <a class="sidebar-library-item${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}" data-no-translate>
+                    ${coverHTML}
+                    <div class="sidebar-library-item-info">
+                        <span class="sidebar-library-item-name">${itemName}</span>
+                        <span class="sidebar-library-item-meta">${metaText}</span>
+                    </div>
+                    ${pinHTML}
+                </a>
+            `;
+        }).join('');
+
+        items.forEach((item) => {
+            const el = sidebarLibraryList.querySelector(`.sidebar-library-item[data-id="${CSS.escape(String(item.id))}"]`);
+            if (el) trackDataStore.set(el, item.item || item);
         });
     }
+
+    sidebarLibraryList?.addEventListener('contextmenu', async (e) => {
+        const itemEl = e.target.closest('.sidebar-library-item');
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const contextMenu = document.getElementById('context-menu');
+        const item = trackDataStore.get(itemEl);
+        if (!contextMenu || !item) return;
+
+        if (contextMenu._originalHTML) {
+            contextMenu.innerHTML = contextMenu._originalHTML;
+            contextMenu._originalHTML = null;
+        }
+
+        contextMenu._contextTrack = item;
+        contextMenu._contextType = itemEl.dataset.type === 'playlist' ? 'user-playlist' : itemEl.dataset.type;
+        contextMenu._contextHref = itemEl.getAttribute('href');
+        const type = contextMenu._contextType;
+
+        contextMenu.querySelectorAll('li[data-action]').forEach((menuItem) => {
+            const filter = menuItem.dataset.typeFilter;
+            menuItem.style.display = !filter || filter.split(',').includes(type) ? 'flex' : 'none';
+        });
+
+        const pinLabel = contextMenu.querySelector('li[data-action="toggle-pin"] .menu-label');
+        if (pinLabel) pinLabel.textContent = (await db.isPinned(item.id || item.uuid)) ? 'Unpin' : 'Pin';
+
+        contextMenu.style.display = 'block';
+        const width = contextMenu.offsetWidth || 220;
+        const height = contextMenu.offsetHeight || 320;
+        contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - width - 8)}px`;
+        contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - height - 8)}px`;
+    });
+
+    // Filter chips
+    if (sidebarFilterChips) {
+        sidebarFilterChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sidebar-filter-chip');
+            if (!chip) {
+                // Check if clear button was clicked
+                const clearBtn = e.target.closest('.sidebar-filter-clear-btn');
+                if (clearBtn) {
+                    currentSidebarFilter = null;
+                    localStorage.removeItem('sidebar-library-filter');
+                    renderFilterChips();
+                    renderSidebarLibrary();
+                }
+                return;
+            }
+
+            const filter = chip.dataset.filter;
+
+            if (chip.classList.contains('active')) {
+                // Deselect
+                currentSidebarFilter = null;
+                localStorage.removeItem('sidebar-library-filter');
+                renderFilterChips();
+                renderSidebarLibrary();
+            } else {
+                currentSidebarFilter = filter;
+                localStorage.setItem('sidebar-library-filter', filter);
+                renderFilterChips();
+                renderSidebarLibrary(filter);
+            }
+        });
+    }
+
+    function renderFilterChips() {
+        if (!sidebarFilterChips) return;
+
+        if (currentSidebarFilter) {
+            // Show only the selected chip with X button
+            const labels = { playlists: 'פלייליסטים', artists: 'אמנים', albums: 'אלבומים' };
+            sidebarFilterChips.innerHTML = `
+                <button class="sidebar-filter-clear-btn" title="Clear filter"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <button class="sidebar-filter-chip active" data-filter="${currentSidebarFilter}">${labels[currentSidebarFilter]}</button>
+            `;
+        } else {
+            sidebarFilterChips.innerHTML = `
+                <button class="sidebar-filter-chip" data-filter="playlists">פלייליסטים</button>
+                <button class="sidebar-filter-chip" data-filter="artists">אמנים</button>
+                <button class="sidebar-filter-chip" data-filter="albums">אלבומים</button>
+            `;
+        }
+    }
+
+    // Sidebar search
+    const sidebarSearchBtn = document.getElementById('sidebar-library-search-btn');
+    const sidebarSearchInput = document.getElementById('sidebar-library-search-input');
+
+    function closeSidebarSearch() {
+        if (sidebarSearchInput) {
+            sidebarSearchInput.style.display = 'none';
+            sidebarSearchInput.value = '';
+            renderSidebarLibrary(currentSidebarFilter);
+        }
+    }
+
+    if (sidebarSearchBtn && sidebarSearchInput) {
+        sidebarSearchBtn.addEventListener('click', () => {
+            const isVisible = sidebarSearchInput.style.display !== 'none';
+            if (isVisible) {
+                closeSidebarSearch();
+            } else {
+                sidebarSearchInput.style.display = 'block';
+                sidebarSearchInput.focus();
+            }
+        });
+
+        sidebarSearchInput.addEventListener('input', debounce((e) => {
+            renderSidebarLibrary(currentSidebarFilter, e.target.value.trim());
+        }, 200));
+
+        // Escape key closes sidebar search
+        sidebarSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebarSearch();
+            }
+        });
+    }
+
+    // Create playlist button - opens actual modal
+    const sidebarCreateBtn = document.getElementById('sidebar-create-btn');
+    if (sidebarCreateBtn) {
+        sidebarCreateBtn.addEventListener('click', () => {
+            const createModal = document.getElementById('playlist-modal');
+            if (!createModal) return;
+            document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
+            document.getElementById('playlist-name-input').value = '';
+            document.getElementById('playlist-cover-input').value = '';
+            document.getElementById('playlist-cover-file-input').value = '';
+            document.getElementById('playlist-description-input').value = '';
+            createModal.dataset.editingId = '';
+            const importSection = document.getElementById('import-section');
+            if (importSection) importSection.style.display = 'none';
+            createModal._pendingTracks = [];
+            createModal.classList.add('active');
+            document.getElementById('playlist-name-input')?.focus();
+        });
+    }
+
+    // Logo click - navigate home
+    const topbarLogo = document.getElementById('topbar-logo');
+    if (topbarLogo) {
+        topbarLogo.addEventListener('click', (e) => {
+            e.preventDefault();
+            const path = window.location.pathname;
+            if (path === '/' || path === '/home' || path === '/index.html') {
+                const firstTab = document.querySelector('.home-tab');
+                if (firstTab) firstTab.click();
+            } else {
+                navigate('/');
+            }
+        });
+    }
+
+    // Home button
+    const topbarHomeBtn = document.getElementById('topbar-home-btn');
+    if (topbarHomeBtn) {
+        topbarHomeBtn.addEventListener('click', () => {
+            const path = window.location.pathname;
+            if (path === '/' || path === '/home' || path === '/index.html') {
+                const firstTab = document.querySelector('.home-tab');
+                if (firstTab) firstTab.click();
+            } else {
+                navigate('/');
+            }
+        });
+    }
+
+    // Update home button state and sidebar active items on navigation
+    function updateTopbarHomeState() {
+        const path = window.location.pathname;
+        const isHome = path === '/' || path === '/home';
+        const homeBtn = document.getElementById('topbar-home-btn');
+        if (homeBtn) {
+            homeBtn.classList.toggle('active', isHome);
+        }
+
+        // Update sidebar active states
+        document.querySelectorAll('.sidebar-library-item').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('href') === path);
+        });
+    }
+
+    // Listen for route changes
+    window.addEventListener('popstate', () => {
+        updateTopbarHomeState();
+    });
+
+    // Initial render with persisted filter
+    renderFilterChips();
+    await renderSidebarLibrary(currentSidebarFilter);
+    updateTopbarHomeState();
+
+    // Re-render sidebar when favorites or playlists change
+    window.addEventListener('favorites-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('playlist-tracks-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('library-changed', () => renderSidebarLibrary(currentSidebarFilter));
+    window.addEventListener('pinned-items-changed', () => renderSidebarLibrary(currentSidebarFilter));
+
 });
+
 
 function showUpdateNotification(updateCallback) {
     // Remove any existing update notification

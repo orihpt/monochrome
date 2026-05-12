@@ -79,6 +79,184 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     authManager.updateUI(authManager.user);
 
     // ========================================
+    // Admin-only actions
+    // ========================================
+    const adminTab = document.getElementById('settings-admin-tab');
+    const adminTabContent = document.getElementById('settings-tab-admin');
+    const triggerScanBtn = document.getElementById('trigger-scan-btn');
+    const triggerRecommendationsBtn = document.getElementById('trigger-recommendations-btn');
+    const refreshRecommendationsStatusBtn = document.getElementById('refresh-recommendations-status-btn');
+    const recommendationsServerStatus = document.getElementById('recommendations-server-status');
+    const recommendationsCatalogStatus = document.getElementById('recommendations-catalog-status');
+    const recommendationsScanStatus = document.getElementById('recommendations-scan-status');
+    const recommendationsEventsStatus = document.getElementById('recommendations-events-status');
+    const recommendationsNeighborsStatus = document.getElementById('recommendations-neighbors-status');
+    const recommendationsModelStatus = document.getElementById('recommendations-model-status');
+    const adminActionsStatusSetting = document.getElementById('admin-actions-status-setting');
+    const adminActionsStatus = document.getElementById('admin-actions-status');
+    const adminApi = api.subsonicAPI || api;
+
+    const setAdminStatus = (message) => {
+        if (adminActionsStatusSetting) adminActionsStatusSetting.style.display = message ? 'flex' : 'none';
+        if (adminActionsStatus) adminActionsStatus.textContent = message || '';
+    };
+
+    const setAdminButtonsDisabled = (disabled) => {
+        if (triggerScanBtn) triggerScanBtn.disabled = disabled;
+        if (triggerRecommendationsBtn) triggerRecommendationsBtn.disabled = disabled;
+        if (refreshRecommendationsStatusBtn) refreshRecommendationsStatusBtn.disabled = disabled;
+    };
+
+    const formatNumber = (value) => new Intl.NumberFormat().format(Number(value || 0));
+    const formatDateTime = (value) => {
+        if (!value) return 'never';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString();
+    };
+    const setRecommendationStatusText = (element, text) => {
+        if (element) element.textContent = text;
+    };
+    const renderRecommendationStatus = (status) => {
+        const counts = status?.counts || {};
+        const scan = status?.scan || {};
+        const catalog = status?.catalog || {};
+        const events = status?.events || {};
+        const neighbors = status?.neighbors || {};
+        const activeModel = status?.active_models?.[0] || status?.models?.find((model) => model.is_active);
+
+        setRecommendationStatusText(
+            recommendationsServerStatus,
+            status?.ready
+                ? `Online, checked ${formatDateTime(status.checked_at)}`
+                : `Online but waiting for catalog data, checked ${formatDateTime(status?.checked_at)}`
+        );
+        setRecommendationStatusText(
+            recommendationsCatalogStatus,
+            `${catalog.status || 'unknown'}: ${formatNumber(counts.tracks)} tracks, ${formatNumber(counts.artists)} artists, ${formatNumber(counts.albums)} albums. Last catalog update: ${formatDateTime(catalog.last_track_update)}.`
+        );
+        setRecommendationStatusText(
+            recommendationsScanStatus,
+            `${scan.status || 'unknown'}: ${formatNumber(scan.analyzed_tracks)} analyzed of ${formatNumber(scan.total_tracks)} tracks, ${formatNumber(scan.pending)} pending.`
+        );
+        setRecommendationStatusText(
+            recommendationsEventsStatus,
+            `${formatNumber(events.total ?? counts.events)} events. Latest: ${
+                events.latest
+                    ? `${events.latest.event_type} for ${events.latest.track_id} at ${formatDateTime(events.latest.created_at)}`
+                    : 'none yet'
+            }.`
+        );
+        setRecommendationStatusText(
+            recommendationsNeighborsStatus,
+            `${formatNumber(neighbors.track)} track, ${formatNumber(neighbors.artist)} artist, ${formatNumber(neighbors.album)} album neighbor rows.`
+        );
+        setRecommendationStatusText(
+            recommendationsModelStatus,
+            activeModel
+                ? `${activeModel.model_name} ${activeModel.version}, created ${formatDateTime(activeModel.created_at)}`
+                : 'No active model registered yet.'
+        );
+    };
+    const loadRecommendationStatus = async ({ quiet = false } = {}) => {
+        if (!isAdmin || typeof adminApi.getRecommendationServerStatus !== 'function') return;
+        if (!quiet) setRecommendationStatusText(recommendationsServerStatus, 'Checking recommendation server...');
+        try {
+            const status = await adminApi.getRecommendationServerStatus();
+            renderRecommendationStatus(status);
+        } catch (error) {
+            console.error('Failed to load recommendation server status:', error);
+            setRecommendationStatusText(recommendationsServerStatus, 'Unavailable through Navidrome backend.');
+            setRecommendationStatusText(recommendationsCatalogStatus, 'Could not load catalog mirror status.');
+            setRecommendationStatusText(recommendationsScanStatus, 'Could not load scan status.');
+            setRecommendationStatusText(recommendationsEventsStatus, 'Could not load event status.');
+            setRecommendationStatusText(recommendationsNeighborsStatus, 'Could not load neighbor status.');
+            setRecommendationStatusText(recommendationsModelStatus, 'Could not load model status.');
+        }
+    };
+
+    const activateSettingsTab = (tabName) => {
+        document.querySelectorAll('.settings-tab').forEach((tab) => tab.classList.remove('active'));
+        document.querySelectorAll('.settings-tab-content').forEach((content) => content.classList.remove('active'));
+        const tab = document.querySelector(`.settings-tab[data-tab="${tabName}"]`);
+        const content = document.getElementById(`settings-tab-${tabName}`);
+        if (tab && content) {
+            tab.classList.add('active');
+            content.classList.add('active');
+            settingsUiState.setActiveTab(tabName);
+        }
+    };
+
+    const isAdmin = await adminApi.isCurrentUserAdmin();
+    if (isAdmin) {
+        if (adminTab) adminTab.style.display = '';
+        if (adminTabContent) adminTabContent.style.display = '';
+    } else {
+        if (adminTab) {
+            adminTab.classList.remove('active');
+            adminTab.style.display = 'none';
+        }
+        if (adminTabContent) {
+            adminTabContent.classList.remove('active');
+            adminTabContent.style.display = 'none';
+        }
+        if (settingsUiState.getActiveTab() === 'admin') {
+            activateSettingsTab('appearance');
+        }
+    }
+
+    if (triggerScanBtn) {
+        triggerScanBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            setAdminStatus('Starting library rescan...');
+            try {
+                await adminApi.triggerScan();
+                setAdminStatus('Library rescan started.');
+            } catch (error) {
+                console.error('Failed to start library rescan:', error);
+                setAdminStatus('Failed to start library rescan.');
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (triggerRecommendationsBtn) {
+        triggerRecommendationsBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            setAdminStatus('Scheduling recommendation retraining...');
+            try {
+                await adminApi.retriggerRecommendations();
+                setAdminStatus('Recommendation retraining scheduled.');
+                await loadRecommendationStatus({ quiet: true });
+            } catch (error) {
+                console.error('Failed to retrigger recommendations:', error);
+                setAdminStatus('Failed to retrigger recommendations.');
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (refreshRecommendationsStatusBtn) {
+        refreshRecommendationsStatusBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            setAdminButtonsDisabled(true);
+            try {
+                await loadRecommendationStatus();
+            } finally {
+                setAdminButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (isAdmin) {
+        await loadRecommendationStatus({ quiet: true });
+    }
+
+    // ========================================
     // Dev Mode
     // ========================================
     const devModeToggle = document.getElementById('dev-mode-toggle');
@@ -91,16 +269,18 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (devModeUrlInput) devModeUrlInput.value = devModeSettings.getUrl();
     }
 
-    updateDevModeUI();
+    if (isAdmin) {
+        updateDevModeUI();
+    }
 
-    if (devModeToggle) {
+    if (isAdmin && devModeToggle) {
         devModeToggle.addEventListener('change', (e) => {
             devModeSettings.setEnabled(e.target.checked);
             updateDevModeUI();
         });
     }
 
-    if (devModeUrlInput) {
+    if (isAdmin && devModeUrlInput) {
         devModeUrlInput.addEventListener('change', (e) => {
             devModeSettings.setUrl(e.target.value.trim());
         });
@@ -219,26 +399,31 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const lastfmUseOAuthBtn = document.getElementById('lastfm-use-oauth');
 
     function updateLastFMUI() {
-        if (scrobbler.lastfm.isAuthenticated()) {
-            lastfmStatus.textContent = `Connected as ${scrobbler.lastfm.username}`;
-            lastfmConnectBtn.textContent = 'Disconnect';
-            lastfmConnectBtn.classList.add('danger');
-            lastfmToggleSetting.style.display = 'flex';
-            lastfmLoveSetting.style.display = 'flex';
-            lastfmToggle.checked = lastFMStorage.isEnabled();
-            lastfmLoveToggle.checked = lastFMStorage.shouldLoveOnLike();
-            lastfmCustomCredsToggleSetting.style.display = 'flex';
-            lastfmCustomCredsToggle.checked = lastFMStorage.useCustomCredentials();
+        const isAuthenticated = scrobbler.lastfm.isAuthenticated();
+        if (isAuthenticated) {
+            if (lastfmStatus) lastfmStatus.textContent = `Connected as ${scrobbler.lastfm.username}`;
+            if (lastfmConnectBtn) {
+                lastfmConnectBtn.textContent = 'Disconnect';
+                lastfmConnectBtn.classList.add('danger');
+            }
+            if (lastfmToggleSetting) lastfmToggleSetting.style.display = 'flex';
+            if (lastfmLoveSetting) lastfmLoveSetting.style.display = 'flex';
+            if (lastfmToggle) lastfmToggle.checked = lastFMStorage.isEnabled();
+            if (lastfmLoveToggle) lastfmLoveToggle.checked = lastFMStorage.shouldLoveOnLike();
+            if (lastfmCustomCredsToggleSetting) lastfmCustomCredsToggleSetting.style.display = 'flex';
+            if (lastfmCustomCredsToggle) lastfmCustomCredsToggle.checked = lastFMStorage.useCustomCredentials();
             updateCustomCredsUI();
             hideCredentialAuth();
         } else {
-            lastfmStatus.textContent = 'Connect your Last.fm account to scrobble tracks';
-            lastfmConnectBtn.textContent = 'Connect Last.fm';
-            lastfmConnectBtn.classList.remove('danger');
-            lastfmToggleSetting.style.display = 'none';
-            lastfmLoveSetting.style.display = 'none';
-            lastfmCustomCredsToggleSetting.style.display = 'none';
-            lastfmCustomCredsSetting.style.display = 'none';
+            if (lastfmStatus) lastfmStatus.textContent = 'Connect your Last.fm account to scrobble tracks';
+            if (lastfmConnectBtn) {
+                lastfmConnectBtn.textContent = 'Connect Last.fm';
+                lastfmConnectBtn.classList.remove('danger');
+            }
+            if (lastfmToggleSetting) lastfmToggleSetting.style.display = 'none';
+            if (lastfmLoveSetting) lastfmLoveSetting.style.display = 'none';
+            if (lastfmCustomCredsToggleSetting) lastfmCustomCredsToggleSetting.style.display = 'none';
+            if (lastfmCustomCredsSetting) lastfmCustomCredsSetting.style.display = 'none';
             // Hide credential auth by default - only show on OAuth failure
             hideCredentialAuth();
         }
@@ -260,14 +445,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateCustomCredsUI() {
         const useCustom = lastFMStorage.useCustomCredentials();
-        lastfmCustomCredsSetting.style.display = useCustom ? 'flex' : 'none';
+        if (lastfmCustomCredsSetting) lastfmCustomCredsSetting.style.display = useCustom ? 'flex' : 'none';
 
         if (useCustom) {
-            lastfmCustomApiKey.value = lastFMStorage.getCustomApiKey();
-            lastfmCustomApiSecret.value = lastFMStorage.getCustomApiSecret();
+            if (lastfmCustomApiKey) lastfmCustomApiKey.value = lastFMStorage.getCustomApiKey();
+            if (lastfmCustomApiSecret) lastfmCustomApiSecret.value = lastFMStorage.getCustomApiSecret();
 
             const hasCreds = lastFMStorage.getCustomApiKey() && lastFMStorage.getCustomApiSecret();
-            lastfmClearCustomCreds.style.display = hasCreds ? 'inline-block' : 'none';
+            if (lastfmClearCustomCreds) lastfmClearCustomCreds.style.display = hasCreds ? 'inline-block' : 'none';
         }
     }
 
@@ -609,19 +794,23 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateLibreFmUI() {
         if (scrobbler.librefm.isAuthenticated()) {
-            librefmStatus.textContent = `Connected as ${scrobbler.librefm.username}`;
-            librefmConnectBtn.textContent = 'Disconnect';
-            librefmConnectBtn.classList.add('danger');
-            librefmToggleSetting.style.display = 'flex';
-            librefmLoveSetting.style.display = 'flex';
-            librefmToggle.checked = libreFmSettings.isEnabled();
-            librefmLoveToggle.checked = libreFmSettings.shouldLoveOnLike();
+            if (librefmStatus) librefmStatus.textContent = `Connected as ${scrobbler.librefm.username}`;
+            if (librefmConnectBtn) {
+                librefmConnectBtn.textContent = 'Disconnect';
+                librefmConnectBtn.classList.add('danger');
+            }
+            if (librefmToggleSetting) librefmToggleSetting.style.display = 'flex';
+            if (librefmLoveSetting) librefmLoveSetting.style.display = 'flex';
+            if (librefmToggle) librefmToggle.checked = libreFmSettings.isEnabled();
+            if (librefmLoveToggle) librefmLoveToggle.checked = libreFmSettings.shouldLoveOnLike();
         } else {
-            librefmStatus.textContent = 'Connect your Libre.fm account to scrobble tracks';
-            librefmConnectBtn.textContent = 'Connect Libre.fm';
-            librefmConnectBtn.classList.remove('danger');
-            librefmToggleSetting.style.display = 'none';
-            librefmLoveSetting.style.display = 'none';
+            if (librefmStatus) librefmStatus.textContent = 'Connect your Libre.fm account to scrobble tracks';
+            if (librefmConnectBtn) {
+                librefmConnectBtn.textContent = 'Connect Libre.fm';
+                librefmConnectBtn.classList.remove('danger');
+            }
+            if (librefmToggleSetting) librefmToggleSetting.style.display = 'none';
+            if (librefmLoveSetting) librefmLoveSetting.style.display = 'none';
         }
     }
 
@@ -6439,73 +6628,75 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     }
 
     // API settings
-    document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
-        const btn = document.getElementById('refresh-speed-test-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Testing...';
-        btn.disabled = true;
+    if (isAdmin) {
+        document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-speed-test-btn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Testing...';
+            btn.disabled = true;
 
-        try {
-            await api.settings.refreshInstances();
-            ui.renderApiSettings();
-            btn.textContent = 'Done!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }, 1500);
-        } catch (error) {
-            console.error('Failed to refresh speed tests:', error);
-            btn.textContent = 'Error';
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }, 1500);
-        }
-    });
+            try {
+                await api.settings.refreshInstances();
+                ui.renderApiSettings();
+                btn.textContent = 'Done!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 1500);
+            } catch (error) {
+                console.error('Failed to refresh speed tests:', error);
+                btn.textContent = 'Error';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 1500);
+            }
+        });
 
-    document.getElementById('api-instance-list')?.addEventListener('click', async (e) => {
-        const button = e.target.closest('button');
-        if (!button) return;
+        document.getElementById('api-instance-list')?.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
 
-        const li = button.closest('li');
-        const type = button.dataset.type || li?.dataset.type || 'api';
+            const li = button.closest('li');
+            const type = button.dataset.type || li?.dataset.type || 'api';
 
-        if (button.classList.contains('add-instance')) {
-            const url = prompt(`Enter custom ${type.toUpperCase()} instance URL (e.g. https://my-instance.com):`);
-            if (url && url.trim()) {
-                let formattedUrl = url.trim();
-                if (!formattedUrl.startsWith('http')) {
-                    formattedUrl = 'https://' + formattedUrl;
+            if (button.classList.contains('add-instance')) {
+                const url = prompt(`Enter custom ${type.toUpperCase()} instance URL (e.g. https://my-instance.com):`);
+                if (url && url.trim()) {
+                    let formattedUrl = url.trim();
+                    if (!formattedUrl.startsWith('http')) {
+                        formattedUrl = 'https://' + formattedUrl;
+                    }
+                    api.settings.addUserInstance(type, formattedUrl);
+                    ui.renderApiSettings();
                 }
-                api.settings.addUserInstance(type, formattedUrl);
-                ui.renderApiSettings();
+                return;
             }
-            return;
-        }
 
-        if (button.classList.contains('delete-instance')) {
-            const url = li.dataset.url;
-            if (url && confirm(`Delete custom instance ${url}?`)) {
-                api.settings.removeUserInstance(type, url);
-                ui.renderApiSettings();
+            if (button.classList.contains('delete-instance')) {
+                const url = li.dataset.url;
+                if (url && confirm(`Delete custom instance ${url}?`)) {
+                    api.settings.removeUserInstance(type, url);
+                    ui.renderApiSettings();
+                }
+                return;
             }
-            return;
-        }
 
-        const index = parseInt(li?.dataset.index, 10);
-        if (isNaN(index)) return;
+            const index = parseInt(li?.dataset.index, 10);
+            if (isNaN(index)) return;
 
-        const instances = await api.settings.getInstances(type);
+            const instances = await api.settings.getInstances(type);
 
-        if (button.classList.contains('move-up') && index > 0) {
-            [instances[index], instances[index - 1]] = [instances[index - 1], instances[index]];
-        } else if (button.classList.contains('move-down') && index < instances.length - 1) {
-            [instances[index], instances[index + 1]] = [instances[index + 1], instances[index]];
-        }
+            if (button.classList.contains('move-up') && index > 0) {
+                [instances[index], instances[index - 1]] = [instances[index - 1], instances[index]];
+            } else if (button.classList.contains('move-down') && index < instances.length - 1) {
+                [instances[index], instances[index + 1]] = [instances[index + 1], instances[index]];
+            }
 
-        api.settings.saveInstances(instances, type);
-        ui.renderApiSettings();
-    });
+            api.settings.saveInstances(instances, type);
+            ui.renderApiSettings();
+        });
+    }
 
     document.getElementById('clear-cache-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('clear-cache-btn');
@@ -6646,7 +6837,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const customDbResetBtn = document.getElementById('custom-db-reset');
     const customDbCancelBtn = document.getElementById('custom-db-cancel');
 
-    if (customDbBtn && customDbModal) {
+    if (isAdmin && customDbBtn && customDbModal) {
         const appwriteFromEnv = !!(window.__APPWRITE_ENDPOINT__ || window.__APPWRITE_PROJECT_ID__);
         const pbFromEnv = !!window.__POCKETBASE_URL__;
 

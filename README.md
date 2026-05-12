@@ -154,7 +154,8 @@ For development mode and advanced setups, see [DOCKER.md](DOCKER.md).
 
 #### Prerequisites
 
-- [Bun](https://bun.sh/) (Preferred) or [Node.js](https://nodejs.org/) (Version 20+ or 22+ recommended)
+- [Node.js](https://nodejs.org/) (Version 20+ or 22+ recommended)
+- [Yarn](https://yarnpkg.com/) via Corepack
 
 #### Local Development
 
@@ -168,17 +169,14 @@ For development mode and advanced setups, see [DOCKER.md](DOCKER.md).
 2. **Install dependencies:**
 
     ```bash
-    bun install
-    # or
-    npm install # NPM is included with Node.js
+    corepack enable
+    yarn install
     ```
 
 3. **Start the development server:**
 
     ```bash
-    bun run dev
-    # or
-    npm run dev
+    yarn dev
     ```
 
 4. **Open your browser:**
@@ -187,9 +185,7 @@ For development mode and advanced setups, see [DOCKER.md](DOCKER.md).
 #### Building for Production
 
 ```bash
-bun run build
-# or
-npm run build
+yarn build
 ```
 
 ---

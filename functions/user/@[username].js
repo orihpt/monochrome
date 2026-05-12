@@ -2,6 +2,9 @@
 
 export async function onRequest(context) {
     const { request, params, env } = context;
+    // Offline-first mode: retain bot-preview integrations, but do not call
+    // remote PocketBase unless the function environment opts in.
+    const externalFunctionsEnabled = env.OFFLINE_MODE === 'false' && env.ENABLE_EXTERNAL_FUNCTIONS === 'true';
     const userAgent = request.headers.get('User-Agent') || '';
     const isBot =
         /discordbot|twitterbot|facebookexternalhit|bingbot|googlebot|slurp|whatsapp|pinterest|slackbot|telegrambot|linkedinbot|mastodon|signal|snapchat|redditbot|skypeuripreview|viberbot|linebot|embedly|quora|outbrain|tumblr|duckduckbot|yandexbot|rogerbot|showyoubot|kakaotalk|naverbot|seznambot|mediapartners|adsbot|petalbot|applebot|ia_archiver/i.test(
@@ -9,7 +12,7 @@ export async function onRequest(context) {
         );
     const username = params.username;
 
-    if (isBot && username) {
+    if (externalFunctionsEnabled && isBot && username) {
         try {
             const POCKETBASE_URL = 'https://data.samidy.xyz';
             const filter = `username="${username}"`;

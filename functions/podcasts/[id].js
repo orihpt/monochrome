@@ -26,6 +26,9 @@ async function getAuthHeaders() {
 
 export async function onRequest(context) {
     const { request, params, env } = context;
+    // Offline-first mode: retain bot-preview integrations, but do not call
+    // PodcastIndex unless the function environment opts in.
+    const externalFunctionsEnabled = env.OFFLINE_MODE === 'false' && env.ENABLE_EXTERNAL_FUNCTIONS === 'true';
     const userAgent = request.headers.get('User-Agent') || '';
     const isBot =
         /discordbot|twitterbot|facebookexternalhit|bingbot|googlebot|slurp|whatsapp|pinterest|slackbot|telegrambot|linkedinbot|mastodon|signal|snapchat|redditbot|skypeuripreview|viberbot|linebot|embedly|quora|outbrain|tumblr|duckduckbot|yandexbot|rogerbot|showyoubot|kakaotalk|naverbot|seznambot|mediapartners|adsbot|petalbot|applebot|ia_archiver/i.test(
@@ -33,7 +36,7 @@ export async function onRequest(context) {
         );
     const podcastId = params.id;
 
-    if (isBot && podcastId) {
+    if (externalFunctionsEnabled && isBot && podcastId) {
         try {
             const headers = await getAuthHeaders();
             const response = await fetch(`${PODCASTINDEX_API_BASE}/podcasts/byfeedid?id=${podcastId}&pretty`, {

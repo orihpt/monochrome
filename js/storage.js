@@ -1,13 +1,14 @@
 //storage.js
 
-import { SVG_RIGHT_ARROW } from './icons';
-
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
-    INSTANCES_URLS: [
-        'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
-        'https://tidal-uptime.props-76styles.workers.dev/',
-    ],
+    INSTANCES_URLS:
+        __OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__
+            ? []
+            : [
+                  'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
+                  'https://tidal-uptime.props-76styles.workers.dev/',
+              ],
     defaultInstances: { api: [], streaming: [] },
     userInstances: null,
     instancesLoaded: false,
@@ -29,6 +30,15 @@ export const apiSettings = {
     },
 
     async loadInstancesFromGitHub() {
+        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+            // Offline-first mode: keep the upstream instance discovery code below
+            // recoverable, but never call public uptime workers unless opted in.
+            this.defaultInstances = { api: [], streaming: [] };
+            this.instancesLoaded = true;
+            this._loadPromise = null;
+            return this.defaultInstances;
+        }
+
         if (this.instancesLoaded) {
             return this.defaultInstances;
         }
@@ -76,27 +86,8 @@ export const apiSettings = {
             if (!data) {
                 console.error('Failed to load instances from all uptime APIs:', fetchError);
                 this.defaultInstances = {
-                    api: [
-                        { url: 'https://hifi.geeked.wtf', version: '2.7' },
-                        { url: 'https://eu-central.monochrome.tf', version: '2.7' },
-                        { url: 'https://us-west.monochrome.tf', version: '2.7' },
-                        { url: 'https://api.monochrome.tf', version: '2.5' },
-                        { url: 'https://monochrome-api.samidy.com', version: '2.3' },
-                        { url: 'https://maus.qqdl.site', version: '2.6' },
-                        { url: 'https://vogel.qqdl.site', version: '2.6' },
-                        { url: 'https://katze.qqdl.site', version: '2.6' },
-                        { url: 'https://hund.qqdl.site', version: '2.6' },
-                        { url: 'https://tidal.kinoplus.online', version: '2.2' },
-                        { url: 'https://wolf.qqdl.site', version: '2.2' },
-                    ],
-                    streaming: [
-                        { url: 'https://hifi.geeked.wtf', version: '2.7' },
-                        { url: 'https://maus.qqdl.site', version: '2.6' },
-                        { url: 'https://vogel.qqdl.site', version: '2.6' },
-                        { url: 'https://katze.qqdl.site', version: '2.6' },
-                        { url: 'https://hund.qqdl.site', version: '2.6' },
-                        { url: 'https://wolf.qqdl.site', version: '2.6' },
-                    ],
+                    api: [],
+                    streaming: [],
                 };
                 this.instancesLoaded = true;
                 this._loadPromise = null;
@@ -2118,10 +2109,6 @@ export const sidebarSettings = {
         const isCollapsed = this.isCollapsed();
         if (isCollapsed) {
             document.body.classList.add('sidebar-collapsed');
-            const toggleBtn = document.getElementById('sidebar-toggle');
-            if (toggleBtn) {
-                toggleBtn.innerHTML = SVG_RIGHT_ARROW(20);
-            }
         }
     },
 };
@@ -2717,57 +2704,12 @@ export const fontSettings = {
     },
 
     parseGoogleFontsUrl(url) {
-        try {
-            if (url.includes('fonts.google.com/specimen/')) {
-                const match = url.match(/specimen\/([^/?]+)/);
-                if (match) {
-                    return decodeURIComponent(match[1]).replace(/\+/g, ' ');
-                }
-            }
-            if (url.includes('fonts.googleapis.com/css')) {
-                const match = url.match(/family=([^&:]+)/);
-                if (match) {
-                    return decodeURIComponent(match[1]).replace(/\+/g, ' ').split(':')[0];
-                }
-            }
-        } catch {
-            // ignore
-        }
         return null;
     },
 
     async loadGoogleFont(familyName) {
-        // Validate familyName to prevent injection
-        if (!familyName || typeof familyName !== 'string') {
-            return;
-        }
-        // Only allow alphanumeric, spaces, and basic punctuation in font names
-        const sanitizedFamily = familyName.replace(/[^a-zA-Z0-9\s\-_,.]/g, '');
-        if (!sanitizedFamily) {
-            return;
-        }
-
-        const encodedFamily = encodeURIComponent(sanitizedFamily);
-        const url = `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@100;200;300;400;500;600;700;800;900&display=swap`;
-
-        let link = document.getElementById(this.FONT_LINK_ID);
-        if (!link) {
-            link = document.createElement('link');
-            link.id = this.FONT_LINK_ID;
-            link.rel = 'stylesheet';
-            document.head.appendChild(link);
-        }
-
-        link.href = url;
-
-        this.setConfig({
-            type: 'google',
-            family: familyName,
-            fallback: 'sans-serif',
-            weights: [100, 200, 300, 400, 500, 600, 700, 800, 900],
-        });
-
-        document.documentElement.style.setProperty('--font-family', `'${familyName}', ${this.NOTO_FALLBACK}`);
+        // Disabled for offline-first mode
+        return;
     },
 
     async loadFontFromUrl(url, familyName) {
@@ -3008,9 +2950,9 @@ export const musicProviderSettings = {
 
     getProvider() {
         try {
-            return localStorage.getItem(this.STORAGE_KEY) || 'tidal';
+            return localStorage.getItem(this.STORAGE_KEY) || 'navidrome';
         } catch {
-            return 'tidal';
+            return 'navidrome';
         }
     },
 
@@ -3072,11 +3014,9 @@ export const modalSettings = {
             'playlist-select-modal',
             'shortcuts-modal',
             'missing-tracks-modal',
-            'sleep-timer-modal',
             'discography-download-modal',
             'custom-db-modal',
             'tracker-modal',
-            'epilepsy-warning-modal',
         ];
         for (const id of modalIds) {
             const modal = document.getElementById(id);
@@ -3105,11 +3045,9 @@ export const modalSettings = {
             'playlist-select-modal',
             'shortcuts-modal',
             'missing-tracks-modal',
-            'sleep-timer-modal',
             'discography-download-modal',
             'custom-db-modal',
             'tracker-modal',
-            'epilepsy-warning-modal',
         ];
 
         modalIds.forEach((id) => {

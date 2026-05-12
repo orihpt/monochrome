@@ -183,7 +183,7 @@ export class LosslessAPI {
             return response;
         }
 
-        const shouldTryNative = type !== 'streaming';
+        const shouldTryNative = type !== 'streaming' && !__OFFLINE_MODE__ && __ENABLE_TIDAL_API__;
 
         if (shouldTryNative) {
             try {
@@ -211,6 +211,13 @@ export class LosslessAPI {
                     );
                 }
             }
+        }
+
+        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+            // Offline-first mode: do not fall back to public HiFi/Monochrome
+            // worker instances. Local Navidrome/Subsonic paths are handled by
+            // subsonic-api.js and nginx, not this external API client.
+            throw new Error(`External API instances are disabled for: ${relativePath}`);
         }
 
         try {
@@ -1026,43 +1033,7 @@ export class LosslessAPI {
         if (cached) return cached;
 
         try {
-            const searchUrl = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artistName)}&fmt=json`;
-            const searchRes = await fetch(searchUrl, {
-                headers: { 'User-Agent': 'Monochrome/2.0.0 ( https://github.com/monochrome-music/monochrome )' },
-            });
-            const searchData = await searchRes.json();
-
-            if (!searchData.artists || searchData.artists.length === 0) return [];
-
-            const artist = searchData.artists[0];
-            const mbid = artist.id;
-
-            const detailsUrl = `https://musicbrainz.org/ws/2/artist/${mbid}?inc=url-rels&fmt=json`;
-            const detailsRes = await fetch(detailsUrl, {
-                headers: { 'User-Agent': 'Monochrome/2.0.0 ( https://github.com/monochrome-music/monochrome )' },
-            });
-            const detailsData = await detailsRes.json();
-
-            const links = [];
-            if (detailsData.relations) {
-                for (const rel of detailsData.relations) {
-                    if (
-                        [
-                            'social network',
-                            'streaming',
-                            'official homepage',
-                            'youtube',
-                            'soundcloud',
-                            'bandcamp',
-                        ].includes(rel.type)
-                    ) {
-                        links.push({ type: rel.type, url: rel.url.resource });
-                    }
-                }
-            }
-
-            await this.cache.set('artist', cacheKey, links);
-            return links;
+            return [];
         } catch (e) {
             console.warn('Failed to fetch artist socials:', e);
             return [];
@@ -1912,51 +1883,34 @@ export class LosslessAPI {
 
     getCoverUrl(id, size = '320') {
         if (!id) {
-            return `https://picsum.photos/seed/${Math.random()}/${size}`;
+            return 'assets/1024w_new.png';
         }
 
         if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/'))) {
             return id;
         }
 
-        const formattedId = String(id).replace(/-/g, '/');
-        return `https://resources.tidal.com/images/${formattedId}/${size}x${size}.jpg`;
+        return 'assets/1024w_new.png';
     }
 
     getCoverSrcset(id) {
-        if (
-            !id ||
-            (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/')))
-        ) {
-            return '';
-        }
-
-        const formattedId = String(id).replace(/-/g, '/');
-        const baseUrl = `https://resources.tidal.com/images/${formattedId}`;
-        return `${baseUrl}/160x160.jpg 160w, ${baseUrl}/320x320.jpg 320w, ${baseUrl}/640x640.jpg 640w`;
+        return '';
     }
 
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
-            return `https://picsum.photos/seed/${Math.random()}/${size}`;
+            return 'assets/1024w_new.png';
         }
 
         if (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('assets/'))) {
             return id;
         }
 
-        const formattedId = String(id).replace(/-/g, '/');
-        return `https://resources.tidal.com/images/${formattedId}/${size}x${size}.jpg`;
+        return 'assets/1024w_new.png';
     }
 
     getArtistPictureSrcset(id) {
-        if (!id || (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('assets/')))) {
-            return '';
-        }
-
-        const formattedId = String(id).replace(/-/g, '/');
-        const baseUrl = `https://resources.tidal.com/images/${formattedId}`;
-        return `${baseUrl}/160x160.jpg 160w, ${baseUrl}/320x320.jpg 320w, ${baseUrl}/640x640.jpg 640w`;
+        return '';
     }
 
     getVideoCoverUrl(imageId, size = '1280') {
@@ -1971,8 +1925,7 @@ export class LosslessAPI {
             return imageId;
         }
 
-        const formattedId = String(imageId).replace(/-/g, '/');
-        return `https://resources.tidal.com/images/${formattedId}/${size}x720.jpg`;
+        return 'assets/1024w_new.png';
     }
 
     async clearCache() {

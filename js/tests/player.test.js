@@ -44,6 +44,8 @@ vi.mock('../storage.js', () => ({
     lastFMStorage: { isEnabled: vi.fn(() => false) },
     nowPlayingSettings: { getMode: vi.fn(() => 'cover') },
     gaplessPlaybackSettings: { isEnabled: vi.fn(() => true) },
+    autoplaySettings: { isEnabled: vi.fn(() => true), isSmartRecsEnabled: vi.fn(() => false) },
+    binauralDspSettings: { isEnabled: vi.fn(() => false) },
 }));
 
 vi.mock('../db.js', () => ({
@@ -114,9 +116,10 @@ describe('Player', () => {
             getCoverUrl: vi.fn((id) => `url-${id}`),
             getCoverSrcset: vi.fn(),
             getStreamUrl: vi.fn(),
+            getVideoArtwork: vi.fn(() => Promise.resolve(null)),
         };
 
-        Player._instance = null;
+        Player.resetInstance();
     });
 
     afterEach(() => {

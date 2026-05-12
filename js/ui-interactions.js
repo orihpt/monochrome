@@ -1,28 +1,19 @@
 //js/ui-interactions.js
+import { syncManager } from './accounts/pocketbase.js';
+import { db } from './db.js';
+import { showNotification } from './downloads.js';
+import { hapticSuccess } from './haptics.js';
+import { SVG_BIN, SVG_CHECK, SVG_CLOSE, SVG_EQUAL, SVG_MENU, SVG_PLUS, SVG_TRASH } from './icons.js';
+import { sidePanelManager } from './side-panel.js';
+import { contentBlockingSettings } from './storage.js';
 import {
-    formatTime,
-    getTrackTitle,
-    getTrackArtists,
-    escapeHtml,
     createQualityBadgeHTML,
+    escapeHtml,
+    formatTime,
+    getTrackArtists,
+    getTrackTitle,
     positionMenu,
 } from './utils.js';
-import { sidePanelManager } from './side-panel.js';
-import { downloadQualitySettings, contentBlockingSettings } from './storage.js';
-import { db } from './db.js';
-import { syncManager } from './accounts/pocketbase.js';
-import { showNotification, downloadTracks } from './downloads.js';
-import {
-    SVG_CLOSE,
-    SVG_BIN,
-    SVG_HEART,
-    SVG_DOWNLOAD,
-    SVG_HEART_FILLED,
-    SVG_SQUARE_PEN,
-    SVG_TRASH,
-    SVG_EQUAL,
-} from './icons.js';
-import { hapticSuccess } from './haptics.js';
 
 export function initializeUIInteractions(player, api, ui) {
     const sidebar = document.querySelector('.sidebar');
@@ -116,14 +107,8 @@ export function initializeUIInteractions(player, api, ui) {
         const showActionBtns = currentQueue.length > 0;
 
         container.innerHTML = `
-            <button id="download-queue-btn" class="btn-icon" title="Download Queue" style="display: ${showActionBtns ? 'flex' : 'none'}">
-                ${SVG_DOWNLOAD(20)}
-            </button>
-            <button id="like-queue-btn" class="btn-icon" title="Add Queue to Liked" style="display: ${showActionBtns ? 'flex' : 'none'}">
-                ${SVG_HEART(20)}
-            </button>
-            <button id="add-queue-to-playlist-btn" class="btn-icon" title="Add Queue to Playlist" style="display: ${showActionBtns ? 'flex' : 'none'}">
-                ${SVG_SQUARE_PEN(20)}
+            <button id="queue-actions-btn" class="btn-icon" title="Queue actions" style="display: ${showActionBtns ? 'flex' : 'none'}">
+                ${SVG_MENU(20)}
             </button>
             <button id="clear-queue-btn" class="btn-icon" title="Clear Queue" style="display: ${showActionBtns ? 'flex' : 'none'}">
                 ${SVG_TRASH(20)}
@@ -137,99 +122,121 @@ export function initializeUIInteractions(player, api, ui) {
             sidePanelManager.close();
         });
 
-        const downloadBtn = container.querySelector('#download-queue-btn');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', async () => {
-                await downloadTracks(currentQueue, api, downloadQualitySettings.getQuality());
-            });
-        }
+        const addQueueToPlaylist = async () => {
+            const playlists = await db.getPlaylists();
+            if (playlists.length === 0) {
+                showNotification('No playlists yet. Create one first.');
+                return;
+            }
 
-        const likeBtn = container.querySelector('#like-queue-btn');
-        if (likeBtn) {
-            likeBtn.addEventListener('click', async () => {
-                let addedCount = 0;
-                for (const track of currentQueue) {
-                    const wasAdded = await db.toggleFavorite('track', track);
-                    if (wasAdded) {
-                        await syncManager.syncLibraryItem('track', track, true);
-                        addedCount++;
-                    }
-                }
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <h3>Add Queue to Playlist</h3>
+                    <div class="modal-list">
+                        ${playlists
+                    .map(
+                        (p) => `
+                            <div class="modal-option" data-id="${p.id}">${escapeHtml(p.name)}</div>
+                        `
+                    )
+                    .join('')}
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-secondary cancel-btn">Cancel</button>
+                    </div>
+                </div>
+            `;
 
-                if (addedCount > 0) {
-                    showNotification(`Added ${addedCount} track${addedCount > 1 ? 's' : ''} to Liked`);
-                } else {
-                    showNotification('All tracks in queue are already liked');
-                }
+            document.body.appendChild(modal);
 
-                await refreshQueuePanel();
-            });
-        }
+            const closeModal = () => modal.remove();
 
-        const addToPlaylistBtn = container.querySelector('#add-queue-to-playlist-btn');
-        if (addToPlaylistBtn) {
-            addToPlaylistBtn.addEventListener('click', async () => {
-                const playlists = await db.getPlaylists();
-                if (playlists.length === 0) {
-                    showNotification('No playlists yet. Create one first.');
+            modal.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('cancel-btn')) {
+                    closeModal();
                     return;
                 }
 
-                const modal = document.createElement('div');
-                modal.className = 'modal active';
-                modal.innerHTML = `
-                    <div class="modal-overlay"></div>
-                    <div class="modal-content">
-                        <h3>Add Queue to Playlist</h3>
-                        <div class="modal-list">
-                            ${playlists
-                                .map(
-                                    (p) => `
-                                <div class="modal-option" data-id="${p.id}">${escapeHtml(p.name)}</div>
-                            `
-                                )
-                                .join('')}
-                        </div>
-                        <div class="modal-actions">
-                            <button class="btn-secondary cancel-btn">Cancel</button>
-                        </div>
-                    </div>
-                `;
+                const option = e.target.closest('.modal-option');
+                if (!option) return;
 
-                document.body.appendChild(modal);
+                const playlistId = option.dataset.id;
+                const playlistName = option.textContent;
 
-                const closeModal = () => {
-                    modal.remove();
-                };
-
-                modal.addEventListener('click', async (e) => {
-                    if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('cancel-btn')) {
-                        closeModal();
-                        return;
+                try {
+                    let addedCount = 0;
+                    for (const track of currentQueue) {
+                        await db.addTrackToPlaylist(playlistId, track);
+                        addedCount++;
                     }
 
-                    const option = e.target.closest('.modal-option');
-                    if (option) {
-                        const playlistId = option.dataset.id;
-                        const playlistName = option.textContent;
+                    const updatedPlaylist = await db.getPlaylist(playlistId);
+                    await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
 
-                        try {
-                            let addedCount = 0;
-                            for (const track of currentQueue) {
-                                await db.addTrackToPlaylist(playlistId, track);
-                                addedCount++;
-                            }
+                    showNotification(`Added ${addedCount} tracks to playlist: ${playlistName}`);
+                } catch (error) {
+                    console.error('Failed to add tracks to playlist:', error);
+                    showNotification('Failed to add tracks to playlist');
+                }
 
-                            const updatedPlaylist = await db.getPlaylist(playlistId);
-                            await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+                closeModal();
+            });
+        };
 
-                            showNotification(`Added ${addedCount} tracks to playlist: ${playlistName}`);
-                        } catch (error) {
-                            console.error('Failed to add tracks to playlist:', error);
-                            showNotification('Failed to add tracks to playlist');
-                        }
+        const markQueueFavorites = async () => {
+            let addedCount = 0;
+            for (const track of currentQueue) {
+                const wasAdded = await db.toggleFavorite('track', track);
+                if (wasAdded) {
+                    await syncManager.syncLibraryItem('track', track, true);
+                    addedCount++;
+                }
+            }
 
-                        closeModal();
+            if (addedCount > 0) {
+                showNotification(`נוספו ${addedCount} שירים ל״שירים שאהבתם״`);
+            } else {
+                showNotification('כל השירים בתור כבר נמצאים ב״שירים שאהבתם״');
+            }
+
+            await refreshQueuePanel();
+        };
+
+        const queueActionsBtn = container.querySelector('#queue-actions-btn');
+        if (queueActionsBtn) {
+            queueActionsBtn.addEventListener('click', async (event) => {
+                event.stopPropagation();
+                document.querySelector('.queue-actions-menu')?.remove();
+                const menu = document.createElement('div');
+                menu.className = 'queue-actions-menu';
+                menu.innerHTML = `
+                    <button type="button" data-action="mark-favorites">הוספת כל השירים ל״שירים שאהבתם״</button>
+                    <button type="button" data-action="add-playlist">הוספת כל השירים לפלייליסט</button>
+                `;
+                document.body.appendChild(menu);
+                const rect = queueActionsBtn.getBoundingClientRect();
+                const menuRect = menu.getBoundingClientRect();
+                menu.style.left = `${Math.min(window.innerWidth - menuRect.width - 12, Math.max(12, rect.left))}px`;
+                menu.style.top = `${Math.min(window.innerHeight - menuRect.height - 12, rect.bottom + 8)}px`;
+
+                const closeMenu = () => {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu, true);
+                };
+                setTimeout(() => document.addEventListener('click', closeMenu, true), 0);
+
+                menu.addEventListener('click', async (e) => {
+                    const item = e.target.closest('button[data-action]');
+                    if (!item) return;
+                    e.stopPropagation();
+                    closeMenu();
+                    if (item.dataset.action === 'mark-favorites') {
+                        await markQueueFavorites();
+                    } else {
+                        await addQueueToPlaylist();
                     }
                 });
             });
@@ -259,7 +266,7 @@ export function initializeUIInteractions(player, api, ui) {
             isVideo && track.imageId ? api.getVideoCoverUrl(track.imageId) : api.getCoverUrl(track.album?.cover);
 
         return `
-        <div class="queue-track-item ${isPlaying ? 'playing' : ''} ${isBlocked ? 'blocked' : ''}" data-queue-index="${index}" data-track-id="${track.id}" draggable="${isBlocked ? 'false' : 'true'}" ${blockedTitle}>
+        <div class="queue-track-item ${isPlaying ? 'playing' : ''} ${isBlocked ? 'blocked' : ''}" data-queue-index="${index}" data-track-id="${track.id}" draggable="${isBlocked ? 'false' : 'true'}" data-no-translate ${blockedTitle}>
             <div class="drag-handle">
                 ${SVG_EQUAL(16)}
             </div>
@@ -272,10 +279,10 @@ export function initializeUIInteractions(player, api, ui) {
                 </div>
             </div>
             <div class="track-item-duration">${isBlocked ? '--:--' : formatTime(track.duration)}</div>
-            <button class="queue-like-btn" data-action="toggle-like" title="Add to Liked">
-                ${SVG_HEART(20)}
+            <button class="queue-like-btn track-library-btn" data-action="track-library" data-track-id="${track.id}" title="הוספה ל״שירים שאהבתם״">
+                ${SVG_PLUS(18)}
             </button>
-            <button class="queue-remove-btn" data-track-index="${index}" title="Remove from queue">
+            <button class="queue-remove-btn" data-track-index="${index}" title="מחיקה מהתור">
                 ${SVG_BIN(20)}
             </button>
         </div>
@@ -299,18 +306,15 @@ export function initializeUIInteractions(player, api, ui) {
             }
 
             const likeBtn = e.target.closest('.queue-like-btn');
-            if (likeBtn && likeBtn.dataset.action === 'toggle-like') {
+            if (likeBtn && likeBtn.dataset.action === 'track-library') {
                 e.stopPropagation();
                 const track = player.getCurrentQueue()[index];
                 if (track) {
-                    const added = await db.toggleFavorite('track', track);
-                    await syncManager.syncLibraryItem('track', track, added);
-
-                    likeBtn.classList.toggle('active', added);
-                    likeBtn.innerHTML = added ? SVG_HEART_FILLED(20) : SVG_HEART(20);
-
+                    const { handleTrackAction } = await import('./events.js');
+                    await handleTrackAction('track-library', track, player, api, null, 'track', ui, null, {
+                        triggerElement: likeBtn,
+                    });
                     await hapticSuccess();
-                    showNotification(added ? `Added to Liked: ${track.title}` : `Removed from Liked: ${track.title}`);
                 }
                 return;
             }
@@ -339,7 +343,7 @@ export function initializeUIInteractions(player, api, ui) {
 
                     const trackMixItem = contextMenu.querySelector('li[data-action="track-mix"]');
                     if (trackMixItem) {
-                        const hasMix = track.mixes && track.mixes.TRACK_MIX;
+                        const hasMix = (track.mixes && track.mixes.TRACK_MIX) || track.id;
                         trackMixItem.style.display = hasMix ? 'block' : 'none';
                     }
 
@@ -387,7 +391,7 @@ export function initializeUIInteractions(player, api, ui) {
         const currentQueue = player.getCurrentQueue();
 
         if (currentQueue.length === 0) {
-            container.innerHTML = '<div class="placeholder-text">Queue is empty.</div>';
+            container.innerHTML = '<div class="placeholder-text">התור ריק.</div>';
             queueStartIndex = 0;
             queueEndIndex = QUEUE_MAX_RENDERED;
             return;
@@ -459,9 +463,13 @@ export function initializeUIInteractions(player, api, ui) {
             const track = currentQueue[index];
             const likeBtn = item.querySelector('.queue-like-btn');
             if (likeBtn && track) {
-                const isLiked = await db.isFavorite('track', track.id);
-                likeBtn.classList.toggle('active', isLiked);
-                likeBtn.innerHTML = isLiked ? SVG_HEART_FILLED(20) : SVG_HEART(20);
+                const [isLiked, playlists] = await Promise.all([db.isFavorite('track', track.id), db.getPlaylists(true)]);
+                const isInPlaylist = playlists.some((playlist) =>
+                    (playlist.tracks || []).some((playlistTrack) => String(playlistTrack.id) === String(track.id))
+                );
+                const inLibrary = isLiked || isInPlaylist;
+                likeBtn.classList.toggle('in-library', inLibrary);
+                likeBtn.innerHTML = inLibrary ? SVG_CHECK(18) : SVG_PLUS(18);
             }
         });
 
@@ -473,7 +481,7 @@ export function initializeUIInteractions(player, api, ui) {
     };
 
     const openQueuePanel = () => {
-        sidePanelManager.open('queue', 'Queue', renderQueueControls, renderQueueContent);
+        sidePanelManager.open('queue', 'תור', renderQueueControls, renderQueueContent);
 
         setTimeout(() => {
             const container = document.getElementById('side-panel-content');

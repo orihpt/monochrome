@@ -1,5 +1,9 @@
 node_modules
 dist
+.yarn/*
+!.yarn/releases/
+!.yarn/releases/**
+.pnp.*
 .DS_Store
 *.local
 .vite
@@ -16,7 +20,6 @@ bin/
 auth_storage/
 www
 neutralino.js
-package-lock.json
 # Direnv
 .envrc
 # vim

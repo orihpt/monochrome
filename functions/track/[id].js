@@ -178,6 +178,9 @@ const _isBlockedCopyright = (c) => {
 
 export async function onRequest(context) {
     const { request, params, env } = context;
+    // Offline-first mode: retain bot-preview integrations, but do not call
+    // TIDAL or public HiFi API mirrors unless the function environment opts in.
+    const externalFunctionsEnabled = env.OFFLINE_MODE === 'false' && env.ENABLE_EXTERNAL_FUNCTIONS === 'true';
     const userAgent = request.headers.get('User-Agent') || '';
     const isBot =
         /discordbot|twitterbot|facebookexternalhit|bingbot|googlebot|slurp|whatsapp|pinterest|slackbot|telegrambot|linkedinbot|mastodon|signal|snapchat|redditbot|skypeuripreview|viberbot|linebot|embedly|quora|outbrain|tumblr|duckduckbot|yandexbot|rogerbot|showyoubot|kakaotalk|naverbot|seznambot|mediapartners|adsbot|petalbot|applebot|ia_archiver/i.test(
@@ -185,7 +188,7 @@ export async function onRequest(context) {
         );
     const trackId = params.id;
 
-    if (isBot && trackId) {
+    if (externalFunctionsEnabled && isBot && trackId) {
         // Try direct Tidal API first, fall back to proxy instances
         let api;
         let track;

@@ -1,4 +1,5 @@
 export { default as SVG_ALIGN_LEFT } from '!lucide/align-left.svg?svg&icon';
+export { default as SVG_ARROW_UP } from '!lucide/arrow-up.svg?svg&icon';
 export { default as SVG_ANIMATE_SPIN } from '../images/animate-spin.svg?svg&icon';
 export { default as SVG_APPLE } from '../images/apple.svg?svg&icon';
 export { default as SVG_ATMOS } from '../images/atmos.svg?svg&icon';

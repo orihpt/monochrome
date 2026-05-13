@@ -32,6 +32,7 @@ function getGitCommitHash() {
 
 export default defineConfig((_options) => {
     const commitHash = getGitCommitHash();
+    const offlineMode = true;
     const enableTidalApi = false;
     const enableExternalApiInstances = false;
     const enableExternalAuth = false;
@@ -40,6 +41,7 @@ export default defineConfig((_options) => {
     return {
         test: {
             include: ['js/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+            exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
             // https://vitest.dev/guide/browser/
             browser: {
                 enabled: true,
@@ -52,7 +54,7 @@ export default defineConfig((_options) => {
         define: {
             __COMMIT_HASH__: JSON.stringify(commitHash),
             __VITEST__: !!process.env.VITEST,
-            __OFFLINE_MODE__: JSON.stringify(false),
+            __OFFLINE_MODE__: JSON.stringify(offlineMode),
             __ENABLE_TIDAL_API__: JSON.stringify(enableTidalApi),
             __ENABLE_EXTERNAL_API_INSTANCES__: JSON.stringify(enableExternalApiInstances),
             __ENABLE_EXTERNAL_AUTH__: JSON.stringify(enableExternalAuth),
@@ -86,12 +88,12 @@ export default defineConfig((_options) => {
                 '!': '/node_modules',
 
                 events: path.resolve(__dirname, 'node_modules/events/events.js'),
-                pocketbase: '/node_modules/pocketbase/dist/pocketbase.es.js',
+                pocketbase: path.resolve(__dirname, 'node_modules/pocketbase/dist/pocketbase.es.js'),
                 stream: path.resolve(__dirname, 'stream-stub.js'), // Stub for stream module
             },
         },
         optimizeDeps: {
-            exclude: ['pocketbase', '@ffmpeg/ffmpeg', '@ffmpeg/util', 'playwright', 'playwright-core', 'fsevents'],
+            exclude: ['pocketbase', '@ffmpeg/ffmpeg', '@ffmpeg/util', '@vitest/browser-playwright', 'playwright', 'playwright-core'],
         },
         server: {
             fs: {

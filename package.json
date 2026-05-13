@@ -61,6 +61,11 @@
         "vite-plugin-purgecss": "^0.2.13",
         "vite-plugin-pwa": "^1.2.0"
     },
+    "overrides": {
+        "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@1.5.0",
+        "source-map": "^0.7.4",
+        "serialize-javascript": "^7.0.3"
+    },
     "resolutions": {
         "source-map": "^0.7.4",
         "serialize-javascript": "^7.0.3"

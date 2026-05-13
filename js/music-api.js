@@ -230,6 +230,14 @@ export class MusicAPI {
         return [];
     }
 
+    async checkRecommendationStatus() {
+        const api = this.getAPI();
+        if (typeof api.checkRecommendationStatus === 'function') {
+            return api.checkRecommendationStatus();
+        }
+        return false;
+    }
+
     async getHomeContent() {
         const api = this.getAPI();
         if (typeof api.getHomeContent === 'function') {
@@ -275,9 +283,27 @@ export class MusicAPI {
         return [];
     }
 
+    async getPopularPlaylists(limit = 12) {
+        if (typeof this.subsonicAPI.getPopularPlaylists === 'function') {
+            return this.subsonicAPI.getPopularPlaylists(limit);
+        }
+        if (typeof this.subsonicAPI.getFeaturedPlaylists === 'function') {
+            return this.subsonicAPI.getFeaturedPlaylists(limit);
+        }
+        return [];
+    }
+
+    async getRecentlyAddedTracks(_limit = 20) {
+        if (typeof this.subsonicAPI.getRecentlyAddedTracks === 'function') {
+            return this.subsonicAPI.getRecentlyAddedTracks(_limit);
+        }
+        return [];
+    }
+
     async searchUsers(query, limit = 20) {
         if (typeof this.subsonicAPI.searchUsers === 'function') {
-            return this.subsonicAPI.searchUsers(query, limit);
+            const users = await this.subsonicAPI.searchUsers(query, limit);
+            return Array.isArray(users) ? users : [];
         }
         return [];
     }

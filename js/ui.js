@@ -132,11 +132,13 @@ import {
     SVG_GLOBE,
     SVG_HEART,
     SVG_HEART_FILLED,
+    SVG_INFO,
     SVG_INSTAGRAM,
     SVG_LEFT_ARROW,
     SVG_LINK,
     SVG_MENU,
     SVG_MINUS,
+    SVG_MUSIC,
     SVG_MUTE,
     SVG_PAUSE_LARGE,
     SVG_PLAY,
@@ -144,6 +146,7 @@ import {
     SVG_PLUS,
     SVG_REPEAT,
     SVG_REPEAT_ONE,
+    SVG_SEARCH,
     SVG_SHARE,
     SVG_SHUFFLE,
     SVG_SORT,
@@ -3103,11 +3106,11 @@ export class UIRenderer {
             return;
         }
 
-        container.innerHTML = '';
-        playlists.forEach((playlist) => {
-            const card = this.createPlaylistCard(playlist);
-            container.appendChild(card);
-        });
+        container.innerHTML = playlists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+        for (const playlist of playlists) {
+            const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid))}"]`);
+            if (el) trackDataStore.set(el, playlist);
+        }
     }
 
     async renderHomeRecentlyAddedTracks() {
@@ -3122,11 +3125,7 @@ export class UIRenderer {
             return;
         }
 
-        container.innerHTML = '';
-        tracks.forEach((track) => {
-            const item = this.createTrackItem(track);
-            container.appendChild(item);
-        });
+        await this.renderListWithTracks(container, tracks, true, false, false, true);
     }
 
     async renderHomeCuratorMixes() {
@@ -4565,6 +4564,7 @@ export class UIRenderer {
             let finalAlbums = (results.albums && results.albums.items) || [];
             let finalPlaylists = (results.playlists && results.playlists.items) || [];
             let finalUsers = await userSearchPromise;
+            if (!Array.isArray(finalUsers)) finalUsers = [];
 
             if (finalArtists.length === 0 && finalTracks.length > 0) {
                 const artistMap = new Map();
@@ -4694,7 +4694,8 @@ export class UIRenderer {
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error('Search failed:', error);
-            const finalUsers = await userSearchPromise;
+            const finalUsersResult = await userSearchPromise;
+            const finalUsers = Array.isArray(finalUsersResult) ? finalUsersResult : [];
             const errorMsg = createPlaceholder(`Error during search. ${error.message}`);
             allContainer.innerHTML = errorMsg;
             tracksContainer.innerHTML = errorMsg;

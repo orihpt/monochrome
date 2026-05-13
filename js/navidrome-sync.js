@@ -3,6 +3,9 @@ import { MusicAPI } from './music-api.js';
 
 export const syncManager = {
     _syncTimeout: null,
+    _syncInterval: null,
+    _initialized: false,
+    _changeHandler: null,
     _disabled: false,
     _playlistSyncInFlight: new Set(),
 
@@ -40,7 +43,7 @@ export const syncManager = {
     },
 
     async fetchSyncData() {
-        const response = await fetch('/api/user/sync');
+        const response = await fetch('/api/user/sync', { credentials: 'same-origin' });
         if (response.status === 401) return null; // Not logged in
         if (!response.ok) throw new Error('Failed to fetch sync data');
         return await this._readJsonResponse(response, 'Failed to fetch sync data');
@@ -50,6 +53,7 @@ export const syncManager = {
         const response = await fetch('/api/user/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 userData: JSON.stringify(data),
                 userDataUpdatedAt: timestamp,
@@ -115,20 +119,37 @@ export const syncManager = {
     },
 
     initialize() {
+        if (this._initialized) return;
+        this._initialized = true;
+        this._changeHandler = () => this.triggerChange();
+
         // Listen for changes that should trigger a sync
-        window.addEventListener('favorites-changed', () => this.triggerChange());
-        window.addEventListener('playlist-tracks-changed', () => this.triggerChange());
-        window.addEventListener('sync-playlist-change', () => this.triggerChange());
+        window.addEventListener('favorites-changed', this._changeHandler);
+        window.addEventListener('playlist-tracks-changed', this._changeHandler);
+        window.addEventListener('sync-playlist-change', this._changeHandler);
         
         // Initial sync
         this.sync();
         setTimeout(() => this.syncPendingPlaylists(), 1000);
         
         // Periodical sync every 5 minutes
-        setInterval(() => {
+        this._syncInterval = setInterval(() => {
             this.sync();
             this.syncPendingPlaylists();
         }, 5 * 60 * 1000);
+    },
+
+    destroy() {
+        if (!this._initialized) return;
+        window.removeEventListener('favorites-changed', this._changeHandler);
+        window.removeEventListener('playlist-tracks-changed', this._changeHandler);
+        window.removeEventListener('sync-playlist-change', this._changeHandler);
+        if (this._syncTimeout) clearTimeout(this._syncTimeout);
+        if (this._syncInterval) clearInterval(this._syncInterval);
+        this._syncTimeout = null;
+        this._syncInterval = null;
+        this._changeHandler = null;
+        this._initialized = false;
     },
 
     // Compatibility methods for existing code

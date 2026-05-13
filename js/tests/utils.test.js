@@ -9,6 +9,7 @@ vi.mock('../ModernSettings.js', () => ({
 
 vi.mock('../icons.js', () => ({
     SVG_ATMOS: () => '<svg>atmos</svg>',
+    SVG_MUSIC: () => '<svg>music</svg>',
 }));
 
 vi.mock('../storage.js', () => ({

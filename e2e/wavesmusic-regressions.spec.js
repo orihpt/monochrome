@@ -196,6 +196,10 @@ test.describe('WavesMusic regressions', () => {
     await context.clearCookies();
   });
 
+  test.afterEach(async ({ page }) => {
+    await expect(page.locator('.error-panel')).not.toBeVisible();
+  });
+
   test('marks search result songs already saved in a normal playlist', async ({ page }) => {
     await installMocks(page);
     await seedPlaylist(page, {

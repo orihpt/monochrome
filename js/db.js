@@ -1,7 +1,7 @@
 export class MusicDatabase {
     constructor() {
         this.dbName = 'MonochromeDB';
-        this.version = 11;
+        this.version = 12;
         this.db = null;
     }
 
@@ -61,6 +61,9 @@ export class MusicDatabase {
                 if (!db.objectStoreNames.contains('user_playlists')) {
                     const store = db.createObjectStore('user_playlists', { keyPath: 'id' });
                     store.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+                if (!db.objectStoreNames.contains('playlist_cover_blobs')) {
+                    db.createObjectStore('playlist_cover_blobs', { keyPath: 'id' });
                 }
                 if (!db.objectStoreNames.contains('user_folders')) {
                     const store = db.createObjectStore('user_folders', { keyPath: 'id' });
@@ -385,6 +388,12 @@ export class MusicDatabase {
             name: name,
             cover: cover,
             images: images,
+            coverMetadata: item.coverMetadata || null,
+            coverType: item.coverType || item.coverMetadata?.coverType || '',
+            stylishAssetName: item.stylishAssetName || item.coverMetadata?.stylishAssetName || '',
+            gradientColorA: item.gradientColorA || item.coverMetadata?.gradientColorA || '',
+            gradientColorB: item.gradientColorB || item.coverMetadata?.gradientColorB || '',
+            uploadedCoverId: item.uploadedCoverId || item.coverMetadata?.uploadedCoverId || '',
             href: href,
         };
     }
@@ -554,8 +563,24 @@ export class MusicDatabase {
 
     _updatePlaylistMetadata(playlist) {
         playlist.numberOfTracks = playlist.tracks ? playlist.tracks.length : 0;
+        const metadata = playlist.coverMetadata || {};
+        const coverType = playlist.coverType || metadata.coverType || (playlist.cover ? 'uploaded' : 'albumGrid');
+        playlist.coverType = ['albumGrid', 'uploaded', 'stylish'].includes(coverType) ? coverType : 'albumGrid';
+        playlist.coverMetadata = {
+            coverType: playlist.coverType,
+            ...(playlist.coverType === 'uploaded'
+                ? { uploadedCoverId: metadata.uploadedCoverId || playlist.uploadedCoverId || playlist.cover || '' }
+                : {}),
+            ...(playlist.coverType === 'stylish'
+                ? {
+                      stylishAssetName: metadata.stylishAssetName || playlist.stylishAssetName || 'blob',
+                      gradientColorA: metadata.gradientColorA || playlist.gradientColorA || '#00a6c8',
+                      gradientColorB: metadata.gradientColorB || playlist.gradientColorB || '#ff8f98',
+                  }
+                : {}),
+        };
 
-        if (!playlist.cover) {
+        if (playlist.coverType === 'albumGrid') {
             const uniqueCovers = [];
             const seenCovers = new Set();
             const tracks = playlist.tracks || [];
@@ -585,7 +610,7 @@ export class MusicDatabase {
     }
 
     // User Playlists API
-    async createPlaylist(name, tracks = [], cover = '', description = '') {
+    async createPlaylist(name, tracks = [], cover = '', description = '', coverMetadata = null) {
         const id = crypto.randomUUID();
         const playlist = {
             id: id,
@@ -600,6 +625,15 @@ export class MusicDatabase {
             ownerUsername: this._currentOwnerUsername(),
             syncStatus: 'local',
         };
+        if (coverMetadata) {
+            playlist.coverMetadata = coverMetadata;
+            playlist.coverType = coverMetadata.coverType || 'albumGrid';
+            playlist.uploadedCoverId = coverMetadata.uploadedCoverId || '';
+            playlist.stylishAssetName = coverMetadata.stylishAssetName || '';
+            playlist.gradientColorA = coverMetadata.gradientColorA || '';
+            playlist.gradientColorB = coverMetadata.gradientColorB || '';
+            playlist.cover = coverMetadata.coverType === 'uploaded' ? coverMetadata.uploadedCoverId || cover : '';
+        }
         this._updatePlaylistMetadata(playlist);
         await this.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
 
@@ -674,7 +708,12 @@ export class MusicDatabase {
     }
 
     async deletePlaylist(playlistId) {
+        const playlist = await this.performTransaction('user_playlists', 'readonly', (store) => store.get(playlistId)).catch(() => null);
         await this.performTransaction('user_playlists', 'readwrite', (store) => store.delete(playlistId));
+        const coverId = playlist?.coverMetadata?.uploadedCoverId || playlist?.uploadedCoverId || '';
+        if (coverId && String(coverId).startsWith('indexeddb:')) {
+            await this.deletePlaylistCoverBlob(coverId).catch(() => {});
+        }
 
         // TRIGGER SYNC (but for deleting)
         this._dispatchPlaylistSync('delete', { id: playlistId });
@@ -693,6 +732,25 @@ export class MusicDatabase {
         this._dispatchPlaylistSync('update', playlist);
 
         return playlist;
+    }
+
+    async putPlaylistCoverBlob(id, blob) {
+        const storageId = String(id).startsWith('indexeddb:') ? id.slice('indexeddb:'.length) : id;
+        await this.performTransaction('playlist_cover_blobs', 'readwrite', (store) =>
+            store.put({ id: storageId, blob, createdAt: Date.now() })
+        );
+        return `indexeddb:${storageId}`;
+    }
+
+    async getPlaylistCoverBlob(id) {
+        const storageId = String(id).startsWith('indexeddb:') ? id.slice('indexeddb:'.length) : id;
+        const record = await this.performTransaction('playlist_cover_blobs', 'readonly', (store) => store.get(storageId));
+        return record?.blob || null;
+    }
+
+    async deletePlaylistCoverBlob(id) {
+        const storageId = String(id).startsWith('indexeddb:') ? id.slice('indexeddb:'.length) : id;
+        return this.performTransaction('playlist_cover_blobs', 'readwrite', (store) => store.delete(storageId));
     }
 
     async addPlaylistToFolder(folderId, playlistId) {

@@ -256,6 +256,19 @@ export class SubsonicAPI {
             ownerUsername: playlist.owner,
             visibility: playlist.visibility || (playlist.public === true || playlist.public === 'true' ? 'public' : 'private'),
             public: playlist.public === true || playlist.public === 'true',
+            coverType: playlist.coverType,
+            stylishAssetName: playlist.stylishAssetName,
+            gradientColorA: playlist.gradientColorA,
+            gradientColorB: playlist.gradientColorB,
+            coverMetadata: playlist.coverType
+                ? {
+                      coverType: playlist.coverType,
+                      stylishAssetName: playlist.stylishAssetName,
+                      gradientColorA: playlist.gradientColorA,
+                      gradientColorB: playlist.gradientColorB,
+                      uploadedCoverId: playlist.coverArt,
+                  }
+                : undefined,
             curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true',
             readonly: playlist.readonly === true || playlist.readonly === 'true',
             isCuratorPlaylist: playlist.owner === 'wavesmusic_curator',
@@ -1059,6 +1072,21 @@ export class SubsonicAPI {
         const playlist = await this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`);
         playlist.visibility = visibility;
         playlist.public = visibility === 'public' || visibility === 'featured';
+        return this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`, {
+            method: 'PUT',
+            body: JSON.stringify(playlist),
+        });
+    }
+
+    async updatePlaylistCoverMetadata(id, coverMetadata = {}) {
+        const playlist = await this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`);
+        const coverType = ['albumGrid', 'uploaded', 'stylish'].includes(coverMetadata.coverType)
+            ? coverMetadata.coverType
+            : 'albumGrid';
+        playlist.coverType = coverType;
+        playlist.stylishAssetName = coverType === 'stylish' ? coverMetadata.stylishAssetName || 'blob' : '';
+        playlist.gradientColorA = coverType === 'stylish' ? coverMetadata.gradientColorA || '#00a6c8' : '';
+        playlist.gradientColorB = coverType === 'stylish' ? coverMetadata.gradientColorB || '#ff8f98' : '';
         return this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/`, {
             method: 'PUT',
             body: JSON.stringify(playlist),

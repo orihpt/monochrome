@@ -57,13 +57,14 @@ export class MusicAPI {
         this.videoArtworkCache = new Map();
     }
 
-    static async initialize(settings) {
+    static initialize(settings) {
         if (MusicAPI.#instance) {
-            throw new Error('MusicAPI is already initialized');
+            return MusicAPI.#instance;
         }
 
         const api = new MusicAPI(settings);
-        return (MusicAPI.#instance = api);
+        MusicAPI.#instance = api;
+        return api;
     }
 
     getCurrentProvider() {
@@ -341,6 +342,13 @@ export class MusicAPI {
 
     async setPlaylistVisibility(id, visibility) {
         return this.subsonicAPI.setPlaylistVisibility(id, visibility);
+    }
+
+    async updatePlaylistCoverMetadata(id, coverMetadata = {}) {
+        if (typeof this.subsonicAPI.updatePlaylistCoverMetadata === 'function') {
+            return this.subsonicAPI.updatePlaylistCoverMetadata(id, coverMetadata);
+        }
+        return null;
     }
 
     async importCuratorPlaylist(payload) {

@@ -322,9 +322,25 @@
         <div class="modal-overlay"></div>
         <div class="modal-content">
             <h3 id="playlist-modal-title">יצירת פלייליסט</h3>
+            <div class="playlist-modal-grid">
+                <section class="playlist-cover-picker" aria-label="Playlist cover picker">
+                    <div class="playlist-cover-picker-header">תמונה לפלייליסט</div>
+                    <div id="playlist-cover-options" class="playlist-cover-options"></div>
+                    <div id="playlist-cover-color-controls" class="playlist-cover-color-controls" hidden>
+                        <label class="playlist-cover-color-picker">
+                            <span>צבע א׳</span>
+                            <input type="color" id="playlist-cover-color-a" value="#00a6c8" />
+                        </label>
+                        <label class="playlist-cover-color-picker">
+                            <span>צבע ב׳</span>
+                            <input type="color" id="playlist-cover-color-b" value="#ff8f98" />
+                        </label>
+                    </div>
+                </section>
+                <div class="playlist-modal-fields">
             <input type="text" id="playlist-name-input" class="template-input" placeholder="שם הפלייליסט"
                 style="margin: 1rem 0" />
-            <div id="playlist-cover-wrapper" style="margin: 0.5rem 0; display: flex; gap: 0.5rem; align-items: stretch">
+            <div id="playlist-cover-wrapper" style="margin: 0.5rem 0; display: none; gap: 0.5rem; align-items: stretch">
                 <input type="url" id="playlist-cover-input" class="template-input" placeholder="Cover image URL"
                     style="flex: 1; margin: 0; display: none" />
                 <input type="file" id="playlist-cover-file-input" accept="image/*" style="display: none" />
@@ -377,6 +393,8 @@
                 </div>
                 <input type="hidden" id="playlist-visibility-select" value="featured" />
                 <input type="checkbox" id="playlist-public-toggle" style="display: none" />
+            </div>
+                </div>
             </div>
             <br />
             <div id="curator-import-section" style="
@@ -576,6 +594,24 @@
                 <button id="playlist-share-btn" class="btn-secondary" style="display: none">שתף</button>
                 <button id="playlist-modal-cancel" class="btn-secondary">ביטול</button>
                 <button id="playlist-modal-save" class="btn-primary">שמירה</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="playlist-cover-crop-dialog" class="modal playlist-cover-crop-dialog" aria-hidden="true">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <h3>חיתוך תמונה</h3>
+            <div class="playlist-cover-crop-frame">
+                <img id="playlist-cover-crop-image" alt="" draggable="false" />
+            </div>
+            <label class="playlist-cover-zoom-row">
+                <span>זום</span>
+                <input type="range" id="playlist-cover-crop-zoom" min="1" max="3" step="0.01" value="1" />
+            </label>
+            <div class="modal-actions">
+                <button type="button" id="playlist-cover-crop-cancel" class="btn-secondary">ביטול</button>
+                <button type="button" id="playlist-cover-crop-save" class="btn-primary">שמירה</button>
             </div>
         </div>
     </div>

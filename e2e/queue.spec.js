@@ -56,6 +56,10 @@ test.describe('Album Queue Flow', () => {
     await context.clearCookies();
   });
 
+  test.afterEach(async ({ page }) => {
+    await expect(page.locator('.error-panel')).not.toBeVisible();
+  });
+
   test('should add an entire album to the playback queue', async ({ page }) => {
     await loginAsAdmin(page);
     await openAlbum(page, hitMeHardAndSoftAlbumId);

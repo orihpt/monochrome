@@ -29,6 +29,14 @@ import {
     parseXML,
     parseXSPF,
 } from './playlist-importer.js';
+import {
+    applyPlaylistCoverMetadata,
+    createAlbumGridHTML,
+    createStylishCoverHTML,
+    isIndexedDbCoverId,
+    normalizePlaylistCover,
+    PlaylistCoverPicker,
+} from './playlist-covers.js';
 import { createRouter, navigate, updateTabTitle } from './router.js';
 import { sidePanelManager } from './side-panel.js';
 import {
@@ -102,6 +110,7 @@ if (typeof window !== 'undefined') {
 let settingsModule = null;
 let downloadsModule = null;
 let metadataModule = null;
+let playlistCoverPicker = null;
 
 function normalizeImportRows(group) {
     const rows = group?.row || group?.Rows || group?.rows || [];
@@ -334,6 +343,7 @@ async function uploadCoverImage(file) {
 import { initAuthModal } from './auth-modal.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    MusicAPI.initialize(apiSettings);
     await modernSettings.waitPending();
 
     if (import.meta.env.DEV) {
@@ -386,7 +396,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         tokenExpiry: parseInt(localStorage.getItem('hifi_token_expiry') || '0'),
     });
 
-    await MusicAPI.initialize(apiSettings);
+    playlistCoverPicker = new PlaylistCoverPicker({
+        db,
+        api: MusicAPI.instance,
+    });
+    playlistCoverPicker.bind();
     syncManager.initialize();
     initAuthModal();
 
@@ -819,6 +833,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     coverFileInput?.addEventListener('change', async (e) => {
+        if (playlistCoverPicker) return;
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -1190,6 +1205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('xspf-file-input').value = '';
             document.getElementById('xml-file-input').value = '';
             document.getElementById('m3u-file-input').value = '';
+            await playlistCoverPicker?.reset({ name: '', tracks: [] });
 
             // Reset import tabs to CSV
             document.querySelectorAll('.import-tab').forEach((tab) => {
@@ -1370,11 +1386,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (editingId) {
                     // Edit
-                    const cover = document.getElementById('playlist-cover-input').value.trim();
+                    const coverMetadata = playlistCoverPicker?.getMetadata() || { coverType: 'albumGrid' };
+                    const cover = coverMetadata.coverType === 'uploaded' ? coverMetadata.uploadedCoverId : '';
                     await db.getPlaylist(editingId).then(async (playlist) => {
                         if (playlist) {
                             playlist.name = name;
-                            playlist.cover = cover;
+                            applyPlaylistCoverMetadata(playlist, coverMetadata);
                             playlist.description = description;
                             playlist.visibility = visibility;
                             await handlePublicStatus(playlist);
@@ -1407,7 +1424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     let tracks = [];
                     let importSource = 'manual';
-                    let cover = document.getElementById('playlist-cover-input').value.trim();
+                    const coverMetadata = playlistCoverPicker?.getMetadata() || { coverType: 'albumGrid' };
+                    let cover = coverMetadata.coverType === 'uploaded' ? coverMetadata.uploadedCoverId : '';
 
                     // Helper function for import progress
                     const setupProgressElements = () => {
@@ -1897,7 +1915,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         console.log(`Added ${tracks.length} tracks (including pending)`);
                     }
 
-                    await db.createPlaylist(name, tracks, cover, description).then(async (playlist) => {
+                    await db.createPlaylist(name, tracks, cover, description, coverMetadata).then(async (playlist) => {
                         playlist.visibility = visibility;
                         await handlePublicStatus(playlist);
                         // Update DB again with isPublic flag and visibility
@@ -1932,6 +1950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('playlist-name-input').value = playlist.name;
                     document.getElementById('playlist-cover-input').value = playlist.cover || '';
                     document.getElementById('playlist-description-input').value = playlist.description || '';
+                    await playlistCoverPicker?.reset(playlist);
                     document.getElementById('curator-import-section').style.display = 'none';
                     document.getElementById('import-section').style.display = 'none';
                     document.getElementById('playlist-public-setting').style.display = 'flex';
@@ -2015,6 +2034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('playlist-name-input').value = playlist.name;
                         document.getElementById('playlist-cover-input').value = playlist.cover || '';
                         document.getElementById('playlist-description-input').value = playlist.description || '';
+                        playlistCoverPicker?.reset(playlist);
                         document.getElementById('curator-import-section').style.display = 'none';
                         document.getElementById('import-section').style.display = 'none';
                         document.getElementById('playlist-public-setting').style.display = 'flex';
@@ -2236,6 +2256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
                         document.getElementById('playlist-name-input').value = '';
                         document.getElementById('playlist-cover-input').value = '';
+                        await playlistCoverPicker?.reset({ name: '', tracks });
                         createModal.dataset.editingId = '';
                         document.getElementById('import-section').style.display = 'none'; // Hide import for simple add
                         document.getElementById('playlist-public-setting').style.display = 'flex';
@@ -2907,6 +2928,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     name: p.name || p.title || 'Untitled',
                     cover: p.cover || null,
                     images: p.images || [],
+                    coverMetadata: p.coverMetadata || null,
+                    coverType: p.coverType || '',
+                    uploadedCoverId: p.uploadedCoverId || '',
+                    stylishAssetName: p.stylishAssetName || '',
+                    gradientColorA: p.gradientColorA || '',
+                    gradientColorB: p.gradientColorB || '',
                     id: p.id,
                     href: `/userplaylist/${p.id}`,
                     addedAt: p.updatedAt || p.createdAt || 0,
@@ -2990,7 +3017,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : typeLabel;
 
             let coverHTML = '';
-            if (item.type === 'artist') {
+            const hasPlaylistCoverMetadata =
+                item.type === 'playlist' &&
+                item.id !== 'liked-songs' &&
+                (item.coverMetadata || item.coverType || item.item?.coverMetadata || item.item?.coverType);
+            if (hasPlaylistCoverMetadata) {
+                const playlistForCover = { ...item.item, ...item, name: item.name, title: item.name };
+                const metadata = normalizePlaylistCover(playlistForCover);
+                if (metadata.coverType === 'stylish') {
+                    coverHTML = createStylishCoverHTML(
+                        playlistForCover,
+                        metadata,
+                        'sidebar-library-item-cover playlist-cover-rendered playlist-cover-preview'
+                    );
+                } else if (metadata.coverType === 'uploaded' && metadata.uploadedCoverId) {
+                    if (isIndexedDbCoverId(metadata.uploadedCoverId)) {
+                        coverHTML = `<img class="sidebar-library-item-cover playlist-cover-rendered playlist-cover-uploaded" src="/assets/no_album_cover.png" data-playlist-uploaded-cover-id="${escapeHtml(metadata.uploadedCoverId)}" alt="" loading="lazy" />`;
+                    } else {
+                        coverHTML = `<img class="sidebar-library-item-cover playlist-cover-rendered playlist-cover-uploaded" src="${escapeHtml(metadata.uploadedCoverId)}" alt="" loading="lazy" onerror="this.src='/assets/no_album_cover.png'" />`;
+                    }
+                } else {
+                    coverHTML = `<div class="sidebar-library-item-cover playlist-cover-rendered playlist-cover-preview">${createAlbumGridHTML(playlistForCover, MusicAPI.instance)}</div>`;
+                }
+            } else if (item.type === 'artist') {
                 // Use getArtistPictureUrl (which uses getArtistRichImage endpoint)
                 // with onerror fallback to getCoverUrl (same pattern as home page cards)
                 const artistImgUrl = MusicAPI.instance.getArtistPictureUrl(item.artistId, '160');
@@ -3031,6 +3080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </a>
             `;
         }).join('');
+        UIRenderer.instance?.hydratePlaylistUploadedCovers?.(sidebarLibraryList);
 
         items.forEach((item) => {
             const el = sidebarLibraryList.querySelector(`.sidebar-library-item[data-id="${CSS.escape(String(item.id))}"]`);
@@ -3173,6 +3223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('playlist-cover-input').value = '';
             document.getElementById('playlist-cover-file-input').value = '';
             document.getElementById('playlist-description-input').value = '';
+            void playlistCoverPicker?.reset({ name: '', tracks: [] });
             createModal.dataset.editingId = '';
             const importSection = document.getElementById('import-section');
             if (importSection) importSection.style.display = 'none';

@@ -3,6 +3,7 @@ import { syncManager } from './navidrome-sync.js';
 import { authManager } from './accounts/auth.js';
 import { navigate } from './router.js';
 import { MusicAPI } from './music-api.js';
+import { createPlaylistCoverHTML } from './playlist-covers.js';
 import { apiSettings } from './storage.js';
 import { debounce, escapeHtml } from './utils.js';
 import { Player } from './player.js';
@@ -539,12 +540,13 @@ export async function loadProfile(username) {
         if (publicPlaylists.length === 0) {
             container.innerHTML = `<div class="empty-state">No public playlists found.</div>`;
         } else {
-            publicPlaylists.forEach((playlist) => {
+            const cards = await Promise.all(publicPlaylists.map(async (playlist) => {
+                const coverHTML = await createPlaylistCoverHTML(playlist, api, db);
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerHTML = `
                     <div class="card-image-wrapper">
-                        <img src="${playlist.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
+                        ${coverHTML}
                     </div>
                     <div class="card-info">
                         <div class="card-title">${escapeHtml(playlist.name || playlist.title)}</div>
@@ -552,8 +554,9 @@ export async function loadProfile(username) {
                     </div>
                 `;
                 card.onclick = () => navigate(`/userplaylist/${playlist.id}`);
-                container.appendChild(card);
-            });
+                return card;
+            }));
+            cards.forEach((card) => container.appendChild(card));
         }
     }
 }

@@ -9,6 +9,16 @@ import { partyManager } from './listening-party.js';
 import { clearFullscreenLyricsSync, renderLyricsInFullscreen, renderLyricsInPage } from './lyrics.js';
 import { navigate } from './router.js';
 import { loadProfile, initProfileEditPage } from './profile.js';
+import {
+    createAlbumGridHTML,
+    createStylishCoverDataUrl,
+    createStylishCoverHTML,
+    isIndexedDbCoverId,
+    normalizePlaylistCover,
+    PLAYLIST_COVER_TYPE_ALBUM_GRID,
+    PLAYLIST_COVER_TYPE_STYLISH,
+    PLAYLIST_COVER_TYPE_UPLOADED,
+} from './playlist-covers.js';
 import { sidePanelManager } from './side-panel.js';
 import {
     backgroundSettings,
@@ -470,15 +480,21 @@ export class UIRenderer {
         }
 
         nav.style.display = '';
-        list.innerHTML = pinnedItems
-            .map((item) => {
+        list.innerHTML = (
+            await Promise.all(pinnedItems.map(async (item) => {
                 let iconHTML;
-                if (item.type === 'user-playlist' && !item.cover && item.images && item.images.length > 0) {
-                    const images = item.images.slice(0, 4);
-                    const imgsHTML = images
-                        .map((src) => `<img src="${this.api.getCoverUrl(src)}" loading="lazy">`)
-                        .join('');
-                    iconHTML = `<div class="pinned-item-collage">${imgsHTML}</div>`;
+                const coverMetadata = normalizePlaylistCover(item);
+                if (item.type === 'user-playlist' && coverMetadata.coverType === PLAYLIST_COVER_TYPE_STYLISH) {
+                    iconHTML = createStylishCoverHTML(item, coverMetadata, 'pinned-item-cover playlist-cover-rendered playlist-cover-preview');
+                } else if (item.type === 'user-playlist' && coverMetadata.coverType === PLAYLIST_COVER_TYPE_UPLOADED && coverMetadata.uploadedCoverId) {
+                    if (isIndexedDbCoverId(coverMetadata.uploadedCoverId)) {
+                        iconHTML = `<img src="/assets/no_album_cover.png" data-playlist-uploaded-cover-id="${escapeHtml(coverMetadata.uploadedCoverId)}" class="pinned-item-cover playlist-cover-rendered playlist-cover-uploaded" alt="${escapeHtml(item.name)}" loading="lazy">`;
+                        queueMicrotask(() => this.hydratePlaylistUploadedCovers());
+                    } else {
+                        iconHTML = `<img src="${escapeHtml(coverMetadata.uploadedCoverId)}" class="pinned-item-cover playlist-cover-rendered playlist-cover-uploaded" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">`;
+                    }
+                } else if (item.type === 'user-playlist') {
+                    iconHTML = `<div class="pinned-item-cover playlist-cover-rendered playlist-cover-preview">${createAlbumGridHTML(item, this.api)}</div>`;
                 } else {
                     const coverUrl =
                         item.type === 'artist'
@@ -496,8 +512,7 @@ export class UIRenderer {
                     </a>
                 </li>
             `;
-            })
-            .join('');
+            }))).join('');
     }
 
     async setCurrentTrack(track) {
@@ -827,6 +842,22 @@ export class UIRenderer {
         const isFeatured = visibility === 'featured';
         const owner = playlist.ownerUsername || playlist.owner || playlist.creatorName || '';
         const href = playlist.href || (isFeatured || owner ? `/userplaylist/${playlist.uuid}` : `/playlist/${playlist.uuid}`);
+        const coverMetadata = normalizePlaylistCover(playlist);
+        let imageHTML = `<img src="${this.api.getCoverUrl(imageId)}" alt="${playlist.title}" class="card-image" loading="lazy">`;
+        if (coverMetadata.coverType === PLAYLIST_COVER_TYPE_STYLISH) {
+            imageHTML = createStylishCoverHTML(
+                { ...playlist, name: playlist.name || playlist.title },
+                coverMetadata,
+                'card-image playlist-cover-rendered playlist-cover-preview'
+            );
+        } else if (coverMetadata.coverType === PLAYLIST_COVER_TYPE_UPLOADED && coverMetadata.uploadedCoverId) {
+            if (isIndexedDbCoverId(coverMetadata.uploadedCoverId)) {
+                imageHTML = `<img src="/assets/no_album_cover.png" data-playlist-uploaded-cover-id="${escapeHtml(coverMetadata.uploadedCoverId)}" alt="${escapeHtml(playlist.title || playlist.name)}" class="card-image playlist-cover-rendered playlist-cover-uploaded" loading="lazy">`;
+                queueMicrotask(() => this.hydratePlaylistUploadedCovers());
+            } else {
+                imageHTML = `<img src="${escapeHtml(coverMetadata.uploadedCoverId)}" alt="${escapeHtml(playlist.title || playlist.name)}" class="card-image playlist-cover-rendered playlist-cover-uploaded" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">`;
+            }
+        }
         const creatorHTML = owner
             ? `<button type="button" class="featured-playlist-creator" data-user-id="${escapeHtml(owner)}" data-href="/user/@${encodeURIComponent(owner)}">${escapeHtml(owner)}</button>`
             : '';
@@ -837,7 +868,7 @@ export class UIRenderer {
             href,
             title: playlist.title,
             subtitle: creatorHTML || `${playlist.numberOfTracks || 0} tracks`,
-            imageHTML: `<img src="${this.api.getCoverUrl(imageId)}" alt="${playlist.title}" class="card-image" loading="lazy">`,
+            imageHTML,
             actionButtonsHTML: `
                 <button class="like-btn card-like-btn" data-action="toggle-like" data-type="playlist" title="Add to Liked">
                     ${this.createHeartIcon(false)}
@@ -907,7 +938,17 @@ export class UIRenderer {
 
     createUserPlaylistCardHTML(playlist, customSubtitle = null) {
         let imageHTML = '';
-        if (playlist.cover) {
+        const coverMetadata = normalizePlaylistCover(playlist);
+        if (coverMetadata.coverType === PLAYLIST_COVER_TYPE_STYLISH) {
+            imageHTML = createStylishCoverHTML(playlist, coverMetadata, 'card-image playlist-cover-rendered playlist-cover-preview');
+        } else if (coverMetadata.coverType === PLAYLIST_COVER_TYPE_UPLOADED && coverMetadata.uploadedCoverId) {
+            if (isIndexedDbCoverId(coverMetadata.uploadedCoverId)) {
+                imageHTML = `<img src="/assets/no_album_cover.png" data-playlist-uploaded-cover-id="${escapeHtml(coverMetadata.uploadedCoverId)}" alt="${escapeHtml(playlist.name)}" class="card-image playlist-cover-rendered playlist-cover-uploaded" loading="lazy">`;
+                queueMicrotask(() => this.hydratePlaylistUploadedCovers());
+            } else {
+                imageHTML = `<img src="${escapeHtml(coverMetadata.uploadedCoverId)}" alt="${escapeHtml(playlist.name)}" class="card-image playlist-cover-rendered playlist-cover-uploaded" loading="lazy" onerror="this.src='/assets/no_album_cover.png'">`;
+            }
+        } else if (playlist.cover && coverMetadata.coverType !== PLAYLIST_COVER_TYPE_ALBUM_GRID) {
             imageHTML = this.getCoverHTML(
                 playlist.cover,
                 escapeHtml(playlist.name),
@@ -918,35 +959,7 @@ export class UIRenderer {
                 'album'
             );
         } else {
-            const tracks = playlist.tracks || [];
-            let uniqueCovers = playlist.images || [];
-            const seenCovers = new Set(uniqueCovers);
-
-            if (uniqueCovers.length === 0) {
-                for (const track of tracks) {
-                    const cover = track.album?.cover;
-                    if (cover && !seenCovers.has(cover)) {
-                        seenCovers.add(cover);
-                        uniqueCovers.push(cover);
-                        if (uniqueCovers.length >= 4) break;
-                    }
-                }
-            }
-
-            if (uniqueCovers.length >= 2) {
-                const count = Math.min(uniqueCovers.length, 4);
-                const itemsClass = count < 4 ? `items-${count}` : '';
-                const covers = uniqueCovers.slice(0, 4);
-                imageHTML = `
-                    <div class="card-image card-collage ${itemsClass}">
-                        ${covers.map((cover) => `<img src="${this.api.getCoverUrl(cover)}" alt="" loading="lazy">`).join('')}
-                    </div>
-                `;
-            } else if (uniqueCovers.length > 0) {
-                imageHTML = `<img src="${this.api.getCoverUrl(uniqueCovers[0])}" alt="${playlist.name}" class="card-image" loading="lazy">`;
-            } else {
-                imageHTML = `<img src="/assets/no_album_cover.png" alt="${playlist.name}" class="card-image" loading="lazy">`;
-            }
+            imageHTML = `<div class="card-image playlist-cover-rendered playlist-cover-preview">${createAlbumGridHTML(playlist, this.api)}</div>`;
         }
 
         const isCompact = cardSettings.isCompactAlbum();
@@ -973,6 +986,50 @@ export class UIRenderer {
             extraAttributes: 'draggable="true"',
             extraClasses: 'user-playlist',
         });
+    }
+
+    async hydratePlaylistUploadedCovers(root = document) {
+        const nodes = root.querySelectorAll('img[data-playlist-uploaded-cover-id]');
+        await Promise.all(
+            [...nodes].map(async (img) => {
+                if (img.dataset.playlistCoverHydrated === 'true') return;
+                img.dataset.playlistCoverHydrated = 'true';
+                const blob = await db.getPlaylistCoverBlob(img.dataset.playlistUploadedCoverId).catch(() => null);
+                if (blob) img.src = URL.createObjectURL(blob);
+            })
+        );
+    }
+
+    async renderPlaylistDetailCover(playlist, imageEl, collageEl) {
+        const container = imageEl?.closest('.detail-header-cover-container');
+        const existing = container?.querySelector('.playlist-cover-detail-rendered');
+        if (existing) existing.remove();
+        const metadata = normalizePlaylistCover(playlist);
+        const showCustom = metadata.coverType === PLAYLIST_COVER_TYPE_STYLISH || metadata.coverType === PLAYLIST_COVER_TYPE_UPLOADED;
+        if (!showCustom || !container) return false;
+
+        imageEl.style.display = 'none';
+        if (collageEl) collageEl.style.display = 'none';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'playlist-cover-detail-rendered';
+        if (metadata.coverType === PLAYLIST_COVER_TYPE_STYLISH) {
+            wrapper.innerHTML = createStylishCoverHTML(
+                playlist,
+                metadata,
+                'playlist-cover-detail-rendered playlist-cover-rendered playlist-cover-preview'
+            );
+            container.appendChild(wrapper);
+            return { rendered: true, backgroundUrl: await createStylishCoverDataUrl(playlist, metadata) };
+        }
+
+        const src = isIndexedDbCoverId(metadata.uploadedCoverId)
+            ? await db.getPlaylistCoverBlob(metadata.uploadedCoverId)
+                  .then((blob) => (blob ? URL.createObjectURL(blob) : ''))
+                  .catch(() => '')
+            : metadata.uploadedCoverId;
+        wrapper.innerHTML = `<img src="${src || '/assets/no_album_cover.png'}" alt="${escapeHtml(playlist.name || playlist.title || '')}" class="playlist-cover-rendered playlist-cover-uploaded" loading="eager" onerror="this.src='/assets/no_album_cover.png'">`;
+        container.appendChild(wrapper);
+        return { rendered: true, backgroundUrl: src || null };
     }
 
     createAlbumCardHTML(album) {
@@ -4913,6 +4970,7 @@ export class UIRenderer {
 
         imageEl.src = '';
         imageEl.style.backgroundColor = 'var(--muted)';
+        imageEl.closest('.detail-header-cover-container')?.querySelector('.playlist-cover-detail-rendered')?.remove();
         titleEl.innerHTML = '<div class="skeleton" style="height: 48px; width: 300px; max-width: 90%;"></div>';
         metaEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
         prodEl.innerHTML = '<div class="skeleton" style="height: 16px; width: 200px; max-width: 80%;"></div>';
@@ -5491,7 +5549,15 @@ export class UIRenderer {
                 // ... (rest of the logic)
                 if (addPlaylistBtn) addPlaylistBtn.style.display = 'none';
 
-                if (playlistData.cover) {
+                const detailCover = await this.renderPlaylistDetailCover(playlistData, imageEl, collageEl);
+                if (detailCover?.rendered) {
+                    this.setPageBackground(detailCover.backgroundUrl);
+                    if (detailCover.backgroundUrl && !String(detailCover.backgroundUrl).startsWith('data:')) {
+                        await this.extractAndApplyColor(detailCover.backgroundUrl);
+                    } else {
+                        this.resetVibrantColor();
+                    }
+                } else if (playlistData.cover) {
                     imageEl.src = playlistData.cover;
                     imageEl.style.display = 'block';
                     if (collageEl) collageEl.style.display = 'none';

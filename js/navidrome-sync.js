@@ -226,6 +226,13 @@ export const syncManager = {
                     console.warn('Playlist synced, but visibility update failed:', error);
                 }
             }
+            if (resolvedId && playlist.coverMetadata && typeof api.updatePlaylistCoverMetadata === 'function') {
+                try {
+                    await api.updatePlaylistCoverMetadata(resolvedId, playlist.coverMetadata);
+                } catch (error) {
+                    console.warn('Playlist synced, but cover metadata update failed:', error);
+                }
+            }
 
             const syncedPlaylist = {
                 ...playlist,

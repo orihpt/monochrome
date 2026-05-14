@@ -6019,6 +6019,9 @@ export class UIRenderer {
             }
 
             const currentId = this.currentArtistId;
+            const artistImageSource = artist.localAvatarUrl || (artist.fallbackCover ? this.api.getCoverUrl(artist.fallbackCover, '320') : this.api.getArtistPictureUrl(artist.picture));
+            const fallbackBannerSource = artist.localHeaderUrl || (artist.fallbackCover ? this.api.getCoverUrl(artist.fallbackCover, '800') : artistImageSource);
+
             if (artist.localHeaderUrl && bannerContainer) {
                 document.getElementById('page-artist')?.classList.remove('no-artist-header');
                 bannerContainer.classList.add('local-image');
@@ -6052,10 +6055,21 @@ export class UIRenderer {
                             } catch (e) {
                                 console.warn('Failed to setup artist banner video:', e);
                             }
+                        } else if (fallbackBannerSource && bannerContainer) {
+                            document.getElementById('page-artist')?.classList.remove('no-artist-header');
+                            bannerContainer.classList.add('local-image');
+                            bannerContainer.style.backgroundImage = `url("${fallbackBannerSource}")`;
+                            bannerContainer.style.opacity = '1';
                         }
                     })
                     .catch((e) => {
                         console.warn('Failed to fetch artist banner:', e);
+                        if (fallbackBannerSource && bannerContainer) {
+                            document.getElementById('page-artist')?.classList.remove('no-artist-header');
+                            bannerContainer.classList.add('local-image');
+                            bannerContainer.style.backgroundImage = `url("${fallbackBannerSource}")`;
+                            bannerContainer.style.opacity = '1';
+                        }
                     });
             }
 
@@ -6263,7 +6277,7 @@ export class UIRenderer {
                 if (similarSection) similarSection.style.display = 'none';
             }
 
-            const artistImageUrl = artist.localAvatarUrl || this.api.getArtistPictureUrl(artist.picture);
+            const artistImageUrl = artistImageSource;
             imageEl.src = artistImageUrl;
             imageEl.style.backgroundColor = '';
             nameEl.textContent = artist.name;
@@ -6280,6 +6294,12 @@ export class UIRenderer {
             const metaParts = [];
             if (typeof artist.popularity === 'number') metaParts.push(`<span>${artist.popularity}% popularity</span>`);
             if (typeof artist.followers === 'number') metaParts.push(`<span>${artist.followers.toLocaleString()} followers</span>`);
+            if (typeof artist.albumCount === 'number' && artist.albumCount > 0) {
+                metaParts.push(`<span>${artist.albumCount.toLocaleString()} album${artist.albumCount === 1 ? '' : 's'}</span>`);
+            }
+            if (Array.isArray(artist.tracks) && artist.tracks.length > 0) {
+                metaParts.push(`<span>${artist.tracks.length.toLocaleString()} songs</span>`);
+            }
             const artistTags = [
                 ...(Array.isArray(artist.genres) ? artist.genres : []),
                 ...(artist.artistRoles || []).map((role) => role.category).filter(Boolean),

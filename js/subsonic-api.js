@@ -279,6 +279,9 @@ export class SubsonicAPI {
     getArtistPictureUrl(id /*, size */) {
         if (typeof id === 'string' && id.startsWith('/rest/')) return id;
         if (!id) return '/assets/artist_placeholder.png';
+        if (typeof id === 'string' && (id.startsWith('al-') || id.startsWith('mf-'))) {
+            return this.getCoverUrl(id, 300);
+        }
         
         // Use Navidrome's rich image endpoint for artists as it's more reliable
         // Strip 'ar-' prefix and any '_0' suffix to get the raw artist ID
@@ -458,6 +461,19 @@ export class SubsonicAPI {
             videos: { items: [] },
         };
 
+        const albumCoverByArtist = new Map();
+        for (const album of response.albums.items) {
+            const artistId = album.artist?.id;
+            if (artistId && album.cover && !albumCoverByArtist.has(artistId)) {
+                albumCoverByArtist.set(artistId, album.cover);
+            }
+        }
+        response.artists.items = response.artists.items.map((artist) => ({
+            ...artist,
+            picture: albumCoverByArtist.get(artist.id) || artist.picture,
+            fallbackCover: albumCoverByArtist.get(artist.id) || artist.fallbackCover,
+        }));
+
         if (
             response.tracks.items.length === 0 &&
             response.albums.items.length === 0 &&
@@ -566,6 +582,8 @@ export class SubsonicAPI {
             coverArt: first.coverArt,
             albumCount: albums.length,
         });
+        prepared.picture = first.coverArt || prepared.picture;
+        prepared.fallbackCover = first.coverArt || null;
         prepared.albums = albums.map((album) => this.prepareAlbum(album)).filter(Boolean);
 
         const tracks = [];
@@ -698,7 +716,11 @@ export class SubsonicAPI {
 
     async getAllArtists(options = {}) {
         const res = await this.fetchAPI('getArtists');
-        const indices = res?.artists?.index || [];
+        let indices = res?.artists?.index || [];
+        if (res?.status === 'failed' || indices.length === 0) {
+            return this.getAllArtistsFromAlbums(options);
+        }
+
         let allArtists = [];
         for (const index of indices) {
             if (index.artist) {
@@ -732,6 +754,54 @@ export class SubsonicAPI {
             items: items.slice(offset, offset + limit),
             total: items.length,
             hasMore: offset + limit < items.length
+        };
+    }
+
+    async getAllArtistsFromAlbums(options = {}) {
+        const res = await this.fetchAPI('getAlbumList2', 'type=alphabeticalByArtist&size=500&offset=0');
+        this.throwIfSubsonicError(res);
+        const albums = res?.albumList2?.album || [];
+        const artists = new Map();
+
+        for (const album of albums) {
+            const id = album.artistId || album.artist || album.displayArtist;
+            if (!id) continue;
+            const existing = artists.get(id);
+            if (existing) {
+                existing.albumCount += 1;
+                if (!existing.picture && album.coverArt) existing.picture = album.coverArt;
+                continue;
+            }
+            artists.set(id, {
+                id,
+                name: album.artist || album.displayArtist || 'Unknown Artist',
+                picture: album.coverArt || null,
+                fallbackCover: album.coverArt || null,
+                tracks: [],
+                albums: [],
+                eps: [],
+                videos: [],
+                albumCount: 1,
+                isLocal: false,
+            });
+        }
+
+        let items = Array.from(artists.values());
+        const sort = options.sort || 'name';
+        if (sort === 'popularity' || sort === 'most_played') {
+            items.sort((a, b) => (b.albumCount || 0) - (a.albumCount || 0));
+        } else if (sort === 'recent') {
+            items.reverse();
+        } else {
+            items.sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const offset = options.offset || 0;
+        const limit = options.limit || 50;
+        return {
+            items: items.slice(offset, offset + limit),
+            total: items.length,
+            hasMore: offset + limit < items.length,
         };
     }
 

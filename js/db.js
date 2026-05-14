@@ -759,7 +759,7 @@ export class MusicDatabase {
         });
     }
 
-    async getPlaylists(includeTracks = false) {
+    async getPlaylists(includeTracks = false, options = {}) {
         const db = await this.open();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction('user_playlists', 'readwrite'); // Changed to readwrite for lazy migration
@@ -805,7 +805,14 @@ export class MusicDatabase {
                     // Return lightweight copy without tracks
                     const { tracks, ...minified } = playlist;
                     return minified;
-                }).filter((playlist) => !currentOwner || !playlist.ownerUsername || playlist.ownerUsername === currentOwner);
+                }).filter((playlist) => {
+                    if (!currentOwner || !playlist.ownerUsername || playlist.ownerUsername === currentOwner) return true;
+                    if (options.includeVisible) {
+                        const visibility = playlist.visibility || (playlist.isPublic ? 'public' : 'private');
+                        return visibility === 'public' || visibility === 'featured';
+                    }
+                    return false;
+                });
                 resolve(processedPlaylists);
             };
             request.onerror = () => reject(request.error);

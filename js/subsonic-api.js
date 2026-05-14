@@ -227,7 +227,9 @@ export class SubsonicAPI {
     async getArtistRequestSuggestions(query) {
         const res = await this.fetchAPI('getArtistRequestSuggestions', `query=${encodeURIComponent(query || '')}`);
         this.throwIfSubsonicError(res);
-        return res?.artistRequestSuggestions?.name || [];
+        const suggestions = res?.artistRequestSuggestions || {};
+        if (Array.isArray(suggestions.artist)) return suggestions.artist;
+        return (suggestions.name || []).map((name) => ({ name }));
     }
 
     throwIfSubsonicError(res) {
@@ -251,6 +253,8 @@ export class SubsonicAPI {
             songCount: playlist.songCount || 0,
             duration: playlist.duration || 0,
             owner: playlist.owner,
+            ownerUsername: playlist.owner,
+            visibility: playlist.visibility || (playlist.public === true || playlist.public === 'true' ? 'public' : 'private'),
             public: playlist.public === true || playlist.public === 'true',
             curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true',
             readonly: playlist.readonly === true || playlist.readonly === 'true',
@@ -469,7 +473,7 @@ export class SubsonicAPI {
             tracks: { items: (result.song || []).map(s => this.prepareTrack(s)).filter(Boolean) },
             albums: { items: (result.album || []).map(a => this.prepareAlbum(a)).filter(Boolean) },
             artists: { items: (result.artist || []).map(a => this.prepareArtist(a)).filter(Boolean) },
-            playlists: { items: [] },
+            playlists: { items: (result.playlist || []).map(p => this.preparePlaylist(p)).filter(Boolean) },
             videos: { items: [] },
         };
 
@@ -560,7 +564,7 @@ export class SubsonicAPI {
         if (!artist) return this.getArtistFallback(id);
         const prepared = this.prepareArtist(artist);
         prepared.albums = (artist.album || []).map(a => this.prepareAlbum(a)).filter(Boolean);
-        const topTracks = await this.getArtistTopTracks(id, { limit: 15 });
+        const topTracks = await this.getArtistTopTracks(id, { limit: 12 });
         prepared.tracks = topTracks.tracks || [];
         const richInfo = await this.getArtistRichInfo(id);
         if (richInfo) {
@@ -606,15 +610,17 @@ export class SubsonicAPI {
             } catch (error) {
                 console.warn('Artist fallback failed to inspect album:', album.id, error);
             }
-            if (tracks.length >= 15) break;
+            if (tracks.length >= 12) break;
         }
-        prepared.tracks = tracks.slice(0, 15);
+        prepared.tracks = tracks
+            .sort((a, b) => (Number(b.playCount) || 0) - (Number(a.playCount) || 0))
+            .slice(0, 12);
         return prepared;
     }
 
     async getArtistTopTracks(artistId, options = {}) {
         const offset = options.offset || 0;
-        const limit = options.limit || 15;
+        const limit = options.limit || 12;
         const count = offset + limit + 1;
 
         try {
@@ -623,7 +629,10 @@ export class SubsonicAPI {
             if (artist?.name) {
                 const res = await this.fetchAPI('getTopSongs', `artist=${encodeURIComponent(artist.name)}&count=${count}`);
                 const songs = res?.topSongs?.song || [];
-                const tracks = songs.map(s => this.prepareTrack(s)).filter(Boolean);
+                const tracks = songs
+                    .map(s => this.prepareTrack(s))
+                    .filter(Boolean)
+                    .sort((a, b) => (Number(b.playCount) || 0) - (Number(a.playCount) || 0));
                 return {
                     tracks: tracks.slice(offset, offset + limit),
                     offset,
@@ -636,7 +645,10 @@ export class SubsonicAPI {
         }
 
         const res = await this.fetchAPI('search3', `query=${artistId}&songCount=${count}&albumCount=0&artistCount=0`);
-        const tracks = (res?.searchResult3?.song || []).map(s => this.prepareTrack(s)).filter(Boolean);
+        const tracks = (res?.searchResult3?.song || [])
+            .map(s => this.prepareTrack(s))
+            .filter(Boolean)
+            .sort((a, b) => (Number(b.playCount) || 0) - (Number(a.playCount) || 0));
         return {
             tracks: tracks.slice(offset, offset + limit),
             offset,
@@ -978,13 +990,8 @@ export class SubsonicAPI {
             return {
                 items: playlists
                     .filter(p => p.name?.toLowerCase().includes(q))
-                    .map(p => ({
-                        id: p.id,
-                        title: p.name,
-                        cover: p.coverArt,
-                        trackCount: p.songCount,
-                        isLocal: false,
-                    })),
+                    .map(p => this.preparePlaylist(p))
+                    .filter(Boolean),
             };
         } catch {
             return { items: [] };

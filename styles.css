@@ -11853,7 +11853,9 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 }
 
 .artist-request-suggestion {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
     width: 100%;
     padding: 0.65rem 0.8rem;
     border: 0;
@@ -11862,6 +11864,15 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     color: var(--foreground);
     text-align: right;
     cursor: pointer;
+}
+
+.artist-autocomplete-avatar {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--secondary);
 }
 
 .artist-request-suggestion:hover {

@@ -823,19 +823,28 @@ export class UIRenderer {
     createPlaylistCardHTML(playlist) {
         const imageId = playlist.squareImage || playlist.image || playlist.uuid;
         const isCompact = cardSettings.isCompactAlbum();
+        const visibility = playlist.visibility || (playlist.public ? 'public' : 'private');
+        const isFeatured = visibility === 'featured';
+        const owner = playlist.ownerUsername || playlist.owner || playlist.creatorName || '';
+        const href = playlist.href || (isFeatured || owner ? `/userplaylist/${playlist.uuid}` : `/playlist/${playlist.uuid}`);
+        const creatorHTML = owner
+            ? `<button type="button" class="featured-playlist-creator" data-user-id="${escapeHtml(owner)}" data-href="/user/@${encodeURIComponent(owner)}">${escapeHtml(owner)}</button>`
+            : '';
 
         return this.createBaseCardHTML({
             type: 'playlist',
             id: playlist.uuid,
-            href: `/playlist/${playlist.uuid}`,
+            href,
             title: playlist.title,
-            subtitle: `${playlist.numberOfTracks || 0} tracks`,
+            subtitle: creatorHTML || `${playlist.numberOfTracks || 0} tracks`,
             imageHTML: `<img src="${this.api.getCoverUrl(imageId)}" alt="${playlist.title}" class="card-image" loading="lazy">`,
             actionButtonsHTML: `
                 <button class="like-btn card-like-btn" data-action="toggle-like" data-type="playlist" title="Add to Liked">
                     ${this.createHeartIcon(false)}
                 </button>
             `,
+            extraClasses: `${isFeatured ? 'featured-playlist-card' : ''} search-result-playlist`,
+            extraAttributes: `data-visibility="${escapeHtml(visibility)}"`,
             isCompact,
         });
     }
@@ -2896,7 +2905,7 @@ export class UIRenderer {
 
             const history = await db.getHistory();
             const favorites = await db.getFavorites('track');
-            const playlists = await db.getPlaylists(true);
+            const playlists = await db.getPlaylists(true, { includeVisible: true });
 
             const hasActivity = history.length > 0 || favorites.length > 0 || playlists.length > 0;
 
@@ -2923,6 +2932,7 @@ export class UIRenderer {
                 };
 
             await this.renderHomeCuratorMixes();
+            await this.renderHomeEditorsPicks(false, 'home-editors-picks');
             await this.renderHomeRecent();
 
             const songsSection = document.getElementById('home-recommended-songs-section');
@@ -3059,28 +3069,42 @@ export class UIRenderer {
                 this.api.getCommunityActivity(20),
                 this.api.getFeaturedPlaylists(24),
             ]);
+            const setSectionVisible = (element, visible) => {
+                const section = element?.closest('.content-section');
+                if (section) section.style.display = visible ? '' : 'none';
+            };
 
             if (activity.recentlyPlayed?.length) {
+                setSectionVisible(recentlyEl, true);
                 await this.renderListWithTracks(recentlyEl, activity.recentlyPlayed, true, false, false, true);
             } else {
-                recentlyEl.innerHTML = createPlaceholder('אין עדיין השמעות בקהילה.');
+                recentlyEl.innerHTML = '';
+                setSectionVisible(recentlyEl, false);
             }
 
             if (activity.mostPlayed?.length) {
+                setSectionVisible(mostEl, true);
                 await this.renderListWithTracks(mostEl, activity.mostPlayed, true, false, false, true);
             } else {
-                mostEl.innerHTML = createPlaceholder('אין עדיין שירים מובילים.');
+                mostEl.innerHTML = '';
+                setSectionVisible(mostEl, false);
             }
 
             if (activity.followingRecent?.length) {
+                setSectionVisible(followingEl, true);
                 await this.renderListWithTracks(followingEl, activity.followingRecent, true, false, false, true);
             } else {
-                followingEl.innerHTML = createPlaceholder('עקבו אחרי משתמשים כדי לראות מה הם שומעים.');
+                followingEl.innerHTML = '';
+                setSectionVisible(followingEl, false);
             }
 
-            featuredEl.innerHTML = featuredPlaylists.length
-                ? featuredPlaylists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('')
-                : createPlaceholder('אין עדיין פלייליסטים מומלצים.');
+            if (featuredPlaylists.length) {
+                setSectionVisible(featuredEl, true);
+                featuredEl.innerHTML = featuredPlaylists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+            } else {
+                featuredEl.innerHTML = '';
+                setSectionVisible(featuredEl, false);
+            }
 
             for (const playlist of featuredPlaylists) {
                 const el = featuredEl.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid))}"]`);
@@ -3271,7 +3295,7 @@ export class UIRenderer {
     createArtistRequestRowHTML(item, rank, isAdmin) {
         const active = item.userVoted === true || item.userVoted === 'true';
         return `
-            <div class="artist-request-row">
+            <div class="artist-request-row" data-request-id="${escapeHtml(item.id || '')}" data-status="${escapeHtml(item.status || '')}">
                 <div class="artist-request-rank">${rank}</div>
                 <div class="artist-request-name">${escapeHtml(item.name || '')}</div>
                 ${isAdmin ? this.createArtistRequestMenuHTML(item, 'wishlist') : ''}
@@ -3285,7 +3309,7 @@ export class UIRenderer {
 
     createArtistRequestSoonRowHTML(item, isAdmin) {
         return `
-            <div class="artist-request-soon-row">
+            <div class="artist-request-soon-row" data-request-id="${escapeHtml(item.id || '')}" data-status="${escapeHtml(item.status || '')}">
                 <span>${escapeHtml(item.name || '')}</span>
                 ${isAdmin ? this.createArtistRequestMenuHTML(item, 'soon') : ''}
                 <span>${Number(item.voteCount) || 0} הצבעות</span>
@@ -3340,12 +3364,20 @@ export class UIRenderer {
         const loadSuggestions = debounce(async () => {
             const suggestions = await this.api.getArtistRequestSuggestions(input.value).catch(() => []);
             suggestionsEl.innerHTML = suggestions
-                .map((name) => `<button type="button" class="artist-request-suggestion">${escapeHtml(name)}</button>`)
+                .map((suggestion) => {
+                    const item = typeof suggestion === 'string' ? { name: suggestion } : suggestion;
+                    const name = item.name || '';
+                    const avatar = item.avatarUrl || (item.hasAvatar && item.id ? this.api.getArtistRichImageUrl(item.id, 'avatar') : '');
+                    return `<button type="button" class="artist-request-suggestion artist-autocomplete-result" data-artist-id="${escapeHtml(item.id || '')}" data-name="${escapeHtml(name)}">
+                        ${avatar ? `<img class="artist-autocomplete-avatar" src="${escapeHtml(avatar)}" alt="" loading="lazy">` : '<span class="artist-autocomplete-avatar artist-autocomplete-avatar--empty"></span>'}
+                        <span class="artist-autocomplete-name">${escapeHtml(name)}</span>
+                    </button>`;
+                })
                 .join('');
             suggestionsEl.classList.toggle('open', suggestions.length > 0);
             suggestionsEl.querySelectorAll('button').forEach((button) => {
                 button.addEventListener('click', () => {
-                    input.value = button.textContent || '';
+                    input.value = button.dataset.name || button.textContent || '';
                     suggestionsEl.classList.remove('open');
                     input.focus();
                 });
@@ -3954,10 +3986,19 @@ export class UIRenderer {
         const isAlbum = kind === 'album';
         const isArtist = kind === 'artist';
         const isUser = kind === 'user';
+        const isPlaylist = kind === 'playlist';
         const typeLabel = isTrack ? 'שיר' : isAlbum ? 'אלבום' : isUser ? 'משתמש' : 'אמן';
         const id = item.id;
         const userName = item.userName || item.username || item.name || id;
-        const href = isTrack ? `/track/${id}` : isAlbum ? (item._href || `/album/${id}`) : isUser ? `/user/@${encodeURIComponent(userName)}` : `/artist/${id}`;
+        const href = isTrack
+            ? `/track/${id}`
+            : isAlbum
+                ? (item._href || `/album/${id}`)
+                : isUser
+                    ? `/user/@${encodeURIComponent(userName)}`
+                    : isPlaylist
+                        ? (item.href || `/userplaylist/${id}`)
+                        : `/artist/${id}`;
         const explicitBadge = hasExplicitContent(item) ? this.createExplicitBadge() : '';
         const qualityBadge = createQualityBadgeHTML(item);
 
@@ -3984,7 +4025,7 @@ export class UIRenderer {
                     ${SVG_PLAY(18)}
                 </button>
                 ${likeType === 'track'
-                    ? this.createTrackLibraryButtonHTML(item, false, 'card-like-btn search-all-action')
+                    ? this.createTrackLibraryButtonHTML(item, item.inLibrary === true, 'card-like-btn search-all-action now-playing-library-btn')
                     : `<button class="like-btn card-like-btn search-all-action" data-action="toggle-like" data-type="${likeType}" title="Add to Liked">
                         ${this.createHeartIcon(false)}
                     </button>`
@@ -4057,10 +4098,30 @@ export class UIRenderer {
                 </button>
             `;
             extraClasses = 'user';
+        } else if (isPlaylist) {
+            title = escapeHtml(item.title || item.name || 'Playlist');
+            subtitle = escapeHtml([typeLabel, item.ownerUsername || item.owner, `${item.numberOfTracks || item.songCount || 0} tracks`].filter(Boolean).join(' • '));
+            imageHTML = this.getCoverHTML(
+                item.squareImage || item.image || item.cover || item.uuid,
+                title,
+                'search-all-image',
+                isFeatured ? 'eager' : 'lazy'
+            );
+            actionHTML = `
+                <button class="play-btn card-play-btn search-all-action" data-action="play-card" data-type="playlist" data-id="${id}" title="Play">
+                    ${SVG_PLAY(18)}
+                </button>
+                <button class="card-menu-btn search-all-action" data-action="card-menu" data-type="playlist" data-id="${id}" title="Menu">
+                    ${SVG_MENU(18)}
+                </button>
+            `;
+            extraClasses = 'playlist search-result-playlist';
+            extraAttributes = `data-visibility="${escapeHtml(item.visibility || '')}"`;
         }
 
         return `
             <div class="card search-all-row ${isFeatured ? 'search-all-featured' : ''} ${extraClasses}"
+                 data-result-kind="${kind}"
                  data-${kind}-id="${id}"
                  data-href="${href}"
                  style="cursor: pointer;"
@@ -4222,7 +4283,7 @@ export class UIRenderer {
         }
 
         try {
-            const playlists = await db.getPlaylists(true);
+            const playlists = await db.getPlaylists(true, { includeVisible: true });
             const featured = playlists.filter(p => p.visibility === 'featured');
 
             if (featured.length === 0) {
@@ -4235,7 +4296,7 @@ export class UIRenderer {
             if (section) section.style.display = 'block';
 
             container.innerHTML = featured.map(p => `
-                <div class="card" onclick="window.location.hash='/userplaylist/${p.id}'">
+                <div class="card featured-playlist-card" data-playlist-id="${escapeHtml(p.id)}" data-href="/userplaylist/${escapeHtml(p.id)}" data-visibility="featured">
                     <div class="card-image-wrapper">
                         <img src="${p.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
                         <button class="play-button" aria-label="Play ${escapeHtml(p.name)}">
@@ -4244,7 +4305,9 @@ export class UIRenderer {
                     </div>
                     <div class="card-info">
                         <div class="card-title">${escapeHtml(p.name)}</div>
-                        <div class="card-subtitle">${p.numberOfTracks} songs</div>
+                        <div class="card-subtitle">
+                            ${p.ownerUsername ? `<button type="button" class="featured-playlist-creator" data-user-id="${escapeHtml(p.ownerUsername)}" data-href="/user/@${encodeURIComponent(p.ownerUsername)}">${escapeHtml(p.ownerUsername)}</button>` : `${p.numberOfTracks} songs`}
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -4567,6 +4630,19 @@ export class UIRenderer {
             let finalPlaylists = (results.playlists && results.playlists.items) || [];
             let finalUsers = await userSearchPromise;
             if (!Array.isArray(finalUsers)) finalUsers = [];
+            const normalizedQuery = query.trim().toLowerCase();
+            const currentUser = localStorage.getItem('subsonic_user') || '';
+            const ownedPlaylists = (await db.getPlaylists(true).catch(() => []))
+                .filter((playlist) => {
+                    const name = String(playlist.name || playlist.title || '').toLowerCase();
+                    return name.includes(normalizedQuery);
+                })
+                .map((playlist) => ({
+                    ...playlist,
+                    uuid: playlist.uuid || playlist.id,
+                    title: playlist.title || playlist.name,
+                    href: `/userplaylist/${playlist.id}`,
+                }));
 
             if (finalArtists.length === 0 && finalTracks.length > 0) {
                 const artistMap = new Map();
@@ -4599,7 +4675,23 @@ export class UIRenderer {
             finalAlbums = finalAlbums.filter((t) => !_isBlockedCopyright(t.copyright));
 
             // Track search with results
-            const normalizedQuery = query.trim().toLowerCase();
+            const playlistById = new Map();
+            for (const playlist of [...finalPlaylists, ...ownedPlaylists]) {
+                const id = String(playlist.uuid || playlist.id || '');
+                if (!id) continue;
+                const visibility = playlist.visibility || (playlist.public ? 'public' : 'private');
+                const owner = playlist.ownerUsername || playlist.owner || '';
+                if (visibility === 'private' && owner && owner !== currentUser) continue;
+                if (visibility === 'private' && !ownedPlaylists.some((owned) => String(owned.id) === id)) continue;
+                playlistById.set(id, {
+                    ...playlist,
+                    uuid: id,
+                    id,
+                    visibility,
+                    href: `/userplaylist/${id}`,
+                });
+            }
+            finalPlaylists = Array.from(playlistById.values());
             const userItems = finalUsers.slice(0, 4).map((item, sourceIndex) => ({
                 kind: 'user',
                 item,
@@ -4611,10 +4703,15 @@ export class UIRenderer {
                 ...finalAlbums.slice(0, 8).map((item, sourceIndex) => ({ kind: 'album', item, sourceIndex })),
                 ...finalArtists.slice(0, 8).map((item, sourceIndex) => ({ kind: 'artist', item, sourceIndex })),
                 ...userItems.filter((result) => result.rank >= 85),
+                ...finalPlaylists.slice(0, 8).map((item, sourceIndex) => ({ kind: 'playlist', item, sourceIndex })),
             ]
                 .map((result) => ({
                     ...result,
-                    rank: result.rank ?? this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex),
+                    rank: result.rank ?? (
+                        result.kind === 'playlist'
+                            ? -1000 + this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex) / 10000
+                            : this.rankSearchAllResult(result.kind, result.item, query, result.sourceIndex)
+                    ),
                 }))
                 .sort((a, b) => b.rank - a.rank);
 
@@ -4631,10 +4728,13 @@ export class UIRenderer {
                                 ? `[data-album-id="${CSS.escape(String(item.id))}"]`
                                 : kind === 'artist'
                                     ? `[data-artist-id="${CSS.escape(String(item.id))}"]`
-                                    : `[data-user-id="${CSS.escape(String(item.id))}"]`;
+                                    : kind === 'playlist'
+                                        ? `[data-playlist-id="${CSS.escape(String(item.uuid || item.id))}"]`
+                                        : `[data-user-id="${CSS.escape(String(item.id))}"]`;
                     allContainer.querySelectorAll(selector).forEach((el) => {
                         trackDataStore.set(el, item);
                         if (kind !== 'user') this.updateLikeState(el, kind, item.id).catch(console.error);
+                        if (kind === 'track') this.updateTrackLibraryState(el, item).catch(console.error);
                     });
                 }
             } else {

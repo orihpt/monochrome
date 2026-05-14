@@ -2301,7 +2301,7 @@ export async function handleTrackAction(
     }
 }
 
-async function updateContextMenuLikeState(contextMenu, contextTrack) {
+async function updateContextMenuLikeState(contextMenu, contextTrack, ui) {
     if (!contextMenu || !contextTrack) return;
 
     const type = contextMenu._contextType || 'track';
@@ -2367,7 +2367,7 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
         }
 
         if (
-            (contextTrack.isUnavailable || (UIRenderer.instance && !UIRenderer.instance.recommendationsAvailable)) &&
+            (contextTrack.isUnavailable || (ui && !ui.recommendationsAvailable)) &&
             ['play-next', 'add-to-queue', 'download', 'track-mix', 'start-infinite-radio'].includes(item.dataset.action)
         ) {
             // Some actions like play-next/add-to-queue/download are only hidden if track is unavailable
@@ -2549,7 +2549,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             contextMenu._contextTrack = item;
             contextMenu._contextType = type;
 
-            await updateContextMenuLikeState(contextMenu, item);
+            await updateContextMenuLikeState(contextMenu, item, ui);
             const rect = cardMenuBtn.getBoundingClientRect();
             positionMenu(contextMenu, rect.left, rect.bottom + 5, rect);
             return;
@@ -2593,7 +2593,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                         });
                         contextMenu._selectedTracks = selectedTracks;
                     }
-                    await updateContextMenuLikeState(contextMenu, contextTrack);
+                    await updateContextMenuLikeState(contextMenu, contextTrack, ui);
                     const rect = menuBtn.getBoundingClientRect();
                     positionMenu(contextMenu, rect.left, rect.bottom + 5, rect);
                 }
@@ -2722,6 +2722,15 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                 return;
             }
 
+            const featuredCreator = e.target.closest('.featured-playlist-creator');
+            if (featuredCreator) {
+                e.preventDefault();
+                e.stopPropagation();
+                const href = featuredCreator.dataset.href;
+                if (href) navigate(href);
+                return;
+            }
+
             const libraryTracksContainer = card.closest('#library-tracks-container');
             if (libraryTracksContainer && card.dataset.trackId) {
                 if (card.classList.contains('blocked')) return;
@@ -2802,7 +2811,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                 contextMenu._contextTrack = contextTrack;
                 contextMenu._contextType = contextTrack.type || 'track';
                 contextMenu._selectedTracks = selectedTracks;
-                await updateContextMenuLikeState(contextMenu, contextTrack);
+                await updateContextMenuLikeState(contextMenu, contextTrack, ui);
                 positionMenu(contextMenu, e.clientX, e.clientY);
             }
         } else if (card) {
@@ -2834,7 +2843,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             contextMenu._contextType = type.replace('userplaylist', 'user-playlist');
             contextMenu._contextHref = card.dataset.href;
 
-            await updateContextMenuLikeState(contextMenu, item);
+            await updateContextMenuLikeState(contextMenu, item, ui);
             positionMenu(contextMenu, e.clientX, e.clientY);
         }
     });
@@ -2865,7 +2874,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             }
         });
 
-        await updateContextMenuLikeState(contextMenu, track);
+        await updateContextMenuLikeState(contextMenu, track, ui);
         positionMenu(contextMenu, e.clientX, e.clientY);
     });
 
@@ -2928,7 +2937,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                 contextMenu.innerHTML = contextMenu._originalHTML;
                 contextMenu._originalHTML = null;
                 // Re-update like state since we replaced the HTML
-                await updateContextMenuLikeState(contextMenu, track);
+                await updateContextMenuLikeState(contextMenu, track, ui);
             }
             return;
         }

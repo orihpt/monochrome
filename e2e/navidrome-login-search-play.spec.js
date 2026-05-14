@@ -6,8 +6,12 @@ const QUERY = 'THE DINER';
 const ALBUM = 'HIT ME HARD AND SOFT';
 
 async function expectNoUnhandledPromiseOverlay(page) {
-  await expect(page.locator('div', { hasText: /^Unhandled Promise Rejection:/ })).toHaveCount(0);
+  await expect(page.locator('.error-panel')).not.toBeVisible();
 }
+
+test.afterEach(async ({ page }) => {
+  await expect(page.locator('.error-panel')).not.toBeVisible();
+});
 
 test('logs in, searches THE DINER, opens its album, and plays the song', async ({ page }) => {
   test.setTimeout(120000);

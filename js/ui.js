@@ -2956,6 +2956,8 @@ export class UIRenderer {
                     this.renderHomeRecentlyAddedTracks(),
                 ]);
             }
+        } catch (error) {
+            console.warn('Failed to render home page:', error);
         } finally {
             this.renderLock = false;
         }

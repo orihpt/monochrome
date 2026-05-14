@@ -75,6 +75,10 @@ test.describe('artist library presentation', () => {
     await context.clearCookies();
   });
 
+  test.afterEach(async ({ page }) => {
+    await expect(page.locator('.error-panel')).not.toBeVisible();
+  });
+
   test('populates the Artists tab with local Navidrome artists', async ({ page }) => {
     await loginAsAdmin(page);
     await openArtistsTab(page);

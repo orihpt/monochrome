@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, '..');
 const backendEnvPath = path.resolve(appRoot, '../navidrome/.env');
 const hitMeHardAndSoftAlbumId = '4ZmbVLUy4kYrqwxgIGsYtk';
+const linkinParkAlbumId = '0cO3n7CUb9lQ6scVrEvVTO';
 
 function readEnvValue(filePath, key) {
   if (!fs.existsSync(filePath)) return undefined;
@@ -97,6 +98,10 @@ test.describe('Waves Music frontend E2E', () => {
 
   test.beforeEach(async ({ context }) => {
     await context.clearCookies();
+  });
+
+  test.afterEach(async ({ page }) => {
+    await expect(page.locator('.error-panel')).not.toBeVisible();
   });
 
   test('should show login modal when entering the website without credentials', async ({ page }) => {
@@ -206,5 +211,28 @@ test.describe('Waves Music frontend E2E', () => {
       timeout: 20000,
     });
     await expect(page.locator('[data-album-id]').filter({ hasText: /HIT ME HARD AND SOFT/i }).first()).toBeVisible();
+  });
+
+  test('should display all songs for an album and match the track count in meta', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto(`/album/${linkinParkAlbumId}`);
+
+    // Wait for the album title to confirm we are on the right page
+    await expect(page.locator('#album-detail-title')).toContainText(/Heavy Is the Crown/i, { timeout: 20000 });
+
+    // Get the track count from the meta text (e.g. "2 tracks • 5:57")
+    const metaText = await page.locator('#album-detail-meta').textContent();
+    const trackCountMatch = metaText.match(/(\d+)\s+tracks/);
+    expect(trackCountMatch, `Could not find track count in meta text: "${metaText}"`).not.toBeNull();
+    const expectedTrackCount = parseInt(trackCountMatch[1], 10);
+    expect(expectedTrackCount).toBeGreaterThan(0);
+
+    // Verify that the number of tracks in the list matches the expected count
+    await expect.poll(async () => {
+      return await page.locator('#album-detail-tracklist .track-item').count();
+    }, {
+      timeout: 15000,
+      message: `Expected ${expectedTrackCount} tracks in the list`
+    }).toBe(expectedTrackCount);
   });
 });

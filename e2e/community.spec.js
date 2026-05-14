@@ -100,6 +100,10 @@ async function installCommunityMocks(page) {
 }
 
 test.describe('offline community features', () => {
+  test.afterEach(async ({ page }) => {
+    await expect(page.locator('.error-panel')).not.toBeVisible();
+  });
+
   test('users can discover, follow, and view non-private listening profiles', async ({ page }) => {
     const requests = await installCommunityMocks(page);
 

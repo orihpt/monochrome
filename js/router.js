@@ -39,113 +39,117 @@ export function createRouter(ui) {
             return { provider: null, id: p };
         };
 
-        switch (page) {
-            case 'parties':
-                await ui.renderPartiesPage();
-                break;
-            case 'party':
-                await ui.renderPartyDetailPage(param);
-                break;
-            case 'search':
-                await ui.renderSearchPage(decodeURIComponent(param));
-                break;
-            case 'album': {
-                const { provider, id } = extractProviderAndId(param);
-                await ui.renderAlbumPage(id, provider);
-                break;
-            }
-            case 'artist': {
-                const { provider, id } = extractProviderAndId(param);
-                await ui.renderArtistPage(id, provider);
-                break;
-            }
-            case 'playlist': {
-                const { provider, id } = extractProviderAndId(param);
-                await ui.renderPlaylistPage(id, 'api', provider);
-                break;
-            }
-            case 'liked-songs':
-                await ui.renderLikedSongsPage();
-                break;
-            case 'userplaylist':
-                await ui.renderPlaylistPage(param, 'user');
-                break;
-            case 'folder':
-                await ui.renderFolderPage(param);
-                break;
-            case 'mix': {
-                const { provider, id } = extractProviderAndId(param);
-                await ui.renderMixPage(id, provider);
-                break;
-            }
-            case 'radio': {
-                const [kind, ...idParts] = param.split('/');
-                if (kind === 'track' && idParts.length > 0) {
-                    await ui.renderTrackRadioPage(decodeURIComponent(idParts.join('/')));
-                } else {
-                    await ui.renderHomePage();
+        try {
+            switch (page) {
+                case 'parties':
+                    await ui.renderPartiesPage();
+                    break;
+                case 'party':
+                    await ui.renderPartyDetailPage(param);
+                    break;
+                case 'search':
+                    await ui.renderSearchPage(decodeURIComponent(param));
+                    break;
+                case 'album': {
+                    const { provider, id } = extractProviderAndId(param);
+                    await ui.renderAlbumPage(id, provider);
+                    break;
                 }
-                break;
-            }
-            case 'track': {
-                const { provider, id } = extractProviderAndId(param);
-                if (id.startsWith('tracker-')) {
-                    await ui.renderTrackerTrackPage(id);
-                } else {
-                    await ui.renderTrackPage(id, provider);
+                case 'artist': {
+                    const { provider, id } = extractProviderAndId(param);
+                    await ui.renderArtistPage(id, provider);
+                    break;
                 }
-                break;
-            }
-            case 'lyrics':
-                await ui.renderLyricsPage();
-                break;
-            case 'library':
-                await ui.renderLibraryPage();
-                break;
-            case 'recent':
-                await ui.renderRecentPage();
-                break;
-            case 'unreleased':
-                if (param) {
-                    const parts = param.split('/');
-                    const sheetId = parts[0];
-                    const projectName = parts[1] ? decodeURIComponent(parts[1]) : null;
-                    if (projectName) {
-                        await ui.renderTrackerProjectPage(sheetId, projectName);
+                case 'playlist': {
+                    const { provider, id } = extractProviderAndId(param);
+                    await ui.renderPlaylistPage(id, 'api', provider);
+                    break;
+                }
+                case 'liked-songs':
+                    await ui.renderLikedSongsPage();
+                    break;
+                case 'userplaylist':
+                    await ui.renderPlaylistPage(param, 'user');
+                    break;
+                case 'folder':
+                    await ui.renderFolderPage(param);
+                    break;
+                case 'mix': {
+                    const { provider, id } = extractProviderAndId(param);
+                    await ui.renderMixPage(id, provider);
+                    break;
+                }
+                case 'radio': {
+                    const [kind, ...idParts] = param.split('/');
+                    if (kind === 'track' && idParts.length > 0) {
+                        await ui.renderTrackRadioPage(decodeURIComponent(idParts.join('/')));
                     } else {
-                        await ui.renderTrackerArtistPage(sheetId);
+                        await ui.renderHomePage();
                     }
-                } else {
-                    await ui.renderUnreleasedPage();
+                    break;
                 }
-                break;
-            case 'home':
-                await ui.renderHomePage();
-                break;
-            case 'reset-password':
-                await ui.renderResetPasswordPage();
-                break;
-            case 'donate':
-                ui.showPage('donate');
-                break;
-            case 'about':
-                await ui.renderAboutPage();
-                break;
-            case 'user':
-                if (param && param.startsWith('@') && !param.includes('/')) {
-                    await loadProfile(decodeURIComponent(param.slice(1)));
+                case 'track': {
+                    const { provider, id } = extractProviderAndId(param);
+                    if (id.startsWith('tracker-')) {
+                        await ui.renderTrackerTrackPage(id);
+                    } else {
+                        await ui.renderTrackPage(id, provider);
+                    }
+                    break;
                 }
-                break;
-            case 'settings':
-                if (param === 'profile') {
-                    await ui.renderProfileEditPage();
-                } else {
-                    ui.showPage('settings');
-                }
-                break;
-            default:
-                ui.showPage(page);
-                break;
+                case 'lyrics':
+                    await ui.renderLyricsPage();
+                    break;
+                case 'library':
+                    await ui.renderLibraryPage();
+                    break;
+                case 'recent':
+                    await ui.renderRecentPage();
+                    break;
+                case 'unreleased':
+                    if (param) {
+                        const parts = param.split('/');
+                        const sheetId = parts[0];
+                        const projectName = parts[1] ? decodeURIComponent(parts[1]) : null;
+                        if (projectName) {
+                            await ui.renderTrackerProjectPage(sheetId, projectName);
+                        } else {
+                            await ui.renderTrackerArtistPage(sheetId);
+                        }
+                    } else {
+                        await ui.renderUnreleasedPage();
+                    }
+                    break;
+                case 'home':
+                    await ui.renderHomePage();
+                    break;
+                case 'reset-password':
+                    await ui.renderResetPasswordPage();
+                    break;
+                case 'donate':
+                    ui.showPage('donate');
+                    break;
+                case 'about':
+                    await ui.renderAboutPage();
+                    break;
+                case 'user':
+                    if (param && param.startsWith('@') && !param.includes('/')) {
+                        await loadProfile(decodeURIComponent(param.slice(1)));
+                    }
+                    break;
+                case 'settings':
+                    if (param === 'profile') {
+                        await ui.renderProfileEditPage();
+                    } else {
+                        ui.showPage('settings');
+                    }
+                    break;
+                default:
+                    ui.showPage(page);
+                    break;
+            }
+        } catch (error) {
+            console.error(`Navigation error for ${path}:`, error);
         }
     };
 

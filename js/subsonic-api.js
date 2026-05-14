@@ -66,34 +66,40 @@ export class SubsonicAPI {
         const username = this.user;
         const password = this.password;
         if (!username || !password) {
-            throw new Error('Native API request failed: missing credentials');
+            return null;
         }
 
         if (!forceRefresh && this.nativeLoginPromise) {
             return this.nativeLoginPromise;
         }
 
-        this.nativeLoginPromise = fetch('/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
-        })
-            .then(async (response) => {
+        this.nativeLoginPromise = (async () => {
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
                 if (!response.ok) {
                     localStorage.removeItem(this.nativeTokenKey);
-                    throw new Error(`Native API login failed: ${response.status}`);
+                    return null;
                 }
                 const data = await response.json();
                 if (!data?.token) {
                     localStorage.removeItem(this.nativeTokenKey);
-                    throw new Error('Native API login failed: missing token');
+                    return null;
                 }
                 localStorage.setItem(this.nativeTokenKey, data.token);
                 return data.token;
-            })
-            .finally(() => {
+            } catch (error) {
+                console.warn('Native API login failed:', error);
+                localStorage.removeItem(this.nativeTokenKey);
+                return null;
+            } finally {
                 this.nativeLoginPromise = null;
-            });
+            }
+        })();
 
         return this.nativeLoginPromise;
     }
@@ -101,6 +107,8 @@ export class SubsonicAPI {
     async fetchNative(path, options = {}) {
         const send = async (forceRefresh = false) => {
             const token = await this.getNativeToken({ forceRefresh });
+            if (!token) return null;
+
             const headers = new Headers(options.headers || {});
             if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
                 headers.set('Content-Type', 'application/json');
@@ -114,10 +122,14 @@ export class SubsonicAPI {
         };
 
         let response = await send(false);
+        if (!response) return {};
+
         if (response.status === 401) {
             localStorage.removeItem(this.nativeTokenKey);
             response = await send(true);
         }
+
+        if (!response) return {};
 
         const refreshedToken = response.headers.get('X-ND-Authorization');
         if (refreshedToken) {

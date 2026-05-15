@@ -132,6 +132,12 @@
             <li data-action="add-to-playlist" data-type-filter="track,video">
                 <use svg="!lucide/folder-plus.svg" size="16" /><span class="menu-label">הוסף לפלייליסט</span>
             </li>
+            <li data-action="add-to-library" data-type-filter="playlist,user-playlist">
+                <use svg="!lucide/plus-circle.svg" size="16" /><span class="menu-label">הוספה לספרייה</span>
+            </li>
+            <li data-action="remove-from-library" data-type-filter="playlist,user-playlist">
+                <use svg="!lucide/minus-circle.svg" size="16" /><span class="menu-label">הסרה מהספרייה</span>
+            </li>
             <li data-action="request-song" data-type-filter="track,video">
                 <use svg="!lucide/send.svg" size="16" /><span class="menu-label">בקש שיר</span>
             </li>
@@ -148,6 +154,12 @@
             </li>
             <li data-action="open-original-url" data-type-filter="track,video">
                 <use svg="!lucide/external-link.svg" size="16" /><span class="menu-label">פתח קישור מקורי</span>
+            </li>
+            <li data-action="hide-from-community" data-type-filter="playlist,user-playlist">
+                <use svg="!lucide/eye-off.svg" size="16" /><span class="menu-label">הסתר מהקהילה</span>
+            </li>
+            <li data-action="unhide-from-community" data-type-filter="playlist,user-playlist">
+                <use svg="!lucide/eye.svg" size="16" /><span class="menu-label">בטל הסתרה מהקהילה</span>
             </li>
         </ul>
     </div>
@@ -4223,7 +4235,7 @@
                         </div>
                     </div>
 
-                    <div class="settings-group">
+                    <div class="settings-group" id="recommendations-server-settings-group">
                         <div class="sidebar-settings-section">
                             <span class="sidebar-settings-section-label">RECOMMENDATIONS SERVER</span>
                         </div>

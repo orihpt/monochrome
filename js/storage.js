@@ -3,7 +3,7 @@
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
     INSTANCES_URLS:
-        __OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__
+        true || !__ENABLE_EXTERNAL_API_INSTANCES__
             ? []
             : [
                   'https://tidal-uptime.jiffy-puffs-1j.workers.dev/',
@@ -30,7 +30,7 @@ export const apiSettings = {
     },
 
     async loadInstancesFromGitHub() {
-        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+        if (true || !__ENABLE_EXTERNAL_API_INSTANCES__) {
             // Offline-first mode: keep the upstream instance discovery code below
             // recoverable, but never call public uptime workers unless opted in.
             this.defaultInstances = { api: [], streaming: [] };

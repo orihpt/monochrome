@@ -32,8 +32,6 @@ function getGitCommitHash() {
 
 export default defineConfig((_options) => {
     const commitHash = getGitCommitHash();
-    const offlineMode = true;
-    const enableTidalApi = false;
     const enableExternalApiInstances = false;
     const enableExternalAuth = false;
     const enableExternalUploads = false;
@@ -54,8 +52,6 @@ export default defineConfig((_options) => {
         define: {
             __COMMIT_HASH__: JSON.stringify(commitHash),
             __VITEST__: !!process.env.VITEST,
-            __OFFLINE_MODE__: JSON.stringify(offlineMode),
-            __ENABLE_TIDAL_API__: JSON.stringify(enableTidalApi),
             __ENABLE_EXTERNAL_API_INSTANCES__: JSON.stringify(enableExternalApiInstances),
             __ENABLE_EXTERNAL_AUTH__: JSON.stringify(enableExternalAuth),
             __ENABLE_EXTERNAL_UPLOADS__: JSON.stringify(enableExternalUploads),

@@ -84,6 +84,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const adminTab = document.getElementById('settings-admin-tab');
     const adminTabContent = document.getElementById('settings-tab-admin');
     const triggerScanBtn = document.getElementById('trigger-scan-btn');
+    const recommendationsSettingsGroup = document.getElementById('recommendations-server-settings-group');
     const triggerRecommendationsBtn = document.getElementById('trigger-recommendations-btn');
     const refreshRecommendationsStatusBtn = document.getElementById('refresh-recommendations-status-btn');
     const recommendationsServerStatus = document.getElementById('recommendations-server-status');
@@ -222,9 +223,17 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         });
     }
 
+    const recommendationsEnabled =
+        isAdmin && typeof adminApi.checkRecommendationStatus === 'function'
+            ? await adminApi.checkRecommendationStatus()
+            : false;
+    if (recommendationsSettingsGroup) {
+        recommendationsSettingsGroup.style.display = recommendationsEnabled ? '' : 'none';
+    }
+
     if (triggerRecommendationsBtn) {
         triggerRecommendationsBtn.addEventListener('click', async () => {
-            if (!isAdmin) return;
+            if (!isAdmin || !recommendationsEnabled) return;
             setAdminButtonsDisabled(true);
             setAdminStatus('Scheduling recommendation retraining...');
             try {
@@ -242,7 +251,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     if (refreshRecommendationsStatusBtn) {
         refreshRecommendationsStatusBtn.addEventListener('click', async () => {
-            if (!isAdmin) return;
+            if (!isAdmin || !recommendationsEnabled) return;
             setAdminButtonsDisabled(true);
             try {
                 await loadRecommendationStatus();
@@ -252,7 +261,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         });
     }
 
-    if (isAdmin) {
+    if (isAdmin && recommendationsEnabled) {
         await loadRecommendationStatus({ quiet: true });
     }
 

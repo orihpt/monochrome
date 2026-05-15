@@ -183,7 +183,7 @@ export class LosslessAPI {
             return response;
         }
 
-        const shouldTryNative = type !== 'streaming' && !__OFFLINE_MODE__ && __ENABLE_TIDAL_API__;
+        const shouldTryNative = false;
 
         if (shouldTryNative) {
             try {
@@ -213,7 +213,7 @@ export class LosslessAPI {
             }
         }
 
-        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+        if (true || !__ENABLE_EXTERNAL_API_INSTANCES__) {
             // Offline-first mode: do not fall back to public HiFi/Monochrome
             // worker instances. Local Navidrome/Subsonic paths are handled by
             // subsonic-api.js and nginx, not this external API client.

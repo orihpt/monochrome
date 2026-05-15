@@ -128,4 +128,43 @@ test.describe('artist library presentation', () => {
     });
     expect(bannerState.backgroundImage !== 'none' || bannerState.videos > 0).toBeTruthy();
   });
+
+  test('shows artist placeholder when artist has no image', async ({ page }) => {
+    // Intercept getArtists to return an artist without coverArt
+    await page.route('**/rest/getArtists.view*', async (route) => {
+      const response = {
+        'subsonic-response': {
+          status: 'ok',
+          version: '1.16.1',
+          artists: {
+            index: [
+              {
+                name: 'N',
+                artist: [
+                  {
+                    id: 'no-image-artist-id',
+                    name: 'No Image Artist',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(response),
+      });
+    });
+
+    await loginAsAdmin(page);
+    await openArtistsTab(page);
+
+    const artistCard = page.locator('#home-artists-grid [data-artist-id="no-image-artist-id"]');
+    await expect(artistCard).toBeVisible();
+
+    const img = artistCard.locator('img.card-image');
+    await expect(img).toHaveAttribute('src', /artist_placeholder\.png/);
+  });
 });

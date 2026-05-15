@@ -1458,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             return;
                         }
 
-                        if (__OFFLINE_MODE__ || !__ENABLE_EXTERNAL_API_INSTANCES__) {
+                        if (true || !__ENABLE_EXTERNAL_API_INSTANCES__) {
                             // Offline-first mode: keep the YouTube Music importer
                             // recoverable, but do not call the public worker.
                             alert('YouTube Music import is disabled in offline mode.');

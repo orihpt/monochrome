@@ -26,27 +26,31 @@ export function stylishAssetUrl(assetName) {
 }
 
 export function normalizePlaylistCover(playlist = {}) {
-    const legacyCover = playlist.cover || playlist.image || '';
-    const raw = playlist.coverMetadata || playlist.coverMeta || playlist.playlistCover || null;
-    const coverType = raw?.coverType || playlist.coverType || (legacyCover ? PLAYLIST_COVER_TYPE_UPLOADED : PLAYLIST_COVER_TYPE_ALBUM_GRID);
+    const legacyCover = playlist.cover || playlist.image || playlist.squareImage || playlist.uuid || '';
+    const raw = playlist.coverMetadata || playlist.coverMeta || playlist.playlistCover || playlist.playlist_cover || null;
+    const coverType = raw?.coverType || raw?.cover_type || playlist.coverType || playlist.cover_type || (legacyCover ? PLAYLIST_COVER_TYPE_UPLOADED : PLAYLIST_COVER_TYPE_ALBUM_GRID);
+    
     if (coverType === PLAYLIST_COVER_TYPE_STYLISH) {
-        const stylishAssetName = STYLISH_PLAYLIST_ASSETS.includes(raw?.stylishAssetName || playlist.stylishAssetName)
-            ? raw?.stylishAssetName || playlist.stylishAssetName
+        const rawAsset = raw?.stylishAssetName || raw?.stylish_asset_name || playlist.stylishAssetName || playlist.stylish_asset_name;
+        const stylishAssetName = STYLISH_PLAYLIST_ASSETS.includes(rawAsset)
+            ? rawAsset
             : STYLISH_PLAYLIST_ASSETS[0];
         return {
             coverType: PLAYLIST_COVER_TYPE_STYLISH,
             stylishAssetName,
-            gradientColorA: normalizeHex(raw?.gradientColorA || playlist.gradientColorA, DEFAULT_COLOR_A),
-            gradientColorB: normalizeHex(raw?.gradientColorB || playlist.gradientColorB, DEFAULT_COLOR_B),
+            gradientColorA: normalizeHex(raw?.gradientColorA || raw?.gradient_color_a || playlist.gradientColorA || playlist.gradient_color_a, DEFAULT_COLOR_A),
+            gradientColorB: normalizeHex(raw?.gradientColorB || raw?.gradient_color_b || playlist.gradientColorB || playlist.gradient_color_b, DEFAULT_COLOR_B),
         };
     }
-    if (coverType === PLAYLIST_COVER_TYPE_UPLOADED && (raw?.uploadedCoverId || playlist.uploadedCoverId || legacyCover)) {
-        const uploadedCoverId = raw?.uploadedCoverId || playlist.uploadedCoverId || legacyCover;
+    
+    const uploadedId = raw?.uploadedCoverId || raw?.uploaded_cover_id || playlist.uploadedCoverId || playlist.uploaded_cover_id || legacyCover;
+    if (coverType === PLAYLIST_COVER_TYPE_UPLOADED && uploadedId) {
         return {
             coverType: PLAYLIST_COVER_TYPE_UPLOADED,
-            uploadedCoverId,
+            uploadedCoverId: uploadedId,
         };
     }
+    
     return { coverType: PLAYLIST_COVER_TYPE_ALBUM_GRID };
 }
 

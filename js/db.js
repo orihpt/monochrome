@@ -610,6 +610,42 @@ export class MusicDatabase {
     }
 
     // User Playlists API
+    async addPlaylistToLibrary(playlist) {
+        if (!playlist || !playlist.id) return null;
+
+        // Check if already in library
+        const existing = await this.getPlaylist(playlist.id);
+        if (existing) return existing;
+
+        const followedPlaylist = {
+            ...playlist,
+            isFollowed: true,
+            syncStatus: 'synced', // It's a server playlist, so mark as synced to avoid re-creation
+            addedToLibraryAt: Date.now(),
+            createdAt: playlist.createdAt || playlist.addedAt || Date.now(),
+            updatedAt: Date.now(),
+        };
+
+        // Ensure we don't try to sync it as "owned" in navidrome-sync.js
+        // by setting ownerUsername to the original owner
+        
+        await this.performTransaction('user_playlists', 'readwrite', (store) => store.put(followedPlaylist));
+
+        // Notify UI
+        window.dispatchEvent(new CustomEvent('playlist-tracks-changed'));
+        
+        // Trigger sync of userData blob
+        window.dispatchEvent(new CustomEvent('sync-complete')); // This triggers syncManager.triggerChange()
+
+        return followedPlaylist;
+    }
+
+    async removePlaylistFromLibrary(playlistId) {
+        await this.performTransaction('user_playlists', 'readwrite', (store) => store.delete(playlistId));
+        window.dispatchEvent(new CustomEvent('playlist-tracks-changed'));
+        window.dispatchEvent(new CustomEvent('sync-complete'));
+    }
+
     async createPlaylist(name, tracks = [], cover = '', description = '', coverMetadata = null) {
         const id = crypto.randomUUID();
         const playlist = {
@@ -864,7 +900,7 @@ export class MusicDatabase {
                     const { tracks, ...minified } = playlist;
                     return minified;
                 }).filter((playlist) => {
-                    if (!currentOwner || !playlist.ownerUsername || playlist.ownerUsername === currentOwner) return true;
+                    if (!currentOwner || !playlist.ownerUsername || playlist.ownerUsername === currentOwner || playlist.isFollowed) return true;
                     if (options.includeVisible) {
                         const visibility = playlist.visibility || (playlist.isPublic ? 'public' : 'private');
                         return visibility === 'public' || visibility === 'featured';

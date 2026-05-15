@@ -24,3 +24,5 @@ neutralino.js
 .envrc
 # vim
 .lazy.lua
+test-results
+playwright-report

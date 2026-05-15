@@ -10,6 +10,8 @@ export class SubsonicAPI {
         this.client = 'waves-music';
         this.nativeTokenKey = 'navidrome_native_token';
         this.nativeLoginPromise = null;
+        this.featuresPromise = null;
+        this.features = null;
     }
 
     get user() {
@@ -122,14 +124,14 @@ export class SubsonicAPI {
         };
 
         let response = await send(false);
-        if (!response) return {};
+        if (!response) return null;
 
         if (response.status === 401) {
             localStorage.removeItem(this.nativeTokenKey);
             response = await send(true);
         }
 
-        if (!response) return {};
+        if (!response) return null;
 
         const refreshedToken = response.headers.get('X-ND-Authorization');
         if (refreshedToken) {
@@ -240,38 +242,50 @@ export class SubsonicAPI {
 
     preparePlaylist(playlist) {
         if (!playlist) return null;
+
+        const songCount = playlist.songCount ?? playlist.song_count ?? playlist.songcount ?? 0;
+        const duration = playlist.duration ?? 0;
+        const visibility = playlist.visibility ?? (playlist.public === true || playlist.public === 'true' ? 'featured' : 'private');
+        const isPublic = playlist.public === true || playlist.public === 'true' || visibility === 'public' || visibility === 'featured';
+
+        const coverType = playlist.coverType ?? playlist.cover_type ?? playlist.covertype;
+        const stylishAssetName = playlist.stylishAssetName ?? playlist.stylish_asset_name ?? playlist.stylishassetname;
+        const gradientColorA = playlist.gradientColorA ?? playlist.gradient_color_a ?? playlist.gradientcolora;
+        const gradientColorB = playlist.gradientColorB ?? playlist.gradient_color_b ?? playlist.gradientcolorb;
+
         return {
             id: playlist.id,
             uuid: playlist.id,
             title: playlist.name,
             name: playlist.name,
             description: playlist.comment || '',
-            cover: playlist.coverArt,
-            image: playlist.coverArt,
-            squareImage: playlist.coverArt,
-            numberOfTracks: playlist.songCount || 0,
-            songCount: playlist.songCount || 0,
-            duration: playlist.duration || 0,
-            owner: playlist.owner,
-            ownerUsername: playlist.owner,
-            visibility: playlist.visibility || (playlist.public === true || playlist.public === 'true' ? 'public' : 'private'),
-            public: playlist.public === true || playlist.public === 'true',
-            coverType: playlist.coverType,
-            stylishAssetName: playlist.stylishAssetName,
-            gradientColorA: playlist.gradientColorA,
-            gradientColorB: playlist.gradientColorB,
-            coverMetadata: playlist.coverType
+            cover: playlist.coverArt ?? playlist.cover_art ?? playlist.coverart,
+            image: playlist.coverArt ?? playlist.cover_art ?? playlist.coverart,
+            squareImage: playlist.coverArt ?? playlist.cover_art ?? playlist.coverart,
+            numberOfTracks: songCount,
+            songCount: songCount,
+            duration: duration,
+            owner: playlist.owner || playlist.ownername || playlist.owner_name,
+            ownerUsername: playlist.owner || playlist.ownername || playlist.owner_name,
+            visibility: visibility,
+            public: isPublic,
+            coverType: coverType,
+            stylishAssetName: stylishAssetName,
+            gradientColorA: gradientColorA,
+            gradientColorB: gradientColorB,
+            coverMetadata: coverType
                 ? {
-                      coverType: playlist.coverType,
-                      stylishAssetName: playlist.stylishAssetName,
-                      gradientColorA: playlist.gradientColorA,
-                      gradientColorB: playlist.gradientColorB,
-                      uploadedCoverId: playlist.coverArt,
+                      coverType: coverType,
+                      stylishAssetName: stylishAssetName,
+                      gradientColorA: gradientColorA,
+                      gradientColorB: gradientColorB,
+                      uploadedCoverId: playlist.coverArt ?? playlist.cover_art ?? playlist.coverart,
                   }
                 : undefined,
-            curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true',
+            curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true' || playlist.curatorpinned === true,
             readonly: playlist.readonly === true || playlist.readonly === 'true',
-            isCuratorPlaylist: playlist.owner === 'wavesmusic_curator',
+            isCuratorPlaylist: (playlist.owner || playlist.ownername) === 'wavesmusic_curator',
+            hiddenFromCommunity: playlist.hiddenFromCommunity === true || playlist.hiddenFromCommunity === 'true' || playlist.hidden_from_community === true,
         };
     }
 
@@ -385,7 +399,7 @@ export class SubsonicAPI {
         return {
             id: artist.id,
             name: artist.name || 'Unknown Artist',
-            picture: artist.coverArt || artist.id,
+            picture: artist.coverArt || null,
             tracks: [],
             albums: [],
             eps: [],
@@ -512,6 +526,41 @@ export class SubsonicAPI {
         }
 
         return response;
+    }
+
+    async getFeatures({ forceRefresh = false } = {}) {
+        if (!forceRefresh && this.features) return this.features;
+        if (!forceRefresh && this.featuresPromise) return this.featuresPromise;
+
+        this.featuresPromise = (async () => {
+            const response = await this.fetchNative('/api/features', {
+                method: 'GET',
+                headers: { Accept: 'application/json' },
+            });
+            const features = response?.features || {};
+            this.features = {
+                recommendations: features.recommendations === true,
+            };
+            return this.features;
+        })();
+
+        try {
+            return await this.featuresPromise;
+        } catch {
+            this.features = { recommendations: false };
+            return this.features;
+        } finally {
+            this.featuresPromise = null;
+        }
+    }
+
+    async areRecommendationsEnabled() {
+        const features = await this.getFeatures();
+        return features.recommendations === true;
+    }
+
+    async checkRecommendationStatus() {
+        return this.areRecommendationsEnabled();
     }
 
     async searchTracks(query, options = {}) {
@@ -708,6 +757,7 @@ export class SubsonicAPI {
 
     async getCommunityActivity(limit = 20) {
         const data = await this.fetchNative(`/api/community/activity?limit=${encodeURIComponent(limit)}`);
+        if (!data) return { recentlyPlayed: [], mostPlayed: [], followingRecent: [] };
         return {
             recentlyPlayed: (data.recentlyPlayed || []).map((song) => this.prepareTrack(song)).filter(Boolean),
             mostPlayed: (data.mostPlayed || []).map((song) => this.prepareTrack(song)).filter(Boolean),
@@ -749,6 +799,14 @@ export class SubsonicAPI {
 
     async unfollowUser(id) {
         return this.fetchNative(`/api/user/${encodeURIComponent(id)}/follow`, { method: 'DELETE' });
+    }
+
+    async hidePlaylistFromCommunity(id) {
+        return this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/hide_from_community`, { method: 'PUT' });
+    }
+
+    async unhidePlaylistFromCommunity(id) {
+        return this.fetchNative(`/api/playlist/${encodeURIComponent(id)}/unhide_from_community`, { method: 'PUT' });
     }
 
     async getAllArtists(options = {}) {
@@ -862,6 +920,7 @@ export class SubsonicAPI {
     // --- Recommendations / similar ---
 
     async getRecommendedTracksForPlaylist(seeds = [], limit = 20, options = {}) {
+        if (!(await this.areRecommendationsEnabled())) return [];
         try {
             const knownTrackIds = Array.from(options.knownTrackIds || []);
             const response = await fetch('/api/v1/recommend/v1/radio', {
@@ -888,6 +947,7 @@ export class SubsonicAPI {
     }
 
     async getSimilarAlbums(albumId) {
+        if (!(await this.areRecommendationsEnabled())) return [];
         try {
             const response = await fetch(`/api/v1/recommend/v1/related/albums/${encodeURIComponent(albumId)}?limit=12`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
@@ -910,6 +970,7 @@ export class SubsonicAPI {
     }
 
     async getSimilarArtists(artistId) {
+        if (!(await this.areRecommendationsEnabled())) return [];
         try {
             const response = await fetch(`/api/v1/recommend/v1/related/artists/${encodeURIComponent(artistId)}?limit=12`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
@@ -926,6 +987,7 @@ export class SubsonicAPI {
     }
 
     async getTrackRecommendations(id) {
+        if (!(await this.areRecommendationsEnabled())) return [];
         try {
             const response = await fetch(`/api/v1/recommend/v1/related/tracks/${encodeURIComponent(id)}?limit=20`);
             if (!response.ok) throw new Error(`Recommendation service returned ${response.status}`);
@@ -1121,6 +1183,9 @@ export class SubsonicAPI {
     }
 
     async retriggerRecommendations() {
+        if (!(await this.areRecommendationsEnabled())) {
+            throw new Error('Recommendations are disabled');
+        }
         const isAdmin = await this.isCurrentUserAdmin();
         if (!isAdmin) {
             throw new Error('Admin permissions are required');
@@ -1137,6 +1202,9 @@ export class SubsonicAPI {
     }
 
     async getRecommendationServerStatus() {
+        if (!(await this.areRecommendationsEnabled())) {
+            return { status: 'disabled', disabled: true };
+        }
         const isAdmin = await this.isCurrentUserAdmin();
         if (!isAdmin) {
             throw new Error('Admin permissions are required');
@@ -1153,6 +1221,7 @@ export class SubsonicAPI {
     }
 
     async recordRecommendationEvent(event) {
+        if (!(await this.areRecommendationsEnabled())) return null;
         if (!event?.track_id && !event?.trackId) return null;
         const response = await fetch('/api/v1/recommend/v1/events', {
             method: 'POST',

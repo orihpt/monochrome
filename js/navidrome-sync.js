@@ -43,24 +43,24 @@ export const syncManager = {
     },
 
     async fetchSyncData() {
-        const response = await fetch('/api/user/sync', { credentials: 'same-origin' });
-        if (response.status === 401) return null; // Not logged in
-        if (!response.ok) throw new Error('Failed to fetch sync data');
-        return await this._readJsonResponse(response, 'Failed to fetch sync data');
+        const api = MusicAPI.instance?.subsonicAPI;
+        if (!api?.user || !api?.password || typeof api.fetchNative !== 'function') return null;
+        const response = await api.fetchNative('/api/user/sync');
+        return response?.id ? response : null;
     },
 
     async pushSyncData(data, timestamp) {
-        const response = await fetch('/api/user/sync', {
+        const api = MusicAPI.instance?.subsonicAPI;
+        if (!api?.user || !api?.password || typeof api.fetchNative !== 'function') return null;
+        const response = await api.fetchNative('/api/user/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
             body: JSON.stringify({
                 userData: JSON.stringify(data),
                 userDataUpdatedAt: timestamp,
             }),
         });
-        if (!response.ok) throw new Error('Failed to push sync data');
-        return await this._readJsonResponse(response, 'Failed to push sync data');
+        return response?.id ? response : null;
     },
 
     async sync() {
@@ -103,6 +103,9 @@ export const syncManager = {
             } else {
                 console.log('Sync: already up to date');
             }
+            
+            // Periodically cleanup followed playlists that might have been made private
+            await this.cleanupFollowedPlaylists();
         } catch (error) {
             console.error('Sync error:', error);
         }
@@ -152,8 +155,48 @@ export const syncManager = {
         this._initialized = false;
     },
 
+    async cleanupFollowedPlaylists() {
+        // Throttle cleanup to run at most once every hour to avoid excessive API calls
+        const lastCleanup = parseInt(localStorage.getItem('followed_playlists_cleanup_at') || '0');
+        const now = Date.now();
+        if (now - lastCleanup < 60 * 60 * 1000) return;
+
+        try {
+            const playlists = await db.getPlaylists(true);
+            const followed = playlists.filter((p) => p.isFollowed);
+            if (followed.length === 0) return;
+
+            const api = MusicAPI.instance;
+            if (!api) return;
+            const currentUsername = localStorage.getItem('subsonic_user') || '';
+
+            for (const playlist of followed) {
+                try {
+                    const remote = await api.getPlaylist(playlist.id);
+                    // Check if it's private and we don't own it
+                    if (remote.visibility === 'private' && remote.ownerUsername !== currentUsername) {
+                        console.log(`Playlist ${playlist.id} is now private, removing from library.`);
+                        await db.removePlaylistFromLibrary(playlist.id);
+                    }
+                } catch (error) {
+                    // 404, 403 or Not Authorized means it's gone or inaccessible
+                    const msg = error.message || '';
+                    if (error.status === 404 || error.status === 403 || msg.includes('Not Authorized') || msg.includes('not found')) {
+                        console.log(`Playlist ${playlist.id} is no longer accessible, removing from library.`);
+                        await db.removePlaylistFromLibrary(playlist.id);
+                    }
+                }
+            }
+            localStorage.setItem('followed_playlists_cleanup_at', now.toString());
+        } catch (error) {
+            console.error('Failed to cleanup followed playlists:', error);
+        }
+    },
+
     // Compatibility methods for existing code
-    async getPublicPlaylist() { return null; },
+    async getPublicPlaylist(id) {
+        return MusicAPI.instance.getPlaylist(id);
+    },
     async getProfile() { return null; },
     async syncUserFolder() {},
     async publishPlaylist(playlist) {
@@ -178,7 +221,7 @@ export const syncManager = {
         return this.syncUserPlaylist({ ...playlist, visibility: 'private', isPublic: false }, 'update');
     },
     async syncUserPlaylist(playlist, action = 'update') {
-        if (!playlist?.id) return playlist;
+        if (!playlist?.id || playlist.isFollowed) return playlist;
 
         const api = MusicAPI.instance;
         if (!api) return playlist;
@@ -281,6 +324,7 @@ export const syncManager = {
             await this.syncPendingPlaylistDeletes();
             const playlists = await db.getPlaylists(true);
             const pending = playlists.filter((playlist) => {
+                if (playlist.isFollowed) return false;
                 const isLocalOnlyId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(playlist.id);
                 return ['local', 'pending'].includes(playlist.syncStatus) || (!playlist.serverId && isLocalOnlyId);
             });
@@ -314,6 +358,49 @@ export const syncManager = {
         this._writePendingDeletes(remaining);
     },
     async getPublicPlaylist() { return null; },
+    
+    async cleanupFollowedPlaylists() {
+        if (this._disabled) return;
+        
+        const now = Date.now();
+        const lastCleanup = parseInt(localStorage.getItem('followed_playlists_cleanup_at') || '0');
+        const oneHour = 60 * 60 * 1000;
+        
+        if (now - lastCleanup < oneHour) {
+            return;
+        }
+        
+        try {
+            const playlists = await db.getPlaylists(true);
+            const followed = playlists.filter(p => p.isFollowed);
+            
+            if (followed.length === 0) {
+                localStorage.setItem('followed_playlists_cleanup_at', now.toString());
+                return;
+            }
+            
+            const api = MusicAPI.instance;
+            for (const playlist of followed) {
+                try {
+                    const result = await api.getPlaylist(playlist.id);
+                    if (!result || !result.playlist || result.playlist.visibility === 'private') {
+                        console.log(`[Sync] Cleaning up inaccessible followed playlist: ${playlist.name} (${playlist.id})`);
+                        await db.removePlaylistFromLibrary(playlist.id);
+                    }
+                } catch (error) {
+                    // 404 or 403 means it's gone or private
+                    if (error.message?.includes('404') || error.message?.includes('403')) {
+                        console.log(`[Sync] Removing 404/403 followed playlist: ${playlist.name}`);
+                        await db.removePlaylistFromLibrary(playlist.id);
+                    }
+                }
+            }
+            
+            localStorage.setItem('followed_playlists_cleanup_at', now.toString());
+        } catch (error) {
+            console.error('Failed to cleanup followed playlists:', error);
+        }
+    }
 };
 
 export default syncManager;

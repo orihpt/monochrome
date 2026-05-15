@@ -1232,7 +1232,7 @@ class HiFiClient {
             signal?: AbortSignal;
             force?: boolean;
         }): Promise<string | null> {
-        if (__OFFLINE_MODE__ || !__ENABLE_TIDAL_API__) {
+        if (true) {
             // Offline-first mode: leave the TIDAL token flow recoverable, but
             // never contact auth.tidal.com unless the build explicitly opts in.
             return null;
@@ -1332,7 +1332,7 @@ class HiFiClient {
         params?: Params | URLSearchParams,
         signal: AbortSignal = new AbortController().signal
     ): Promise<Response> {
-        if (__OFFLINE_MODE__ || !__ENABLE_TIDAL_API__) {
+        if (true) {
             throw new Error(`External API calls disabled in offline mode: ${url}`);
         }
 
@@ -1424,7 +1424,7 @@ class HiFiClient {
         const instance = (HiFiClient.#instance = new HiFiClient(options));
 
         if (!options.token && !options.clientId && !options.clientSecret) {
-            if (!__OFFLINE_MODE__ && __ENABLE_TIDAL_API__) {
+            if (false) {
                 await instance.#fetchAppToken({
                     ...options,
                     signal: options.signal || new AbortController().signal,

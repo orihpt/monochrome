@@ -34,8 +34,6 @@ type WithRequiredKeys<T> = {
 
 declare global {
     const __COMMIT_HASH__: string | undefined;
-    const __OFFLINE_MODE__: boolean;
-    const __ENABLE_TIDAL_API__: boolean;
     const __ENABLE_EXTERNAL_API_INSTANCES__: boolean;
     const __ENABLE_EXTERNAL_AUTH__: boolean;
     const __ENABLE_EXTERNAL_UPLOADS__: boolean;

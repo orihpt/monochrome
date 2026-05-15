@@ -2058,6 +2058,30 @@ export async function handleTrackAction(
         if (item.album?.id) {
             navigate(`/album/${item.album.id}`);
         }
+    } else if (action === 'hide-from-community') {
+        try {
+            await api.subsonicAPI.hidePlaylistFromCommunity(item.id || item.uuid);
+            item.hiddenFromCommunity = true;
+            showNotification('Playlist hidden from community');
+            if (ui && ui.currentPage === 'community') {
+                await ui.renderCommunityPage();
+            }
+        } catch (error) {
+            console.error('Failed to hide playlist from community:', error);
+            showNotification('Failed to hide playlist');
+        }
+    } else if (action === 'unhide-from-community') {
+        try {
+            await api.subsonicAPI.unhidePlaylistFromCommunity(item.id || item.uuid);
+            item.hiddenFromCommunity = false;
+            showNotification('Playlist unhidden from community');
+            if (ui && ui.currentPage === 'community') {
+                await ui.renderCommunityPage();
+            }
+        } catch (error) {
+            console.error('Failed to unhide playlist from community:', error);
+            showNotification('Failed to unhide playlist');
+        }
     } else if (action === 'copy-link' || action === 'share') {
         // Use stored href from card if available, otherwise construct URL
         const contextMenu = document.getElementById('context-menu');
@@ -2298,6 +2322,12 @@ export async function handleTrackAction(
             contentBlockingSettings.blockArtist(artistObj);
             showNotification(`Blocked artist: ${artistName || 'Unknown Artist'}`);
         }
+    } else if (action === 'add-to-library' && (type === 'playlist' || type === 'user-playlist')) {
+        await db.addPlaylistToLibrary(item);
+        showNotification('Playlist added to your library');
+    } else if (action === 'remove-from-library' && (type === 'playlist' || type === 'user-playlist')) {
+        await db.removePlaylistFromLibrary(item.id || item.uuid);
+        showNotification('Playlist removed from your library');
     }
 }
 
@@ -2352,7 +2382,7 @@ async function updateContextMenuLikeState(contextMenu, contextTrack, ui) {
     }
 
     // Filter items based on type
-    contextMenu.querySelectorAll('li[data-action]').forEach((item) => {
+    for (const item of contextMenu.querySelectorAll('li[data-action]')) {
         const filter = item.dataset.typeFilter;
         if (filter) {
             const types = filter.split(',');
@@ -2385,7 +2415,37 @@ async function updateContextMenuLikeState(contextMenu, contextTrack, ui) {
             const label = item.dataset[labelKey] || item.dataset[fallbackKey] || (isLiked ? 'Unlike' : 'Like');
             setContextMenuItemLabel(item, label, SVG_HEART);
         }
-    });
+
+        if (item.dataset.action === 'hide-from-community') {
+            const isAdmin = ui?.user?.isAdmin;
+            const isPlaylist = ['playlist', 'user-playlist'].includes(type);
+            item.style.display = isAdmin && isPlaylist && !contextTrack.hiddenFromCommunity ? 'flex' : 'none';
+        }
+
+        if (item.dataset.action === 'unhide-from-community') {
+            const isAdmin = ui?.user?.isAdmin;
+            const isPlaylist = ['playlist', 'user-playlist'].includes(type);
+            item.style.display = isAdmin && isPlaylist && contextTrack.hiddenFromCommunity ? 'flex' : 'none';
+        }
+
+        if (item.dataset.action === 'add-to-library') {
+            const isPlaylist = ['playlist', 'user-playlist'].includes(type);
+            const currentUsername = localStorage.getItem('subsonic_user') || '';
+            const owner = contextTrack.ownerUsername || contextTrack.owner;
+            const isOwnedByMe = owner === currentUsername;
+            
+            // We only show "Add to Library" if it's NOT owned by us 
+            // AND not already in library as a followed playlist
+            const inLibrary = await db.getPlaylist(contextTrack.id || contextTrack.uuid);
+            item.style.display = isPlaylist && !isOwnedByMe && !inLibrary ? 'flex' : 'none';
+        }
+
+        if (item.dataset.action === 'remove-from-library') {
+            const isPlaylist = ['playlist', 'user-playlist'].includes(type);
+            const inLibrary = await db.getPlaylist(contextTrack.id || contextTrack.uuid);
+            item.style.display = isPlaylist && inLibrary && inLibrary.isFollowed ? 'flex' : 'none';
+        }
+    }
 
     const trackMixItem = contextMenu.querySelector('li[data-action="track-mix"]');
     if (trackMixItem) {

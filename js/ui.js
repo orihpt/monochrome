@@ -912,7 +912,7 @@ export class UIRenderer {
             type: 'playlist',
             id: playlist.uuid,
             href,
-            title: playlist.title,
+            title: playlist.name || playlist.title,
             subtitle: creatorHTML || `${playlist.numberOfTracks || 0} tracks`,
             imageHTML,
             actionButtonsHTML: `
@@ -920,7 +920,7 @@ export class UIRenderer {
                     ${this.createHeartIcon(false)}
                 </button>
             `,
-            extraClasses: `${isFeatured ? 'featured-playlist-card' : ''} search-result-playlist`,
+            extraClasses: `${isFeatured ? 'featured-playlist-card' : ''} ${playlist.fileBasedFeatured || playlist.owner === 'WavesMusic' || playlist.ownerUsername === 'WavesMusic' ? 'file-based-featured-playlist-card' : ''} search-result-playlist`,
             extraAttributes: `data-visibility="${escapeHtml(visibility)}"`,
             isCompact,
         });
@@ -3004,6 +3004,13 @@ export class UIRenderer {
             if (refreshSongsBtn) refreshSongsBtn.onclick = () => this.renderHomeSongs(true);
             if (refreshAlbumsBtn) refreshAlbumsBtn.onclick = () => this.renderHomeAlbums(true);
             if (refreshArtistsBtn) refreshArtistsBtn.onclick = () => this.renderHomeArtists(true);
+            const fileBasedShowAllBtn = document.getElementById('file-based-featured-playlists-show-all');
+            if (fileBasedShowAllBtn) {
+                fileBasedShowAllBtn.onclick = () => {
+                    window.history.pushState({}, '', '/file-based-featured-playlists');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                };
+            }
             if (clearRecentBtn)
                 clearRecentBtn.onclick = async () => {
                     if (confirm('Clear recent activity?')) {
@@ -3012,6 +3019,7 @@ export class UIRenderer {
                     }
                 };
 
+            await this.renderHomeFileBasedFeaturedPlaylists();
             await this.renderHomeCuratorMixes();
             await this.renderHomeEditorsPicks(false, 'home-editors-picks');
             await this.renderHomeRecent();
@@ -3178,14 +3186,33 @@ export class UIRenderer {
 
             if (featuredPlaylists.length) {
                 this.setSectionVisible(featuredEl, true);
-                featuredEl.innerHTML = featuredPlaylists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+                featuredEl.innerHTML = featuredPlaylists.map(playlist => {
+                    const pid = playlist.uuid || playlist.id;
+                    return `
+                    <div class="card featured-playlist-card" data-playlist-id="${escapeHtml(pid)}" data-href="/userplaylist/${escapeHtml(pid)}" data-visibility="featured">
+                        <div class="card-image-wrapper">
+                            ${this.getPlaylistCoverHTML(playlist, 'card-image', 'lazy')}
+                            <button class="play-button" aria-label="Play ${escapeHtml(playlist.name || playlist.title)}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">${escapeHtml(playlist.name || playlist.title)}</div>
+                            <div class="card-subtitle">
+                                ${playlist.ownerUsername ? `<button type="button" class="featured-playlist-creator" data-user-id="${escapeHtml(playlist.ownerUsername)}" data-href="/user/@${encodeURIComponent(playlist.ownerUsername)}">${escapeHtml(playlist.ownerUsername)}</button>` : `${playlist.numberOfTracks || 0} songs`}
+                            </div>
+                        </div>
+                    </div>
+                `;}).join('');
+                this.hydratePlaylistUploadedCovers(featuredEl);
             } else {
                 featuredEl.innerHTML = '';
                 this.setSectionVisible(featuredEl, false);
             }
 
             for (const playlist of featuredPlaylists) {
-                const el = featuredEl.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid))}"]`);
+                const id = playlist.uuid || playlist.id;
+                const el = featuredEl.querySelector(`[data-playlist-id="${CSS.escape(String(id))}"]`);
                 if (el) trackDataStore.set(el, playlist);
             }
         } catch (error) {
@@ -3214,14 +3241,70 @@ export class UIRenderer {
 
             this.setSectionVisible(container, true);
             container.innerHTML = playlists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+            this.hydratePlaylistUploadedCovers(container);
             for (const playlist of playlists) {
-                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid))}"]`);
+                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid || playlist.id))}"]`);
                 if (el) trackDataStore.set(el, playlist);
             }
         } catch (e) {
             console.error('Failed to load popular playlists:', e);
             container.innerHTML = '';
             this.setSectionVisible(container, false);
+        }
+    }
+
+    async getFileBasedFeaturedPlaylists() {
+        const playlists = await this.api.getFileBasedFeaturedPlaylists().catch(() => []);
+        return playlists
+            .filter((playlist) => playlist.fileBasedFeatured === true || playlist.owner === 'WavesMusic' || playlist.ownerUsername === 'WavesMusic')
+            .map((playlist) => ({
+                ...playlist,
+                uuid: playlist.uuid || playlist.id,
+                href: `/playlist/${playlist.uuid || playlist.id}`,
+            }));
+    }
+
+    async renderHomeFileBasedFeaturedPlaylists() {
+        const section = document.getElementById('home-file-based-featured-playlists-section');
+        const container = document.getElementById('home-file-based-featured-playlists');
+        if (!section || !container) return;
+
+        const playlists = await this.getFileBasedFeaturedPlaylists();
+        if (!playlists.length) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        section.style.display = '';
+        container.innerHTML = playlists.slice(0, 8).map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+        this.hydratePlaylistUploadedCovers(container);
+        for (const playlist of playlists) {
+            const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid || playlist.id))}"]`);
+            if (el) {
+                trackDataStore.set(el, playlist);
+                await this.updateLikeState(el, 'playlist', playlist.uuid || playlist.id);
+            }
+        }
+    }
+
+    async renderFileBasedFeaturedPlaylistsPage() {
+        await this.showPage('file-based-featured-playlists');
+        const container = document.getElementById('file-based-featured-playlists-page-grid');
+        if (!container) return;
+
+        container.innerHTML = this.createSkeletonCards(8, false);
+        const playlists = await this.getFileBasedFeaturedPlaylists();
+        container.innerHTML = playlists.length
+            ? playlists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('')
+            : createPlaceholder('No playlists found.');
+        this.hydratePlaylistUploadedCovers(container);
+        for (const playlist of playlists) {
+            const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.uuid || playlist.id))}"]`);
+            if (el) {
+                trackDataStore.set(el, playlist);
+                await this.updateLikeState(el, 'playlist', playlist.uuid || playlist.id);
+            }
         }
     }
 
@@ -3285,8 +3368,9 @@ export class UIRenderer {
                 return;
             }
             container.innerHTML = mixes.map((playlist) => this.createPlaylistCardHTML(playlist)).join('');
+            this.hydratePlaylistUploadedCovers(container);
             for (const playlist of mixes) {
-                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.id))}"]`);
+                const el = container.querySelector(`[data-playlist-id="${CSS.escape(String(playlist.id || playlist.uuid))}"]`);
                 if (el) trackDataStore.set(el, playlist);
             }
         } catch (error) {
@@ -4086,7 +4170,7 @@ export class UIRenderer {
         const isUser = kind === 'user';
         const isPlaylist = kind === 'playlist';
         const typeLabel = isTrack ? 'שיר' : isAlbum ? 'אלבום' : isUser ? 'משתמש' : 'אמן';
-        const id = item.id;
+        const id = item.id || item.uuid;
         const userName = item.userName || item.username || item.name || id;
         const href = isTrack
             ? `/track/${id}`
@@ -4199,12 +4283,7 @@ export class UIRenderer {
         } else if (isPlaylist) {
             title = escapeHtml(item.title || item.name || 'Playlist');
             subtitle = escapeHtml([typeLabel, item.ownerUsername || item.owner, `${item.numberOfTracks || item.songCount || 0} tracks`].filter(Boolean).join(' • '));
-            imageHTML = this.getCoverHTML(
-                item.squareImage || item.image || item.cover || item.uuid,
-                title,
-                'search-all-image',
-                isFeatured ? 'eager' : 'lazy'
-            );
+            imageHTML = this.getPlaylistCoverHTML(item, 'search-all-image', isFeatured ? 'eager' : 'lazy');
             actionHTML = `
                 <button class="play-btn card-play-btn search-all-action" data-action="play-card" data-type="playlist" data-id="${id}" title="Play">
                     ${SVG_PLAY(18)}
@@ -4213,7 +4292,7 @@ export class UIRenderer {
                     ${SVG_MENU(18)}
                 </button>
             `;
-            extraClasses = 'playlist search-result-playlist';
+            extraClasses = `playlist search-result-playlist${item.fileBasedFeatured || item.owner === 'WavesMusic' || item.ownerUsername === 'WavesMusic' ? ' file-based-featured-playlist-card' : ''}`;
             extraAttributes = `data-visibility="${escapeHtml(item.visibility || '')}"`;
         }
 
@@ -4396,7 +4475,7 @@ export class UIRenderer {
             container.innerHTML = featured.map(p => `
                 <div class="card featured-playlist-card" data-playlist-id="${escapeHtml(p.id)}" data-href="/userplaylist/${escapeHtml(p.id)}" data-visibility="featured">
                     <div class="card-image-wrapper">
-                        <img src="${p.cover || '/assets/no_album_cover.png'}" class="card-image" loading="lazy">
+                        ${this.getPlaylistCoverHTML(p, 'card-image', 'lazy')}
                         <button class="play-button" aria-label="Play ${escapeHtml(p.name)}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                         </button>
@@ -4409,6 +4488,7 @@ export class UIRenderer {
                     </div>
                 </div>
             `).join('');
+            this.hydratePlaylistUploadedCovers(container);
         } catch (e) {
             console.error('Failed to render editors picks', e);
         }
@@ -4732,6 +4812,9 @@ export class UIRenderer {
             let finalUsers = await userSearchPromise;
             if (!Array.isArray(finalUsers)) finalUsers = [];
             const normalizedQuery = query.trim().toLowerCase();
+            const fileBasedSearchPlaylists = (await this.api.getFileBasedFeaturedPlaylists().catch(() => []))
+                .filter((playlist) => String(playlist.name || playlist.title || '').toLowerCase().includes(normalizedQuery));
+            finalPlaylists = [...finalPlaylists, ...fileBasedSearchPlaylists];
             const currentUser = localStorage.getItem('subsonic_user') || '';
             const ownedPlaylists = (await db.getPlaylists(true).catch(() => []))
                 .filter((playlist) => {
@@ -4789,7 +4872,9 @@ export class UIRenderer {
                     uuid: id,
                     id,
                     visibility,
-                    href: `/userplaylist/${id}`,
+                    href: playlist.fileBasedFeatured || playlist.owner === 'WavesMusic' || playlist.ownerUsername === 'WavesMusic'
+                        ? `/playlist/${id}`
+                        : `/userplaylist/${id}`,
                 });
             }
             finalPlaylists = Array.from(playlistById.values());
@@ -4816,10 +4901,11 @@ export class UIRenderer {
                 }))
                 .sort((a, b) => b.rank - a.rank);
 
-            if (allItems.length) {
-                allContainer.innerHTML = allItems
-                    .map(({ kind, item }, index) => this.createSearchAllResultHTML(kind, item, index))
-                    .join('');
+			if (allItems.length) {
+				allContainer.innerHTML = allItems
+					.map(({ kind, item }, index) => this.createSearchAllResultHTML(kind, item, index))
+					.join('');
+                this.hydratePlaylistUploadedCovers(allContainer);
 
                 for (const { kind, item } of allItems) {
                     const selector =
@@ -4875,6 +4961,7 @@ export class UIRenderer {
             playlistsContainer.innerHTML = finalPlaylists.length
                 ? finalPlaylists.map((playlist) => this.createPlaylistCardHTML(playlist)).join('')
                 : createPlaceholder('No playlists found.');
+            this.hydratePlaylistUploadedCovers(playlistsContainer);
 
             for (const playlist of finalPlaylists) {
                 const el = playlistsContainer.querySelector(`[data-playlist-id="${playlist.uuid}"]`);
@@ -5570,6 +5657,7 @@ export class UIRenderer {
         tracklistContainer.innerHTML = `${TRACKLIST_HEADER_WITH_LIKE_COL_HTML}${this.createSkeletonTracks(10, true)}`;
 
         try {
+            document.getElementById('page-playlist')?.classList.remove('playlist-readonly');
             // Check if it's a user playlist (UUID format)
             const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(playlistId);
 
@@ -5783,6 +5871,9 @@ export class UIRenderer {
                 let apiResult = await this.api.getPlaylist(playlistId);
 
                 const { playlist, tracks } = apiResult;
+                if (playlist?.readonly || playlist?.fileBasedFeatured) {
+                    document.getElementById('page-playlist')?.classList.add('playlist-readonly');
+                }
 
                 const imageId = playlist.squareImage || playlist.image || playlist.cover;
                 if (imageId) {
@@ -5860,6 +5951,7 @@ export class UIRenderer {
                     const isLiked = await db.isFavorite('playlist', playlist.uuid);
                     playlistLikeBtn.innerHTML = this.createHeartIcon(isLiked);
                     playlistLikeBtn.classList.toggle('active', isLiked);
+                    playlistLikeBtn.classList.add('playlist-add-to-library-btn');
                     playlistLikeBtn.style.display = 'flex';
                 }
 

@@ -103,6 +103,9 @@ export function createRouter(ui) {
                 case 'library':
                     await ui.renderLibraryPage();
                     break;
+                case 'file-based-featured-playlists':
+                    await ui.renderFileBasedFeaturedPlaylistsPage();
+                    break;
                 case 'recent':
                     await ui.renderRecentPage();
                     break;

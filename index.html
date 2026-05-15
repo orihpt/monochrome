@@ -335,20 +335,6 @@
         <div class="modal-content">
             <h3 id="playlist-modal-title">יצירת פלייליסט</h3>
             <div class="playlist-modal-grid">
-                <section class="playlist-cover-picker" aria-label="Playlist cover picker">
-                    <div class="playlist-cover-picker-header">תמונה לפלייליסט</div>
-                    <div id="playlist-cover-options" class="playlist-cover-options"></div>
-                    <div id="playlist-cover-color-controls" class="playlist-cover-color-controls" hidden>
-                        <label class="playlist-cover-color-picker">
-                            <span>צבע א׳</span>
-                            <input type="color" id="playlist-cover-color-a" value="#00a6c8" />
-                        </label>
-                        <label class="playlist-cover-color-picker">
-                            <span>צבע ב׳</span>
-                            <input type="color" id="playlist-cover-color-b" value="#ff8f98" />
-                        </label>
-                    </div>
-                </section>
                 <div class="playlist-modal-fields">
             <input type="text" id="playlist-name-input" class="template-input" placeholder="שם הפלייליסט"
                 style="margin: 1rem 0" />
@@ -407,6 +393,20 @@
                 <input type="checkbox" id="playlist-public-toggle" style="display: none" />
             </div>
                 </div>
+                <section class="playlist-cover-picker" aria-label="Playlist cover picker">
+                    <div class="playlist-cover-picker-header">תמונה לפלייליסט</div>
+                    <div id="playlist-cover-options" class="playlist-cover-options"></div>
+                    <div id="playlist-cover-color-controls" class="playlist-cover-color-controls" hidden>
+                        <label class="playlist-cover-color-picker">
+                            <span>צבע א׳</span>
+                            <input type="color" id="playlist-cover-color-a" value="#00a6c8" />
+                        </label>
+                        <label class="playlist-cover-color-picker">
+                            <span>צבע ב׳</span>
+                            <input type="color" id="playlist-cover-color-b" value="#ff8f98" />
+                        </label>
+                    </div>
+                </section>
             </div>
             <br />
             <div id="curator-import-section" style="
@@ -1429,6 +1429,18 @@
                     </div>
 
                     <div id="home-content" style="display: none">
+                        <section class="content-section home-file-based-featured-playlists-section"
+                            id="home-file-based-featured-playlists-section" data-section-name="file based featured playlists"
+                            style="display: none">
+                            <div class="section-header-row">
+                                <h2 class="section-title" style="margin-bottom: 0">מהמערכת</h2>
+                                <button class="btn-secondary file-based-featured-playlists-show-all"
+                                    id="file-based-featured-playlists-show-all" style="padding: 4px 12px">
+                                    הצג הכל
+                                </button>
+                            </div>
+                            <div class="card-grid" id="home-file-based-featured-playlists"></div>
+                        </section>
                         <section class="content-section" id="home-curator-mixes-section" style="display: none">
                             <div style="
                                         display: flex;
@@ -1743,6 +1755,11 @@
                 <div class="search-tab-content" id="search-tab-users">
                     <div class="card-grid" id="search-users-container"></div>
                 </div>
+            </div>
+
+            <div id="page-file-based-featured-playlists" class="page file-based-featured-playlists-page">
+                <h2 class="section-title">מהמערכת</h2>
+                <div class="card-grid" id="file-based-featured-playlists-page-grid"></div>
             </div>
 
             <div id="page-library" class="page">

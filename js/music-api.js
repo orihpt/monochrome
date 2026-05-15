@@ -218,6 +218,19 @@ export class MusicAPI {
         return null;
     }
 
+    async getPlaylists(provider = null) {
+        const api = this.getAPI(provider);
+        if (typeof api.getPlaylists === 'function') return api.getPlaylists();
+        return [];
+    }
+
+    async getFileBasedFeaturedPlaylists(provider = null) {
+        const api = this.getAPI(provider);
+        if (typeof api.getFileBasedFeaturedPlaylists === 'function') return api.getFileBasedFeaturedPlaylists();
+        const playlists = await this.getPlaylists(provider);
+        return playlists.filter((playlist) => playlist.fileBasedFeatured === true);
+    }
+
     async getMix() {
         return null;
     }

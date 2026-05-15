@@ -1403,6 +1403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 showNotification('Playlist changes saved locally. They will sync when the server is available.');
                             }
                             window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
+                            window.dispatchEvent(new CustomEvent('library-changed'));
                             UIRenderer.instance.renderLibraryPage();
                             // Also update current page if we are on it
                             if (window.location.pathname === `/userplaylist/${editingId}`) {
@@ -1927,6 +1928,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             showNotification('Playlist saved locally. It will sync when the server is available.');
                         }
                         window.dispatchEvent(new CustomEvent('refresh-home-editors-picks'));
+                        window.dispatchEvent(new CustomEvent('library-changed'));
                         UIRenderer.instance.renderLibraryPage();
                         modal.classList.remove('active');
                     });
@@ -3070,7 +3072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : '';
 
             return `
-                <a class="sidebar-library-item${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}" data-no-translate>
+                <a class="sidebar-library-item${item.type === 'playlist' ? ' sidebar-playlist-item' : ''}${isActive ? ' active' : ''}${item.isPinned ? ' pinned' : ''}" href="${item.href}" data-type="${item.type}" data-id="${item.id}" data-sidebar-tooltip="${tooltipName}" aria-label="${tooltipName}" data-no-translate>
                     ${coverHTML}
                     <div class="sidebar-library-item-info">
                         <span class="sidebar-library-item-name">${itemName}</span>

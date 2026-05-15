@@ -265,8 +265,8 @@ export class SubsonicAPI {
             numberOfTracks: songCount,
             songCount: songCount,
             duration: duration,
-            owner: playlist.owner || playlist.ownername || playlist.owner_name,
-            ownerUsername: playlist.owner || playlist.ownername || playlist.owner_name,
+            owner: playlist.owner || playlist.ownerName || playlist.ownername || playlist.owner_name,
+            ownerUsername: playlist.owner || playlist.ownerName || playlist.ownername || playlist.owner_name,
             visibility: visibility,
             public: isPublic,
             coverType: coverType,
@@ -283,6 +283,7 @@ export class SubsonicAPI {
                   }
                 : undefined,
             curatorPinned: playlist.curatorPinned === true || playlist.curatorPinned === 'true' || playlist.curatorpinned === true,
+            fileBasedFeatured: playlist.fileBasedFeatured === true || playlist.fileBasedFeatured === 'true' || playlist.filebasedfeatured === true || playlist.filebasedfeatured === 'true' || playlist.file_based_featured === true || playlist.ownerName === 'WavesMusic' || playlist.ownername === 'WavesMusic',
             readonly: playlist.readonly === true || playlist.readonly === 'true',
             isCuratorPlaylist: (playlist.owner || playlist.ownername) === 'wavesmusic_curator',
             hiddenFromCommunity: playlist.hiddenFromCommunity === true || playlist.hiddenFromCommunity === 'true' || playlist.hidden_from_community === true,
@@ -496,11 +497,12 @@ export class SubsonicAPI {
             `query=${encodeURIComponent(query)}&artistCount=12&albumCount=12&songCount=50`
         );
         const result = res?.searchResult3 || {};
+        const playlistsResult = await this.searchPlaylists(query).catch(() => ({ items: [] }));
         const response = {
             tracks: { items: (result.song || []).map(s => this.prepareTrack(s)).filter(Boolean) },
             albums: { items: (result.album || []).map(a => this.prepareAlbum(a)).filter(Boolean) },
             artists: { items: (result.artist || []).map(a => this.prepareArtist(a)).filter(Boolean) },
-            playlists: { items: (result.playlist || []).map(p => this.preparePlaylist(p)).filter(Boolean) },
+            playlists: { items: playlistsResult.items || [] },
             videos: { items: [] },
         };
 
@@ -1059,8 +1061,14 @@ export class SubsonicAPI {
     async searchPlaylists(query) {
         // No native playlist search in Subsonic; return all matching by name
         try {
-            const res = await this.fetchAPI('getPlaylists');
-            const playlists = res?.playlists?.playlist || [];
+            let playlists = [];
+            try {
+                const nativePlaylists = await this.fetchNative('/api/playlist/');
+                if (Array.isArray(nativePlaylists)) playlists = nativePlaylists;
+            } catch {
+                const res = await this.fetchAPI('getPlaylists');
+                playlists = res?.playlists?.playlist || [];
+            }
             const q = query.toLowerCase();
             return {
                 items: playlists
@@ -1071,6 +1079,34 @@ export class SubsonicAPI {
         } catch {
             return { items: [] };
         }
+    }
+
+    async getPlaylists() {
+        const res = await this.fetchAPI('getPlaylists');
+        this.throwIfSubsonicError(res);
+        const playlists = res?.playlists?.playlist || [];
+        return playlists.map((playlist) => this.preparePlaylist(playlist)).filter(Boolean);
+    }
+
+    async getFileBasedFeaturedPlaylists() {
+        try {
+            const playlists = await this.fetchNative('/api/playlist/');
+            if (Array.isArray(playlists)) {
+                return playlists.map((playlist) => this.preparePlaylist(playlist)).filter((playlist) =>
+                    playlist?.fileBasedFeatured === true ||
+                    playlist?.owner === 'WavesMusic' ||
+                    playlist?.ownerUsername === 'WavesMusic'
+                );
+            }
+        } catch (error) {
+            console.warn('Native file-based playlist lookup failed:', error);
+        }
+        const playlists = await this.getPlaylists();
+        return playlists.filter((playlist) =>
+            playlist.fileBasedFeatured === true ||
+            playlist.owner === 'WavesMusic' ||
+            playlist.ownerUsername === 'WavesMusic'
+        );
     }
 
     async getPlaylist(id) {
